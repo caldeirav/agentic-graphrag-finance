@@ -19,6 +19,12 @@ htmlcov/
 data/
 mlruns/
 mlflow.db
+mlflow.db-journal
+mlflow.db-wal
+mlflow.db-shm
+# Malformed MLflow dirs from legacy bash-style tracking_uri (literal folder names)
+/${MLFLOW*
+mlruns[}]/
 reports/
 *.graphml.bak
 

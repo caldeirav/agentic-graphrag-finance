@@ -1,5 +1,5 @@
-"""Load .env before CLI or pipeline imports that read os.environ."""
+"""Load .env and configure MLflow before agent-query imports."""
 
-from dotenv import load_dotenv
+from tracing.bootstrap_env import bootstrap_env
 
-load_dotenv()
+bootstrap_env()

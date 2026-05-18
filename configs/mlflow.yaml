@@ -1,4 +1,4 @@
-# Override via MLFLOW_TRACKING_URI in .env (default ./mlruns)
-tracking_uri: ./mlruns
+# Override via MLFLOW_TRACKING_URI in .env (recommended: sqlite:///mlflow.db)
+tracking_uri: sqlite:///mlflow.db
 experiment_name: sec-disclosure-rag
 autolog_langchain: true

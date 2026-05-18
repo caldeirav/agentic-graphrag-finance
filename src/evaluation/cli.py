@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 
+import tracing.bootstrap_env  # noqa: F401
 from evaluation.registry import default_registry
 from evaluation.runner import BenchmarkSuite, EvaluationRunner
 from retrieval.service import QueryService

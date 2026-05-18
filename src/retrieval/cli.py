@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 
+import tracing.bootstrap_env  # noqa: F401
 from contracts.query import QueryRequest
 from retrieval.service import QueryService
 

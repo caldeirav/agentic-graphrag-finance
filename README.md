@@ -37,7 +37,7 @@ Governed by [.specify/memory/constitution.md](.specify/memory/constitution.md).
 ```bash
 uv sync --locked
 cp .env.example .env
-# Edit .env: SEC_API_KEY, LM_STUDIO_*, GOOGLE_API_KEY, MLFLOW_TRACKING_URI=./mlruns
+# Edit .env: SEC_API_KEY, LM_STUDIO_*, GOOGLE_API_KEY, MLFLOW_TRACKING_URI=sqlite:///mlflow.db
 ```
 
 ## CLI reference
@@ -86,8 +86,10 @@ USE_MOCK_LLM=1 USE_MOCK_JUDGE=1 uv run sec-benchmark \
 ### MLflow UI
 
 ```bash
-uv run mlflow ui --backend-store-uri ./mlruns
+uv run mlflow ui --backend-store-uri sqlite:///mlflow.db
 ```
+
+Tracking defaults to **SQLite** (`mlflow.db`, gitignored). Do not use bash-style values like `${MLFLOW_TRACKING_URI:-./mlruns}` in YAML or `.env` — they create a literal `${MLFLOW_TRACKING_URI:-./` folder. Use `sqlite:///mlflow.db` or an absolute `file://` path.
 
 ## Data layout
 
@@ -99,7 +101,8 @@ uv run mlflow ui --backend-store-uri ./mlruns
 | `data/parsed/` | `ParsedDocument` JSON |
 | `data/graphs/` | GraphML + manifests |
 | `data/benchmarks/` | Benchmark JSONL |
-| `mlruns/` | MLflow runs (gitignored) |
+| `mlflow.db` | MLflow tracking store (SQLite, gitignored) |
+| `mlruns/` | Legacy file-store runs if you set `MLFLOW_TRACKING_URI=./mlruns` (gitignored) |
 
 ## Testing
 

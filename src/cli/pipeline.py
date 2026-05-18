@@ -6,8 +6,6 @@ import json
 import time
 from pathlib import Path
 
-import mlflow
-
 from contracts.query import QueryRequest
 from graph.builder import build_snapshot
 from graph.store import save_snapshot
@@ -15,6 +13,7 @@ from ingestion import fetch_filing
 from models.ingestion import CLIAskRequest, CLIAskResult
 from parsing.sec_download_adapter import parse_from_cache, write_parsed_document
 from retrieval.service import QueryService
+from tracing.mlflow_langgraph import setup_mlflow
 
 
 def _ms(start: float) -> int:
@@ -48,6 +47,9 @@ def run_ask_pipeline(request: CLIAskRequest) -> CLIAskResult:
     timings["graph"] = _ms(t2)
 
     t3 = time.perf_counter()
+    import mlflow
+
+    setup_mlflow()
     svc = QueryService(graph_base_dir=Path("data/graphs"), issuer_id=issuer)
     resp = svc.answer(
         QueryRequest(

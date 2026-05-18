@@ -13,26 +13,48 @@ import yaml
 
 from models.query import TrajectoryRecord
 
+_DEFAULT_TRACKING_URI = "sqlite:///mlflow.db"
+_CONFIGURED = False
+
+# Legacy bash-style defaults and broken paths that must never be used as URIs.
+_INVALID_MARKERS = ("${", "mlruns}", ":-./mlruns", "MLFLOW_TRACKING_URI")
+
 
 def load_mlflow_config(config_path: Path | None = None) -> dict:
     path = config_path or Path("configs/mlflow.yaml")
     if not path.exists():
-        return {"tracking_uri": "./mlruns", "experiment_name": "sec-disclosure-rag"}
+        return {"tracking_uri": _DEFAULT_TRACKING_URI, "experiment_name": "sec-disclosure-rag"}
     return yaml.safe_load(path.read_text()) or {}
 
 
-def _resolve_tracking_uri(cfg: dict) -> str:
-    """Prefer MLFLOW_TRACKING_URI env; ignore bash-style placeholders in YAML."""
-    uri = os.environ.get("MLFLOW_TRACKING_URI") or cfg.get("tracking_uri", "./mlruns")
-    if isinstance(uri, str) and uri.startswith("${"):
-        return "./mlruns"
+def resolve_tracking_uri(cfg: dict | None = None) -> str:
+    """Resolve a safe MLflow tracking URI (env > yaml > sqlite default)."""
+    cfg = cfg or load_mlflow_config()
+    raw = os.environ.get("MLFLOW_TRACKING_URI") or cfg.get("tracking_uri") or _DEFAULT_TRACKING_URI
+    uri = str(raw).strip().strip('"').strip("'")
+
+    if not uri or any(marker in uri for marker in _INVALID_MARKERS):
+        return _DEFAULT_TRACKING_URI
+
+    # Relative filesystem paths → absolute file:// URIs (avoids cwd-dependent ./mlruns folders)
+    if uri.startswith("./") or uri == "mlruns":
+        rel = uri[2:] if uri.startswith("./") else uri
+        abs_path = (Path.cwd() / rel).resolve()
+        return abs_path.as_uri()
+
+    if uri.endswith("/mlruns") or uri.endswith("\\mlruns"):
+        return Path(uri).resolve().as_uri()
+
     return uri
 
 
-def setup_mlflow() -> str:
-    cfg = load_mlflow_config()
-    uri = _resolve_tracking_uri(cfg)
+def configure_mlflow() -> str:
+    """Idempotent: set tracking URI in os.environ and MLflow before any runs."""
+    global _CONFIGURED
+    uri = resolve_tracking_uri()
+    os.environ["MLFLOW_TRACKING_URI"] = uri
     mlflow.set_tracking_uri(uri)
+    cfg = load_mlflow_config()
     experiment = cfg.get("experiment_name", "sec-disclosure-rag")
     mlflow.set_experiment(experiment)
     if cfg.get("autolog_langchain", True):
@@ -40,7 +62,15 @@ def setup_mlflow() -> str:
             mlflow.langchain.autolog()
         except Exception:
             pass
+    _CONFIGURED = True
     return uri
+
+
+def setup_mlflow() -> str:
+    """Configure MLflow if not already configured; return tracking URI."""
+    if not _CONFIGURED:
+        return configure_mlflow()
+    return mlflow.get_tracking_uri()
 
 
 @contextmanager
