@@ -28,14 +28,14 @@ description: "Task list for live disclosure ingestion and agent-query CLI"
 
 **Purpose**: Phase P0 — `sec-api`, `SEC_API_KEY`, `agent-query` entrypoint
 
-- [ ] T001 Add `sec-api` and `typer` via `uv add sec-api typer` and commit updated `uv.lock`
-- [ ] T002 Add `SEC_API_KEY` and `SEC_API_REQUESTS_PER_SECOND` to `.env.example` with comments
-- [ ] T003 Register `agent-query = "cli.main:app"` in `pyproject.toml` `[project.scripts]` and add `src/ingestion`, `src/cli` to hatch wheel packages
-- [ ] T004 [P] Scaffold `src/ingestion/` package (`__init__.py`, `settings.py` stub) and `src/cli/` (`__init__.py`, `main.py` stub, `commands/`)
-- [ ] T005 [P] Create `data/raw/sec_downloads/.gitkeep` and `data/cache/sec-api/.gitkeep`; document layout in `README.md`
-- [ ] T006 [P] Add `configs/ingestion.yaml` for downloads root and rate-limit defaults
-- [ ] T007 Update CI in `.github/workflows/ci.yml` to set `SEC_API_KEY=test-mock` for ingestion/cli test jobs
-- [ ] T008 [P] Add `tests/ingestion/` and `tests/cli/` package init files
+- [x] T001 Add `sec-api` and `typer` via `uv add sec-api typer` and commit updated `uv.lock`
+- [x] T002 Add `SEC_API_KEY` and `SEC_API_REQUESTS_PER_SECOND` to `.env.example` with comments
+- [x] T003 Register `agent-query = "cli.main:app"` in `pyproject.toml` `[project.scripts]` and add `src/ingestion`, `src/cli` to hatch wheel packages
+- [x] T004 [P] Scaffold `src/ingestion/` package (`__init__.py`, `settings.py` stub) and `src/cli/` (`__init__.py`, `main.py` stub, `commands/`)
+- [x] T005 [P] Create `data/raw/sec_downloads/.gitkeep` and `data/cache/sec-api/.gitkeep`; document layout in `README.md`
+- [x] T006 [P] Add `configs/ingestion.yaml` for downloads root and rate-limit defaults
+- [x] T007 Update CI in `.github/workflows/ci.yml` to set `SEC_API_KEY=test-mock` for ingestion/cli test jobs
+- [x] T008 [P] Add `tests/ingestion/` and `tests/cli/` package init files
 
 **Checkpoint**: `uv sync --locked` succeeds; `uv run agent-query --help` runs (empty subcommands OK)
 
@@ -47,12 +47,12 @@ description: "Task list for live disclosure ingestion and agent-query CLI"
 
 **⚠️ CRITICAL**: No user story work until this phase is complete
 
-- [ ] T009 Add ingestion Pydantic models (`FilingResolution`, `XBRLArtifact`, `XBRLArtifactManifest`, `CacheEntry`, `FetchJob`, `IssuerIdentifierInput`) in `src/models/ingestion.py` and export from `src/models/__init__.py`
-- [ ] T010 Implement `src/ingestion/settings.py` with `require_sec_api_key()` and `IngestionSettings` via env (`SEC_API_KEY`, `SEC_DOWNLOADS_ROOT`)
-- [ ] T011 Implement `get_sec_client()` factory wrapping sec-api SDK in `src/ingestion/sec_client.py` (skeleton only, no fetch yet)
-- [ ] T012 [P] Add `tests/conftest_sec_api.py` with mock sec-api fixtures and sample `manifest.json` under `tests/fixtures/sec_downloads/`
-- [ ] T013 [P] Add contract test `tests/contract/test_ingestion_imports.py` (ingestion ↛ graph, retrieval, evaluation)
-- [ ] T014 [P] Add unit test `tests/unit/test_ingestion_settings.py` for missing-key error message
+- [x] T009 Add ingestion Pydantic models (`FilingResolution`, `XBRLArtifact`, `XBRLArtifactManifest`, `CacheEntry`, `FetchJob`, `IssuerIdentifierInput`) in `src/models/ingestion.py` and export from `src/models/__init__.py`
+- [x] T010 Implement `src/ingestion/settings.py` with `require_sec_api_key()` and `IngestionSettings` via env (`SEC_API_KEY`, `SEC_DOWNLOADS_ROOT`)
+- [x] T011 Implement `get_sec_client()` factory wrapping sec-api SDK in `src/ingestion/sec_client.py` (skeleton only, no fetch yet)
+- [x] T012 [P] Add `tests/conftest_sec_api.py` with mock sec-api fixtures and sample `manifest.json` under `tests/fixtures/sec_downloads/`
+- [x] T013 [P] Add contract test `tests/contract/test_ingestion_imports.py` (ingestion ↛ graph, retrieval, evaluation)
+- [x] T014 [P] Add unit test `tests/unit/test_ingestion_settings.py` for missing-key error message
 
 **Checkpoint**: `require_sec_api_key()` fails clearly without env; import boundary tests pass
 
@@ -66,15 +66,15 @@ description: "Task list for live disclosure ingestion and agent-query CLI"
 
 ### Implementation for User Story 1
 
-- [ ] T015 [P] [US1] Implement ticker→CIK resolution with `data/cache/sec-api/ticker_map.json` cache in `src/ingestion/sec_client.py`
-- [ ] T016 [US1] Implement latest-filing query for 10-K/10-Q by CIK, ticker, or accession in `src/ingestion/sec_client.py`
-- [ ] T017 [US1] Implement `resolve_identifier()` public API in `src/ingestion/__init__.py` per `contracts/ingestion-boundary.md`
-- [ ] T018 [US1] Implement `xbrl_downloader.py` to list and download instance/taxonomy artifacts via sec-api
-- [ ] T019 [US1] Write `manifest.json` (`XBRLArtifactManifest`) under `data/raw/sec_downloads/{ticker}/{accession}/`
-- [ ] T020 [US1] Implement `validators.py` instance + taxonomy completeness checks in `src/ingestion/validators.py`
-- [ ] T021 [US1] Expose `fetch_filing()` orchestrating resolve → download → validate in `src/ingestion/__init__.py`
-- [ ] T022 [P] [US1] Add unit tests for resolution failures (unknown ticker) in `tests/ingestion/test_sec_client.py`
-- [ ] T023 [P] [US1] Add integration test with mocked sec-api responses in `tests/ingestion/test_xbrl_downloader.py`
+- [x] T015 [P] [US1] Implement ticker→CIK resolution with `data/cache/sec-api/ticker_map.json` cache in `src/ingestion/sec_client.py`
+- [x] T016 [US1] Implement latest-filing query for 10-K/10-Q by CIK, ticker, or accession in `src/ingestion/sec_client.py`
+- [x] T017 [US1] Implement `resolve_identifier()` public API in `src/ingestion/__init__.py` per `contracts/ingestion-boundary.md`
+- [x] T018 [US1] Implement `xbrl_downloader.py` to list and download instance/taxonomy artifacts via sec-api
+- [x] T019 [US1] Write `manifest.json` (`XBRLArtifactManifest`) under `data/raw/sec_downloads/{ticker}/{accession}/`
+- [x] T020 [US1] Implement `validators.py` instance + taxonomy completeness checks in `src/ingestion/validators.py`
+- [x] T021 [US1] Expose `fetch_filing()` orchestrating resolve → download → validate in `src/ingestion/__init__.py`
+- [x] T022 [P] [US1] Add unit tests for resolution failures (unknown ticker) in `tests/ingestion/test_sec_client.py`
+- [x] T023 [P] [US1] Add integration test with mocked sec-api responses in `tests/ingestion/test_xbrl_downloader.py`
 
 **Checkpoint**: Programmatic fetch works against mocks; live fetch verified manually with real `SEC_API_KEY`
 
@@ -88,14 +88,14 @@ description: "Task list for live disclosure ingestion and agent-query CLI"
 
 ### Implementation for User Story 2
 
-- [ ] T024 [US2] Implement `cache_manager.py` with atomic temp-dir + rename writes in `src/ingestion/cache_manager.py`
-- [ ] T025 [US2] Implement per-artifact and package content hashing; persist hashes in `manifest.json`
-- [ ] T026 [US2] Integrate cache lookup into `fetch_filing()` with `force_refresh` flag
-- [ ] T027 [US2] Add `src/parsing/sec_download_adapter.py` to read `CacheEntry` and produce `ParsedDocument` via Docling
-- [ ] T028 [US2] Extend `src/parsing/docling_pipeline.py` to locate primary instance XML from manifest roles
-- [ ] T029 [P] [US2] Add contract test ingestion→parsing in `tests/contract/test_ingestion_parsing.py`
-- [ ] T030 [P] [US2] Add integration test cache hit/miss in `tests/integration/test_cache_roundtrip.py`
-- [ ] T031 [US2] Wire `graph.cli build` to accept `--ticker` path under `data/parsed/{ticker}/` in `src/graph/cli.py`
+- [x] T024 [US2] Implement `cache_manager.py` with atomic temp-dir + rename writes in `src/ingestion/cache_manager.py`
+- [x] T025 [US2] Implement per-artifact and package content hashing; persist hashes in `manifest.json`
+- [x] T026 [US2] Integrate cache lookup into `fetch_filing()` with `force_refresh` flag
+- [x] T027 [US2] Add `src/parsing/sec_download_adapter.py` to read `CacheEntry` and produce `ParsedDocument` via Docling
+- [x] T028 [US2] Extend `src/parsing/docling_pipeline.py` to locate primary instance XML from manifest roles
+- [x] T029 [P] [US2] Add contract test ingestion→parsing in `tests/contract/test_ingestion_parsing.py`
+- [x] T030 [P] [US2] Add integration test cache hit/miss in `tests/integration/test_cache_roundtrip.py`
+- [x] T031 [US2] Wire `graph.cli build` to accept `--ticker` path under `data/parsed/{ticker}/` in `src/graph/cli.py`
 
 **Checkpoint**: Parse + graph build succeeds from `sec_downloads/` without manual `sec-ingest`
 
@@ -109,17 +109,17 @@ description: "Task list for live disclosure ingestion and agent-query CLI"
 
 ### Implementation for User Story 3
 
-- [ ] T032 [US3] Implement `src/cli/pipeline.py` with staged orchestration and `timings_ms` per `contracts/agent-query-cli.md`
-- [ ] T033 [US3] Implement `src/cli/commands/ask.py` with `--ticker`, `--cik`, `--accession`, `--query`, `--form`, `--force-refresh`, `--json`
-- [ ] T034 [US3] Implement identifier conflict validation (ticker vs CIK mismatch) in `src/cli/commands/ask.py`
-- [ ] T035 [US3] Integrate `QueryService` from `src/retrieval/service.py` in ask pipeline (no orchestration imports)
-- [ ] T036 [US3] Implement human-readable and JSON stdout formatters in `src/cli/commands/ask.py`
-- [ ] T037 [US3] Implement `src/cli/commands/test.py` with structural graph thresholds (`--min-sections`, `--min-chunk-tables`)
-- [ ] T038 [US3] Wire Typer app in `src/cli/main.py` with `ask` and `test` subcommands
-- [ ] T039 [US3] Add MLflow parent run metadata (`ticker`, `accession`) in `src/cli/pipeline.py` via `tracing/mlflow_langgraph.py`
-- [ ] T040 [P] [US3] Add contract test CLI does not import `retrieval.orchestration` in `tests/contract/test_cli_imports.py`
-- [ ] T041 [P] [US3] Add integration test `agent-query ask` with mocks in `tests/integration/test_agent_query_ask.py`
-- [ ] T042 [P] [US3] Add integration test `agent-query test` in `tests/integration/test_agent_query_test.py`
+- [x] T032 [US3] Implement `src/cli/pipeline.py` with staged orchestration and `timings_ms` per `contracts/agent-query-cli.md`
+- [x] T033 [US3] Implement `src/cli/commands/ask.py` with `--ticker`, `--cik`, `--accession`, `--query`, `--form`, `--force-refresh`, `--json`
+- [x] T034 [US3] Implement identifier conflict validation (ticker vs CIK mismatch) in `src/cli/commands/ask.py`
+- [x] T035 [US3] Integrate `QueryService` from `src/retrieval/service.py` in ask pipeline (no orchestration imports)
+- [x] T036 [US3] Implement human-readable and JSON stdout formatters in `src/cli/commands/ask.py`
+- [x] T037 [US3] Implement `src/cli/commands/test.py` with structural graph thresholds (`--min-sections`, `--min-chunk-tables`)
+- [x] T038 [US3] Wire Typer app in `src/cli/main.py` with `ask` and `test` subcommands
+- [x] T039 [US3] Add MLflow parent run metadata (`ticker`, `accession`) in `src/cli/pipeline.py` via `tracing/mlflow_langgraph.py`
+- [x] T040 [P] [US3] Add contract test CLI does not import `retrieval.orchestration` in `tests/contract/test_cli_imports.py`
+- [x] T041 [P] [US3] Add integration test `agent-query ask` with mocks in `tests/integration/test_agent_query_ask.py`
+- [x] T042 [P] [US3] Add integration test `agent-query test` in `tests/integration/test_agent_query_test.py`
 
 **Checkpoint**: End-to-end `agent-query ask` succeeds on mock path; live path validated with SEC_API_KEY + LM Studio
 
@@ -129,12 +129,12 @@ description: "Task list for live disclosure ingestion and agent-query CLI"
 
 **Purpose**: Documentation, observability, and hardening
 
-- [ ] T043 [P] Update `README.md` with `agent-query` quickstart and `SEC_API_KEY` setup
-- [ ] T044 Align `specs/002-live-disclosure-cli/quickstart.md` with implemented CLI flags
-- [ ] T045 [P] Add structured logging for fetch/cache operations in `src/ingestion/cache_manager.py`
-- [ ] T046 [P] Add retry/backoff on sec-api 429/5xx in `src/ingestion/sec_client.py`
-- [ ] T047 Add optional `--check-registry` flag to `agent-query test` reading threshold JSON from `specs/002-live-disclosure-cli/contracts/`
-- [ ] T048 Run full test suite and fix any layer import regressions
+- [x] T043 [P] Update `README.md` with `agent-query` quickstart and `SEC_API_KEY` setup
+- [x] T044 Align `specs/002-live-disclosure-cli/quickstart.md` with implemented CLI flags
+- [x] T045 [P] Add structured logging for fetch/cache operations in `src/ingestion/cache_manager.py`
+- [x] T046 [P] Add retry/backoff on sec-api 429/5xx in `src/ingestion/sec_client.py`
+- [x] T047 Add optional `--check-registry` flag to `agent-query test` reading threshold JSON from `specs/002-live-disclosure-cli/contracts/`
+- [x] T048 Run full test suite and fix any layer import regressions
 
 ---
 

@@ -10,6 +10,7 @@ import pytest
 
 from graph.builder import build_snapshot
 from models.filing import FilingRef, SectionBlock, TableBlock
+from models.ingestion import FilingResolution, XBRLArtifact, XBRLArtifactManifest, XBRLArtifactRole
 from models.parsing import ParsedDocument
 from parsing.docling_pipeline import PARSER_VERSION
 
@@ -18,6 +19,18 @@ from parsing.docling_pipeline import PARSER_VERSION
 def mock_llm_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("USE_MOCK_LLM", os.environ.get("USE_MOCK_LLM", "1"))
     monkeypatch.setenv("USE_MOCK_JUDGE", os.environ.get("USE_MOCK_JUDGE", "1"))
+
+
+@pytest.fixture(autouse=True)
+def sec_api_mock_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SEC_API_KEY", os.environ.get("SEC_API_KEY", "test-mock"))
+    downloads = os.environ.get("SEC_DOWNLOADS_ROOT", "data/raw/sec_downloads")
+    monkeypatch.setenv("SEC_DOWNLOADS_ROOT", downloads)
+    from ingestion import settings
+
+    settings.get_settings.cache_clear()
+    yield
+    settings.get_settings.cache_clear()
 
 
 @pytest.fixture
@@ -65,3 +78,34 @@ def sample_graph_snapshot(sample_parsed_document: ParsedDocument):
 @pytest.fixture
 def fixtures_dir() -> Path:
     return Path(__file__).parent / "fixtures"
+
+
+@pytest.fixture
+def fixtures_downloads_root() -> Path:
+    return Path(__file__).parent / "fixtures" / "sec_downloads"
+
+
+@pytest.fixture
+def sample_resolution() -> FilingResolution:
+    return FilingResolution(
+        ticker="AAPL",
+        cik="0000320193",
+        accession="0000320193-24-000123",
+        form_type="10-K",
+        filed_at=date(2024, 11, 1),
+        period_end=date(2024, 9, 28),
+        sec_api_filing_url="https://sec.gov/mock",
+    )
+
+
+@pytest.fixture
+def sample_manifest(sample_resolution: FilingResolution) -> XBRLArtifactManifest:
+    acc = sample_resolution.accession.replace("-", "")
+    return XBRLArtifactManifest(
+        resolution=sample_resolution,
+        artifacts=[
+            XBRLArtifact(filename=f"{acc}_htm.xml", role=XBRLArtifactRole.INSTANCE),
+            XBRLArtifact(filename=f"{acc}.xsd", role=XBRLArtifactRole.SCHEMA),
+        ],
+        complete=True,
+    )

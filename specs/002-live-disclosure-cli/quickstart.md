@@ -34,11 +34,9 @@ uv run python -c "from ingestion.settings import require_sec_api_key; require_se
 
 ```bash
 uv run python -c "
-from ingestion.sec_client import resolve_ticker
-from ingestion.xbrl_downloader import fetch_package
-r = resolve_ticker('AAPL')
-entry = fetch_package(r, form_type='10-K', latest=True)
-print(entry.local_path, entry.parse_ready)
+from ingestion import fetch_filing
+entry = fetch_filing(ticker='AAPL', form_type='10-K')
+print(entry.local_path, entry.parse_ready, entry.cache_hit)
 "
 ```
 

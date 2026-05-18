@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 
 from models.enums import OperationClass
-from models.query import AnswerPackage, EvidenceChunk, MacroPlan
+from models.query import AnswerPackage
 
 
 class GroundTruth(BaseModel):

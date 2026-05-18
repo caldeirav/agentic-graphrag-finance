@@ -14,9 +14,23 @@ from models.filing import (
     SectionBlock,
     TableBlock,
 )
+from models.ingestion import XBRLArtifactManifest, XBRLArtifactRole
 from models.parsing import ParsedDocument
 
 PARSER_VERSION = "docling-xbrl-0.1.0"
+
+
+def find_primary_instance_path(root: Path, manifest: XBRLArtifactManifest) -> Path:
+    """Locate primary XBRL instance XML from manifest roles."""
+    for art in manifest.artifacts:
+        if art.role == XBRLArtifactRole.INSTANCE:
+            path = root / art.filename
+            if path.exists():
+                return path
+    for path in sorted(root.glob("*.xml")):
+        if path.is_file():
+            return path
+    raise FileNotFoundError(f"No instance XML under {root}")
 
 
 def load_docling_config(config_path: Path | None = None) -> dict:
@@ -97,7 +111,7 @@ def parse_filing_path(
     raw = path.read_bytes()
     content_hash = _content_hash(raw)
 
-    if use_docling and path.suffix.lower() in {".pdf", ".html", ".htm", ".xhtml"}:
+    if use_docling and path.suffix.lower() in {".pdf", ".html", ".htm", ".xhtml", ".xml"}:
         try:
             from docling.document_converter import DocumentConverter
 
