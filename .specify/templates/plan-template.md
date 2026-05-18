@@ -40,7 +40,17 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+Reference: `.specify/memory/constitution.md` (Agentic GraphRAG Finance)
+
+| Principle | Gate (pass = explicit evidence in plan or design artifacts) |
+|-----------|--------------------------------------------------------------|
+| **I. Data Integrity & Grounding** | SEC source artifacts identified; no ungrounded LLM outputs in critical path; fail-closed strategy for unverified extractions |
+| **II. Structural Semantics Preservation** | Parser design preserves tables, footnotes, hierarchy; no undifferentiated flat-string index of filings |
+| **III. Traceability** | Trajectory schema defined (plan, document route, graph nodes/edges, chunk pointers); eval/benchmark consumption path stated |
+| **IV. Separation of Concerns** | Parsing, graph, retrieval, and agent responsibilities bounded; cross-layer interfaces typed; no forbidden cross-imports |
+| **V. Code Health & Environment Stability** | Graph/chunk/trace types specified; `uv` + lockfile for all Python deps; CI install uses locked sync |
+
+**Post-design re-check**: Confirm Phase 1 contracts (`data-model.md`, `contracts/`) do not violate any row above.
 
 ## Project Structure
 

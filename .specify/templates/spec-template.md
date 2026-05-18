@@ -87,6 +87,12 @@
 
 ### Functional Requirements
 
+<!--
+  Constitution alignment (`.specify/memory/constitution.md`): Financial features MUST
+  address SEC grounding, structural preservation, agent traceability, and layer
+  boundaries where applicable. Mark catastrophic-failure behaviors explicitly.
+-->
+
 - **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]
 - **FR-002**: System MUST [specific capability, e.g., "validate email addresses"]
 - **FR-003**: Users MUST be able to [key interaction, e.g., "reset their password"]

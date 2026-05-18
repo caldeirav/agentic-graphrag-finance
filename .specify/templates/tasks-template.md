@@ -61,14 +61,14 @@ description: "Task list template for feature implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-Examples of foundational tasks (adjust based on your project):
+Examples of foundational tasks (adjust based on your project; constitution-driven defaults):
 
-- [ ] T004 Setup database schema and migrations framework
-- [ ] T005 [P] Implement authentication/authorization framework
-- [ ] T006 [P] Setup API routing and middleware structure
-- [ ] T007 Create base models/entities that all stories depend on
-- [ ] T008 Configure error handling and logging infrastructure
-- [ ] T009 Setup environment configuration management
+- [ ] T004 Initialize Python workspace with `uv` and commit `uv.lock` (no pip/poetry/conda)
+- [ ] T005 [P] Define typed graph node/edge and chunk/trace schemas (Pydantic or equivalent)
+- [ ] T006 [P] Scaffold layer boundaries: `parsing/`, `graph/`, `retrieval/`, `agent/` with contract tests
+- [ ] T007 Implement trace store contract (plan, document route, graph traversal, chunk pointers)
+- [ ] T008 Configure fail-closed validation for ungrounded or structurally lossy parse outputs
+- [ ] T009 [P] Add SEC golden-fixture tests for numeric grounding and table/footnote preservation
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 

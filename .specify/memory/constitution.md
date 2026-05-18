@@ -1,50 +1,151 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report
+- Version change: (template) → 1.0.0
+- Modified principles: N/A (initial adoption)
+- Added sections: Core Principles (5), System Architecture Constraints,
+  Development Workflow & Quality Gates, Governance
+- Removed sections: None
+- Templates: plan-template.md ✅ | spec-template.md ✅ | tasks-template.md ✅
+- Follow-up TODOs: None
+-->
+
+# Agentic GraphRAG Finance Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Data Integrity & Grounding (NON-NEGOTIABLE)
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+All outputs, extractions, and derived metrics MUST be verifiably grounded in raw SEC
+source data (filings, exhibits, and authoritative EDGAR artifacts). The system MUST
+NOT invent figures, entities, filing references, or narrative claims absent from source
+material.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+Hallucinated content and mathematical or parsing errors in numeric extraction are
+**catastrophic failure states**. Any pipeline stage that cannot prove grounding MUST
+fail closed (reject, flag, or halt) rather than emit unverified data.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+**Rationale**: Financial AI errors propagate into compliance, investment, and audit
+decisions; ungrounded outputs are indistinguishable from fraud at scale.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### II. Structural Semantics Preservation (NON-NEGOTIABLE)
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+Financial documents MUST NOT be reduced to undifferentiated flat strings for indexing
+or retrieval. Parsing architectures MUST preserve:
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+- Table layouts (rows, columns, headers, merged cells where applicable)
+- Nested footnotes and cross-references
+- Tabular–textual hierarchy (statements, schedules, MD&A blocks, and their containment)
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+Downstream graph and retrieval layers MUST consume structured representations that
+retain these semantics; lossy flattening is permitted only behind explicit,
+versioned transformation contracts with documented invariants.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+**Rationale**: SEC filings encode meaning in structure; destroying layout corrupts
+ratio math, period alignment, and footnote linkage.
+
+### III. Traceability (NON-NEGOTIABLE)
+
+Every analytical decision by an agent MUST emit a durable trajectory record suitable
+for audit and benchmarking. Each record MUST capture, at minimum:
+
+- **Plan**: intent, steps considered, and rationale for the chosen path
+- **Document route**: filing identifiers, sections, and navigation path through the corpus
+- **Graph traversal**: node and edge identifiers visited (with types)
+- **Evidence**: exact extracted chunk(s) (content hash or stable pointer) used to support conclusions
+
+Trajectories MUST be machine-readable, correlatable across runs, and retained for
+evaluation datasets. Silent reasoning without persisted trace is prohibited for
+production analytical paths.
+
+**Rationale**: Regulators, researchers, and engineers require reproducible evidence
+chains; benchmarks are meaningless without aligned trajectories.
+
+### IV. Strict Separation of Concerns (NON-NEGOTIABLE)
+
+The system MUST maintain hard boundaries between four layers. No layer may embed
+responsibilities belonging to another:
+
+| Layer | Responsibility | MUST NOT |
+|-------|----------------|----------|
+| **Parsing** | Ingest SEC sources; preserve structure; emit validated document objects | Build graphs, run retrieval, or answer queries |
+| **Graph building** | Materialize nodes/edges from parsed artifacts; enforce schemas | Parse raw filings, execute agent plans, or serve end-user answers |
+| **Multi-stage retrieval** | Orchestrate staged lookup over graph and chunks; integrate agent trace hooks for evaluation | Mutate source filings or redefine parse semantics |
+| **Agent / orchestration** | Plan, decide, synthesize answers using layer outputs | Bypass trace emission or read raw files without parser contracts |
+
+Cross-layer integration occurs only through typed interfaces and explicit events.
+Shared mutable state across layers is forbidden except via defined stores (e.g.,
+graph DB, chunk store, trace store).
+
+**Rationale**: Coupled pipelines hide failure modes, prevent independent testing, and
+make grounding audits impossible.
+
+### V. Code Health & Environment Stability (NON-NEGOTIABLE)
+
+**Typing**: Data contracts MUST use strong static typing end-to-end. Graph node and
+edge schemas, parser outputs, chunk references, and trace payloads MUST be defined
+as explicit types (e.g., Pydantic models, TypedDicts, or equivalent) with validation
+at boundaries. Untyped `dict`/`Any` crossing layer boundaries is prohibited except
+in narrowly scoped adapter shims covered by tests.
+
+**Tooling**: All Python virtual environments, dependency resolution, and package
+management MUST be performed exclusively with **`uv`**. Lockfiles (`uv.lock`) MUST
+be committed; builds MUST be reproducible from lock alone. Alternative env managers
+(`pip`, `poetry`, `conda`, `pipenv`) MUST NOT be used in this repository.
+
+**Rationale**: Financial graph systems fail silently on schema drift; deterministic
+builds prevent "works on my machine" regressions during audit reproduction.
+
+## System Architecture Constraints
+
+Layer layout MUST map to deployable or testable packages/modules (names illustrative):
+
+- `parsing/` — SEC ingest, structural preservation, validation gates
+- `graph/` — schema-driven graph construction and persistence
+- `retrieval/` — staged IR pipelines with trace instrumentation for eval
+- `agent/` — planning, synthesis, trajectory emission
+
+Evaluation and benchmarking harnesses MUST consume trace artifacts from retrieval and
+agent layers without requiring production-only code paths.
+
+Performance optimizations MUST NOT violate Principles I–IV. Caching is allowed only
+when cache keys include source version, parser version, and content hashes.
+
+## Development Workflow & Quality Gates
+
+1. **Constitution Check** (in every implementation plan): Explicit pass/fail per
+   principle before Phase 0 research and again after Phase 1 design.
+2. **Grounding tests**: Golden fixtures from real SEC excerpts; numeric and entity
+   assertions compared to known-good parses.
+3. **Structure regression tests**: Table and footnote fixtures MUST fail if layout
+   metadata is stripped.
+4. **Trace contract tests**: Sample agent runs MUST assert required trajectory fields.
+5. **Layer contract tests**: Each boundary MUST have contract tests; cross-layer imports
+   violating the separation table are build failures.
+6. **Environment gate**: CI MUST use `uv sync --locked` (or equivalent) as the install step.
+
+Complexity that weakens any NON-NEGOTIABLE principle MUST be documented in the plan's
+Complexity Tracking table with rejected simpler alternatives.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes ad-hoc conventions, README notes, and inline comments
+when they conflict. Amendments require:
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+1. Documented rationale and semantic-version bump per change magnitude
+2. Updates to dependent templates (plan, spec, tasks) and any compliance checklists
+3. Migration notes when existing code violates new rules
+
+**Versioning policy** (constitution artifact):
+
+- **MAJOR**: Removal or incompatible redefinition of a principle
+- **MINOR**: New principle or materially expanded obligation
+- **PATCH**: Clarifications without new obligations
+
+**Compliance review**: Every feature spec, plan, and task list MUST be reviewed against
+this document before `/speckit-implement`. `/speckit-analyze` treats constitution
+violations as CRITICAL.
+
+Runtime feature guidance lives in feature `plan.md` files and `.cursor/rules/specify-rules.mdc`
+(synchronized from the active plan).
+
+**Version**: 1.0.0 | **Ratified**: 2026-05-18 | **Last Amended**: 2026-05-18
