@@ -6,11 +6,13 @@ alwaysApply: true
 For additional context about technologies, project structure, shell commands, and
 pipeline segments, read the current implementation plan:
 
-**Plan**: `specs/001-sec-disclosure-rag/plan.md`
+**Plan**: `specs/002-live-disclosure-cli/plan.md` (active) | Base: `specs/001-sec-disclosure-rag/plan.md`
 
 Quick reference:
-- **Stack**: uv, Docling (XBRL), docling-graph, LangChain/LangGraph, Qwen via LM Studio, MLflow tracing, Gemini 2.5 Pro judge
-- **Layers**: `src/parsing/`, `src/graph/`, `src/retrieval/orchestration/`, `src/evaluation/`
-- **Segments**: S0 workspace → S1 ingest/graph → S2 LangGraph router → S3 MLflow → S4 benchmarks
-- **Design artifacts**: `specs/001-sec-disclosure-rag/{research,data-model,quickstart}.md` and `contracts/`
+- **Stack**: uv, **sec-api** (`SEC_API_KEY`), Docling, docling-graph, LangGraph, Qwen/LM Studio, MLflow, Gemini judge
+- **Layers**: `src/ingestion/` (live XBRL), `src/parsing/`, `src/graph/`, `src/retrieval/`, `src/evaluation/`, `src/cli/`
+- **CLI**: `uv run agent-query ask --ticker AAPL --query "..."`
+- **Storage**: `data/raw/sec_downloads/{ticker}/{accession}/`
+- **Phases**: P0 env → P1A live fetch → P1B parse/graph → P2–P4 (001) → P5 agent-query CLI
+- **Design artifacts**: `specs/002-live-disclosure-cli/{research,data-model,quickstart}.md` and `contracts/`
 <!-- SPECKIT END -->

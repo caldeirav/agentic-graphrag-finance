@@ -7,8 +7,26 @@ from models.enums import (
     QueryStatus,
     Sufficiency,
 )
+from models.evaluation import (
+    BenchmarkItem,
+    BenchmarkResult,
+    EvaluationRun,
+    GroundTruth,
+    JudgeVerdict,
+)
 from models.filing import CellSpan, FilingRef, FootnoteBlock, SectionBlock, TableBlock
 from models.graph import GraphEdge, GraphManifest, GraphNode, GraphSnapshot
+from models.ingestion import (
+    CacheEntry,
+    CLIAskRequest,
+    CLIAskResult,
+    CLITestResult,
+    FetchJob,
+    FilingResolution,
+    IssuerIdentifierInput,
+    XBRLArtifact,
+    XBRLArtifactManifest,
+)
 from models.parsing import ParsedDocument
 from models.query import (
     AnswerPackage,
@@ -19,7 +37,6 @@ from models.query import (
     TemporalScope,
     TrajectoryRecord,
 )
-from models.evaluation import BenchmarkItem, BenchmarkResult, EvaluationRun, GroundTruth, JudgeVerdict
 
 __all__ = [
     "GraphEdgeType",
@@ -49,4 +66,13 @@ __all__ = [
     "BenchmarkResult",
     "JudgeVerdict",
     "EvaluationRun",
+    "FilingResolution",
+    "XBRLArtifact",
+    "XBRLArtifactManifest",
+    "CacheEntry",
+    "FetchJob",
+    "IssuerIdentifierInput",
+    "CLIAskRequest",
+    "CLIAskResult",
+    "CLITestResult",
 ]

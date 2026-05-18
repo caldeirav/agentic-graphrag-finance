@@ -1,3 +1,4 @@
-tracking_uri: "${MLFLOW_TRACKING_URI:-./mlruns}"
+# Override via MLFLOW_TRACKING_URI in .env (default ./mlruns)
+tracking_uri: ./mlruns
 experiment_name: sec-disclosure-rag
 autolog_langchain: true
