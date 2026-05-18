@@ -19,8 +19,6 @@ htmlcov/
 data/
 mlruns/
 mlflow.db
-# Accidental path when configs/mlflow.yaml used bash-style ${...} syntax
-${MLFLOW_TRACKING_URI:-./
 reports/
 *.graphml.bak
 

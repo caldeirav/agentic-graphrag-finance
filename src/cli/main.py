@@ -2,6 +2,7 @@
 
 import typer
 
+import cli.bootstrap  # noqa: F401  # load .env first
 from cli.commands.ask import ask
 from cli.commands.test import test_cmd
 

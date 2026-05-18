@@ -47,7 +47,16 @@ def ask(
     try:
         result = run_ask_pipeline(request)
     except Exception as exc:
-        typer.echo(f"Error: {exc}", err=True)
+        msg = str(exc)
+        if "Connection error" in msg or "ConnectError" in type(exc).__name__:
+            typer.echo(
+                "Error: Could not reach the LLM API. "
+                "Start LM Studio, load the model, enable the local server, "
+                "and verify LM_STUDIO_BASE_URL in .env (default http://localhost:1234/v1).",
+                err=True,
+            )
+        else:
+            typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
 
     if as_json:
