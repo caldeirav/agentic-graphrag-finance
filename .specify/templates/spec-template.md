@@ -89,8 +89,9 @@
 
 <!--
   Constitution alignment (`.specify/memory/constitution.md`): Financial features MUST
-  address SEC grounding, structural preservation, agent traceability, and layer
-  boundaries where applicable. Mark catastrophic-failure behaviors explicitly.
+  address SEC grounding, structural preservation, MLflow-backed traceability, agentic
+  retrieval (orchestration inside retrieval), independent evaluation (accuracy +
+  external judge on trajectories), and modular benchmarks where applicable.
 -->
 
 - **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]

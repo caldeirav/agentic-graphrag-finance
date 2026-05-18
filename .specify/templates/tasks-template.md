@@ -64,11 +64,12 @@ description: "Task list template for feature implementation"
 Examples of foundational tasks (adjust based on your project; constitution-driven defaults):
 
 - [ ] T004 Initialize Python workspace with `uv` and commit `uv.lock` (no pip/poetry/conda)
-- [ ] T005 [P] Define typed graph node/edge and chunk/trace schemas (Pydantic or equivalent)
-- [ ] T006 [P] Scaffold layer boundaries: `parsing/`, `graph/`, `retrieval/`, `agent/` with contract tests
-- [ ] T007 Implement trace store contract (plan, document route, graph traversal, chunk pointers)
+- [ ] T005 [P] Define typed graph node/edge, chunk, trajectory, and eval-run schemas (Pydantic or equivalent)
+- [ ] T006 [P] Scaffold layers: `parsing/`, `graph/`, `retrieval/` (incl. `retrieval/orchestration/`), `evaluation/` with contract tests
+- [ ] T007 Wire MLflow trajectory logging from agentic retrieval (plan, document route, graph traversal, chunk pointers)
 - [ ] T008 Configure fail-closed validation for ungrounded or structurally lossy parse outputs
-- [ ] T009 [P] Add SEC golden-fixture tests for numeric grounding and table/footnote preservation
+- [ ] T009 [P] Add modular dataset/benchmark registry stubs and one SOTA financial benchmark smoke path
+- [ ] T010 [P] Integrate external judge model contract for outcome + trajectory scoring in `evaluation/`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
