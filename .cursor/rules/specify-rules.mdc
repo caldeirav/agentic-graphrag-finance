@@ -3,6 +3,14 @@ alwaysApply: true
 ---
 
 <!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
+For additional context about technologies, project structure, shell commands, and
+pipeline segments, read the current implementation plan:
+
+**Plan**: `specs/001-sec-disclosure-rag/plan.md`
+
+Quick reference:
+- **Stack**: uv, Docling (XBRL), docling-graph, LangChain/LangGraph, Qwen via LM Studio, MLflow tracing, Gemini 2.5 Pro judge
+- **Layers**: `src/parsing/`, `src/graph/`, `src/retrieval/orchestration/`, `src/evaluation/`
+- **Segments**: S0 workspace → S1 ingest/graph → S2 LangGraph router → S3 MLflow → S4 benchmarks
+- **Design artifacts**: `specs/001-sec-disclosure-rag/{research,data-model,quickstart}.md` and `contracts/`
 <!-- SPECKIT END -->

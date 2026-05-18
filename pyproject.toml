@@ -1,0 +1,65 @@
+[project]
+name = "agentic-graphrag-finance"
+version = "0.1.0"
+description = "Agentic GraphRAG for SEC financial disclosures with multi-stage routing and benchmarks"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "docling>=2.94.0",
+    "docling-graph>=1.5.1",
+    "httpx>=0.28.1",
+    "langchain>=1.3.1",
+    "langchain-google-genai>=4.2.2",
+    "langchain-openai>=1.2.1",
+    "langgraph>=1.2.0",
+    "mlflow>=3.12.0",
+    "mypy>=2.1.0",
+    "networkx>=3.6.1",
+    "pydantic>=2.13.4",
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.3.0",
+    "pyyaml>=6.0.3",
+    "ruff>=0.15.13",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "src/models",
+    "src/contracts",
+    "src/parsing",
+    "src/graph",
+    "src/retrieval",
+    "src/tracing",
+    "src/evaluation",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = ["integration: integration tests (may need LM Studio or mocks)"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "src"
+packages = ["models", "contracts"]
+strict = true
+ignore_missing_imports = true
+
+[project.scripts]
+sec-ingest = "parsing.cli:main"
+sec-graph-build = "graph.cli:main"
+sec-query = "retrieval.cli:main"
+sec-benchmark = "evaluation.cli:main"
