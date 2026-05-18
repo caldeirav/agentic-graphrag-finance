@@ -21,9 +21,17 @@ def load_mlflow_config(config_path: Path | None = None) -> dict:
     return yaml.safe_load(path.read_text()) or {}
 
 
+def _resolve_tracking_uri(cfg: dict) -> str:
+    """Prefer MLFLOW_TRACKING_URI env; ignore bash-style placeholders in YAML."""
+    uri = os.environ.get("MLFLOW_TRACKING_URI") or cfg.get("tracking_uri", "./mlruns")
+    if isinstance(uri, str) and uri.startswith("${"):
+        return "./mlruns"
+    return uri
+
+
 def setup_mlflow() -> str:
     cfg = load_mlflow_config()
-    uri = os.environ.get("MLFLOW_TRACKING_URI", cfg.get("tracking_uri", "./mlruns"))
+    uri = _resolve_tracking_uri(cfg)
     mlflow.set_tracking_uri(uri)
     experiment = cfg.get("experiment_name", "sec-disclosure-rag")
     mlflow.set_experiment(experiment)
