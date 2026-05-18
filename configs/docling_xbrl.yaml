@@ -1,0 +1,8 @@
+# Docling pipeline options aligned with xbrl_conversion layout paradigms
+pipeline:
+  name: xbrl_conversion
+  options:
+    preserve_table_structure: true
+    preserve_footnotes: true
+    do_ocr: false
+parse_confidence_threshold: 0.5

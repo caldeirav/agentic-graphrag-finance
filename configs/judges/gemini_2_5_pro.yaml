@@ -1,0 +1,11 @@
+model: gemini-2.5-pro
+temperature: 0.0
+rubrics:
+  value_alignment: |
+    Score 0-1 whether numeric claims in the answer exactly match ground truth
+    within stated tolerance. Penalize fabricated numbers.
+  claim_presence: |
+    Score 0-1 whether required factual claims from the rubric appear in the answer.
+  trajectory_fidelity: |
+    Score 0-1 whether the agent trajectory (sections visited, evidence chunks)
+    aligns with expected navigation for this benchmark item.

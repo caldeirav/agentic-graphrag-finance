@@ -27,14 +27,14 @@ description: "Task list for Agentic SEC Disclosure Reasoning & Benchmarking"
 
 **Purpose**: Segment S0 — reproducible workspace and project skeleton
 
-- [ ] T001 Initialize `pyproject.toml` with `uv init`, `requires-python >= 3.12`, and package layout in `src/`
-- [ ] T002 Add locked dependencies (`langchain`, `langgraph`, `langchain-openai`, `langchain-google-genai`, `docling`, `docling-graph`, `mlflow`, `pydantic`, `networkx`, `pytest`, `ruff`, `mypy`) via `uv add` and commit `uv.lock`
-- [ ] T003 Create `.env.example` with `LM_STUDIO_BASE_URL`, `LM_STUDIO_MODEL`, `GOOGLE_API_KEY`, `MLFLOW_TRACKING_URI` at repository root
-- [ ] T004 [P] Scaffold layer packages with `__init__.py` in `src/parsing/`, `src/graph/`, `src/retrieval/`, `src/retrieval/orchestration/`, `src/retrieval/orchestration/nodes/`, `src/tracing/`, `src/evaluation/`, `src/evaluation/datasets/`, `src/evaluation/judges/`, `src/evaluation/metrics/`, `src/models/`, `src/contracts/`
-- [ ] T005 [P] Add `configs/docling_xbrl.yaml`, `configs/lm_studio.yaml`, `configs/mlflow.yaml`, `configs/judges/gemini_2_5_pro.yaml`
-- [ ] T006 [P] Configure `ruff`, `mypy` (strict on `src/models` and `src/contracts`), and `pytest` in `pyproject.toml`
-- [ ] T007 Update `.gitignore` for `data/`, `mlruns/`, `.env`, `__pycache__/`, `.venv/`
-- [ ] T008 Add CI workflow (e.g. `.github/workflows/ci.yml`) running `uv sync --locked`, `ruff check`, `mypy`, and `pytest tests/unit tests/contract`
+- [x] T001 Initialize `pyproject.toml` with `uv init`, `requires-python >= 3.12`, and package layout in `src/`
+- [x] T002 Add locked dependencies (`langchain`, `langgraph`, `langchain-openai`, `langchain-google-genai`, `docling`, `docling-graph`, `mlflow`, `pydantic`, `networkx`, `pytest`, `ruff`, `mypy`) via `uv add` and commit `uv.lock`
+- [x] T003 Create `.env.example` with `LM_STUDIO_BASE_URL`, `LM_STUDIO_MODEL`, `GOOGLE_API_KEY`, `MLFLOW_TRACKING_URI` at repository root
+- [x] T004 [P] Scaffold layer packages with `__init__.py` in `src/parsing/`, `src/graph/`, `src/retrieval/`, `src/retrieval/orchestration/`, `src/retrieval/orchestration/nodes/`, `src/tracing/`, `src/evaluation/`, `src/evaluation/datasets/`, `src/evaluation/judges/`, `src/evaluation/metrics/`, `src/models/`, `src/contracts/`
+- [x] T005 [P] Add `configs/docling_xbrl.yaml`, `configs/lm_studio.yaml`, `configs/mlflow.yaml`, `configs/judges/gemini_2_5_pro.yaml`
+- [x] T006 [P] Configure `ruff`, `mypy` (strict on `src/models` and `src/contracts`), and `pytest` in `pyproject.toml`
+- [x] T007 Update `.gitignore` for `data/`, `mlruns/`, `.env`, `__pycache__/`, `.venv/`
+- [x] T008 Add CI workflow (e.g. `.github/workflows/ci.yml`) running `uv sync --locked`, `ruff check`, `mypy`, and `pytest tests/unit tests/contract`
 
 **Checkpoint**: `uv sync --locked` succeeds; empty packages importable
 
@@ -46,13 +46,13 @@ description: "Task list for Agentic SEC Disclosure Reasoning & Benchmarking"
 
 **⚠️ CRITICAL**: No user story work until this phase is complete
 
-- [ ] T009 Implement core Pydantic models (`FilingRef`, `ParsedDocument`, `GraphNode`, `GraphEdge`, `GraphSnapshot`, `EvidenceChunk`, `AnswerPackage`, `TrajectoryRecord`, `BenchmarkItem`, `EvaluationRun`) in `src/models/`
-- [ ] T010 Implement cross-layer DTOs `QueryRequest` and `QueryResponse` in `src/contracts/query.py` per `contracts/layer-boundaries.md`
-- [ ] T011 [P] Add `GraphQueryAPI` Protocol and stub implementation in `src/graph/query_api.py`
-- [ ] T012 [P] Add import-boundary contract tests in `tests/contract/test_layer_imports.py` (parsing ↛ graph retrieval; evaluation ↛ retrieval.orchestration)
-- [ ] T013 [P] Create `tests/conftest.py` with `USE_MOCK_LLM` fixture and sample `GraphSnapshot` factory in `tests/fixtures/graph_snapshot.json`
-- [ ] T014 [P] Add unit tests for Pydantic model validation edge cases in `tests/unit/test_models.py`
-- [ ] T015 Create `data/` directory layout placeholders (`data/raw/edgar/`, `data/parsed/`, `data/graphs/`, `data/benchmarks/`) documented in `README.md`
+- [x] T009 Implement core Pydantic models (`FilingRef`, `ParsedDocument`, `GraphNode`, `GraphEdge`, `GraphSnapshot`, `EvidenceChunk`, `AnswerPackage`, `TrajectoryRecord`, `BenchmarkItem`, `EvaluationRun`) in `src/models/`
+- [x] T010 Implement cross-layer DTOs `QueryRequest` and `QueryResponse` in `src/contracts/query.py` per `contracts/layer-boundaries.md`
+- [x] T011 [P] Add `GraphQueryAPI` Protocol and stub implementation in `src/graph/query_api.py`
+- [x] T012 [P] Add import-boundary contract tests in `tests/contract/test_layer_imports.py` (parsing ↛ graph retrieval; evaluation ↛ retrieval.orchestration)
+- [x] T013 [P] Create `tests/conftest.py` with `USE_MOCK_LLM` fixture and sample `GraphSnapshot` factory in `tests/fixtures/graph_snapshot.json`
+- [x] T014 [P] Add unit tests for Pydantic model validation edge cases in `tests/unit/test_models.py`
+- [x] T015 Create `data/` directory layout placeholders (`data/raw/edgar/`, `data/parsed/`, `data/graphs/`, `data/benchmarks/`) documented in `README.md`
 
 **Checkpoint**: Models importable; contract tests pass (may skip graph-dependent assertions until US1)
 
@@ -66,19 +66,19 @@ description: "Task list for Agentic SEC Disclosure Reasoning & Benchmarking"
 
 ### Implementation for User Story 1
 
-- [ ] T016 [P] [US1] Implement EDGAR fetch helper in `src/parsing/edgar_fetch.py` (CIK, accession, form type 10-K/10-Q)
-- [ ] T017 [P] [US1] Implement Docling XBRL pipeline wrapper loading `configs/docling_xbrl.yaml` in `src/parsing/docling_pipeline.py`
-- [ ] T018 [US1] Map Docling output to `ParsedDocument` (sections, tables, footnotes, `content_hash`) in `src/parsing/docling_pipeline.py`
-- [ ] T019 [US1] Implement fail-closed parse validators (`parse_confidence` threshold) in `src/parsing/validators.py`
-- [ ] T020 [US1] Implement docling-graph → `GraphSnapshot` mapper with node types (`DOCUMENT`, `SECTION`, `CHUNK_*`) in `src/graph/builder.py`
-- [ ] T021 [US1] Emit typed edges (`CONTAINS`, `NEXT`, `FOOTNOTE_OF`, `REFERENCES`, `TEMPORAL_TRANSITION`) in `src/graph/builder.py`
-- [ ] T022 [US1] Implement GraphML + `manifest.json` persistence in `src/graph/store.py`
-- [ ] T023 [US1] Implement read-only `GraphQueryAPI` (get_snapshot, get_node, neighbors, sections_for_filings) in `src/graph/query_api.py`
-- [ ] T024 [US1] Add `src/parsing/cli.py` ingest command writing to `data/raw/` and `data/parsed/`
-- [ ] T025 [US1] Add `src/graph/cli.py` build command writing to `data/graphs/{issuer_id}/`
-- [ ] T026 [P] [US1] Add contract test parsing→graph boundary in `tests/contract/test_parsing_graph.py`
-- [ ] T027 [P] [US1] Add integration test with golden SEC excerpt fixture in `tests/integration/test_ingest_graph.py`
-- [ ] T028 [US1] Add structure regression test asserting table headers survive parse in `tests/unit/test_parsing_structure.py`
+- [x] T016 [P] [US1] Implement EDGAR fetch helper in `src/parsing/edgar_fetch.py` (CIK, accession, form type 10-K/10-Q)
+- [x] T017 [P] [US1] Implement Docling XBRL pipeline wrapper loading `configs/docling_xbrl.yaml` in `src/parsing/docling_pipeline.py`
+- [x] T018 [US1] Map Docling output to `ParsedDocument` (sections, tables, footnotes, `content_hash`) in `src/parsing/docling_pipeline.py`
+- [x] T019 [US1] Implement fail-closed parse validators (`parse_confidence` threshold) in `src/parsing/validators.py`
+- [x] T020 [US1] Implement docling-graph → `GraphSnapshot` mapper with node types (`DOCUMENT`, `SECTION`, `CHUNK_*`) in `src/graph/builder.py`
+- [x] T021 [US1] Emit typed edges (`CONTAINS`, `NEXT`, `FOOTNOTE_OF`, `REFERENCES`, `TEMPORAL_TRANSITION`) in `src/graph/builder.py`
+- [x] T022 [US1] Implement GraphML + `manifest.json` persistence in `src/graph/store.py`
+- [x] T023 [US1] Implement read-only `GraphQueryAPI` (get_snapshot, get_node, neighbors, sections_for_filings) in `src/graph/query_api.py`
+- [x] T024 [US1] Add `src/parsing/cli.py` ingest command writing to `data/raw/` and `data/parsed/`
+- [x] T025 [US1] Add `src/graph/cli.py` build command writing to `data/graphs/{issuer_id}/`
+- [x] T026 [P] [US1] Add contract test parsing→graph boundary in `tests/contract/test_parsing_graph.py`
+- [x] T027 [P] [US1] Add integration test with golden SEC excerpt fixture in `tests/integration/test_ingest_graph.py`
+- [x] T028 [US1] Add structure regression test asserting table headers survive parse in `tests/unit/test_parsing_structure.py`
 
 **Checkpoint**: `uv run python -m graph.cli build` produces queryable snapshot; US1 independent test passes
 
@@ -94,21 +94,21 @@ description: "Task list for Agentic SEC Disclosure Reasoning & Benchmarking"
 
 ### Implementation for User Story 2
 
-- [ ] T029 [US2] Define typed `AgentState` and routing DTOs (`MacroPlan`, `SectionCandidate`, `QueryStatus`) in `src/retrieval/orchestration/state.py`
-- [ ] T030 [US2] Implement LM Studio `ChatOpenAI` factory from `configs/lm_studio.yaml` in `src/retrieval/orchestration/llm.py`
-- [ ] T031 [US2] Implement `macro_router` node (temporal scope + `filing_set`) in `src/retrieval/orchestration/nodes/macro_router.py`
-- [ ] T032 [US2] Implement `meso_router` node (section ranking via `GraphQueryAPI`) in `src/retrieval/orchestration/nodes/meso_router.py`
-- [ ] T033 [US2] Implement `micro_extractor` node (chunk/cell selection) in `src/retrieval/orchestration/nodes/micro_extractor.py`
-- [ ] T034 [US2] Implement grounded `synthesize` node with `InsufficientEvidence` fail-closed path in `src/retrieval/synthesis.py`
-- [ ] T035 [US2] Compile LangGraph `StateGraph` (macro → meso → micro → synthesize) in `src/retrieval/orchestration/graph.py` per `contracts/langgraph-state.md`
-- [ ] T036 [US2] Implement `QueryService.answer()` façade returning `QueryResponse` in `src/retrieval/service.py`
-- [ ] T037 [US2] Implement MLflow setup and LangGraph autolog wrapper in `src/tracing/mlflow_langgraph.py`
-- [ ] T038 [US2] Log `TrajectoryRecord` JSON artifact (plan, document route, graph traversal, evidence) per query in `src/tracing/mlflow_langgraph.py`
-- [ ] T039 [US2] Integrate tracing wrapper into `QueryService` (parent run, params, per-node metrics) in `src/retrieval/service.py`
-- [ ] T040 [US2] Add `src/retrieval/cli.py` query command accepting `--snapshot-id` and `--question`
-- [ ] T041 [P] [US2] Add contract test `QueryService` public API in `tests/contract/test_retrieval_contract.py`
-- [ ] T042 [P] [US2] Add integration test with `USE_MOCK_LLM=1` for full graph invoke in `tests/integration/test_query_flow.py`
-- [ ] T043 [US2] Add trace contract test asserting mandatory `TrajectoryRecord` fields in `tests/contract/test_trajectory_artifact.py`
+- [x] T029 [US2] Define typed `AgentState` and routing DTOs (`MacroPlan`, `SectionCandidate`, `QueryStatus`) in `src/retrieval/orchestration/state.py`
+- [x] T030 [US2] Implement LM Studio `ChatOpenAI` factory from `configs/lm_studio.yaml` in `src/retrieval/orchestration/llm.py`
+- [x] T031 [US2] Implement `macro_router` node (temporal scope + `filing_set`) in `src/retrieval/orchestration/nodes/macro_router.py`
+- [x] T032 [US2] Implement `meso_router` node (section ranking via `GraphQueryAPI`) in `src/retrieval/orchestration/nodes/meso_router.py`
+- [x] T033 [US2] Implement `micro_extractor` node (chunk/cell selection) in `src/retrieval/orchestration/nodes/micro_extractor.py`
+- [x] T034 [US2] Implement grounded `synthesize` node with `InsufficientEvidence` fail-closed path in `src/retrieval/synthesis.py`
+- [x] T035 [US2] Compile LangGraph `StateGraph` (macro → meso → micro → synthesize) in `src/retrieval/orchestration/graph.py` per `contracts/langgraph-state.md`
+- [x] T036 [US2] Implement `QueryService.answer()` façade returning `QueryResponse` in `src/retrieval/service.py`
+- [x] T037 [US2] Implement MLflow setup and LangGraph autolog wrapper in `src/tracing/mlflow_langgraph.py`
+- [x] T038 [US2] Log `TrajectoryRecord` JSON artifact (plan, document route, graph traversal, evidence) per query in `src/tracing/mlflow_langgraph.py`
+- [x] T039 [US2] Integrate tracing wrapper into `QueryService` (parent run, params, per-node metrics) in `src/retrieval/service.py`
+- [x] T040 [US2] Add `src/retrieval/cli.py` query command accepting `--snapshot-id` and `--question`
+- [x] T041 [P] [US2] Add contract test `QueryService` public API in `tests/contract/test_retrieval_contract.py`
+- [x] T042 [P] [US2] Add integration test with `USE_MOCK_LLM=1` for full graph invoke in `tests/integration/test_query_flow.py`
+- [x] T043 [US2] Add trace contract test asserting mandatory `TrajectoryRecord` fields in `tests/contract/test_trajectory_artifact.py`
 
 **Checkpoint**: `uv run python -m retrieval.cli query` returns cited answer; MLflow run shows LangGraph spans + `trajectory.json`
 
@@ -124,19 +124,19 @@ description: "Task list for Agentic SEC Disclosure Reasoning & Benchmarking"
 
 ### Implementation for User Story 3
 
-- [ ] T044 [US3] Implement `BenchmarkDataset` protocol and registry in `src/evaluation/registry.py` per `contracts/benchmark-registry.md`
-- [ ] T045 [P] [US3] Implement FinDER adapter in `src/evaluation/datasets/finder.py`
-- [ ] T046 [P] [US3] Implement FinAgentBench adapter in `src/evaluation/datasets/finagentbench.py`
-- [ ] T047 [P] [US3] Implement FinanceBench adapter in `src/evaluation/datasets/financebench.py`
-- [ ] T048 [US3] Implement Gemini 2.5 Pro judge with rubrics from `configs/judges/gemini_2_5_pro.yaml` in `src/evaluation/judges/gemini_panel.py`
-- [ ] T049 [P] [US3] Implement MRR, MAP, nDCG@k in `src/evaluation/metrics/ranking.py`
-- [ ] T050 [P] [US3] Implement trajectory fidelity aggregation in `src/evaluation/metrics/trajectory.py`
-- [ ] T051 [US3] Implement `EvaluationRunner` invoking `QueryService` per item in `src/evaluation/runner.py`
-- [ ] T052 [US3] Generate stratified reports (`by_dataset`, `by_operation_class`) and log to MLflow parent run in `src/evaluation/runner.py`
-- [ ] T053 [US3] Add `src/evaluation/cli.py` benchmark command (`--suite`, `--snapshot-id`, `--datasets`, `--max-items`)
-- [ ] T054 [P] [US3] Add contract test evaluation layer does not import `retrieval.orchestration` in `tests/contract/test_evaluation_imports.py`
-- [ ] T055 [US3] Add integration test for registry plug-in swap (mock dataset) in `tests/integration/test_benchmark_registry.py`
-- [ ] T056 [US3] Add evaluation smoke test (1 item, mock LLM + mock judge) in `tests/integration/test_benchmark_smoke.py`
+- [x] T044 [US3] Implement `BenchmarkDataset` protocol and registry in `src/evaluation/registry.py` per `contracts/benchmark-registry.md`
+- [x] T045 [P] [US3] Implement FinDER adapter in `src/evaluation/datasets/finder.py`
+- [x] T046 [P] [US3] Implement FinAgentBench adapter in `src/evaluation/datasets/finagentbench.py`
+- [x] T047 [P] [US3] Implement FinanceBench adapter in `src/evaluation/datasets/financebench.py`
+- [x] T048 [US3] Implement Gemini 2.5 Pro judge with rubrics from `configs/judges/gemini_2_5_pro.yaml` in `src/evaluation/judges/gemini_panel.py`
+- [x] T049 [P] [US3] Implement MRR, MAP, nDCG@k in `src/evaluation/metrics/ranking.py`
+- [x] T050 [P] [US3] Implement trajectory fidelity aggregation in `src/evaluation/metrics/trajectory.py`
+- [x] T051 [US3] Implement `EvaluationRunner` invoking `QueryService` per item in `src/evaluation/runner.py`
+- [x] T052 [US3] Generate stratified reports (`by_dataset`, `by_operation_class`) and log to MLflow parent run in `src/evaluation/runner.py`
+- [x] T053 [US3] Add `src/evaluation/cli.py` benchmark command (`--suite`, `--snapshot-id`, `--datasets`, `--max-items`)
+- [x] T054 [P] [US3] Add contract test evaluation layer does not import `retrieval.orchestration` in `tests/contract/test_evaluation_imports.py`
+- [x] T055 [US3] Add integration test for registry plug-in swap (mock dataset) in `tests/integration/test_benchmark_registry.py`
+- [x] T056 [US3] Add evaluation smoke test (1 item, mock LLM + mock judge) in `tests/integration/test_benchmark_smoke.py`
 
 **Checkpoint**: `uv run python -m evaluation.cli benchmark --suite pilot` produces `summary.json` and MLflow parent run
 
@@ -146,12 +146,12 @@ description: "Task list for Agentic SEC Disclosure Reasoning & Benchmarking"
 
 **Purpose**: Documentation, reproducibility, and constitution compliance hardening
 
-- [ ] T057 [P] Add root `README.md` with architecture overview, layer diagram, and links to `specs/001-sec-disclosure-rag/quickstart.md`
-- [ ] T058 Validate `quickstart.md` commands against implemented CLIs; update quickstart if flags differ
-- [ ] T059 [P] Add `tests/unit/test_fail_closed.py` covering missing filing period and empty evidence paths
-- [ ] T060 [P] Add golden-fixture numeric spot-check test for graph navigation in `tests/integration/test_graph_numeric_trace.py`
-- [ ] T061 Configure optional `import-linter` or ruff banned-import rules enforcing layer boundaries in `pyproject.toml`
-- [ ] T062 Document benchmark reproduction steps (frozen snapshot, judge config hash, MLflow run ID) in `docs/benchmark-reproduction.md`
+- [x] T057 [P] Add root `README.md` with architecture overview, layer diagram, and links to `specs/001-sec-disclosure-rag/quickstart.md`
+- [x] T058 Validate `quickstart.md` commands against implemented CLIs; update quickstart if flags differ
+- [x] T059 [P] Add `tests/unit/test_fail_closed.py` covering missing filing period and empty evidence paths
+- [x] T060 [P] Add golden-fixture numeric spot-check test for graph navigation in `tests/integration/test_graph_numeric_trace.py`
+- [x] T061 Configure optional `import-linter` or ruff banned-import rules enforcing layer boundaries in `pyproject.toml`
+- [x] T062 Document benchmark reproduction steps (frozen snapshot, judge config hash, MLflow run ID) in `docs/benchmark-reproduction.md`
 
 ---
 

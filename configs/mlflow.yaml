@@ -1,0 +1,3 @@
+tracking_uri: "${MLFLOW_TRACKING_URI:-./mlruns}"
+experiment_name: sec-disclosure-rag
+autolog_langchain: true
