@@ -15,6 +15,50 @@ from retrieval.orchestration.llm import create_chat_llm
 from retrieval.orchestration.state import AgentState
 
 
+def _extract_json_from_llm(text: str) -> dict:
+    """Parse JSON from LLM output (handles markdown fences and preamble)."""
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        stripped = "\n".join(lines).strip()
+    try:
+        data = json.loads(stripped)
+        return data if isinstance(data, dict) else {}
+    except json.JSONDecodeError:
+        pass
+    start, end = stripped.find("{"), stripped.rfind("}")
+    if start >= 0 and end > start:
+        try:
+            data = json.loads(stripped[start : end + 1])
+            return data if isinstance(data, dict) else {}
+        except json.JSONDecodeError:
+            pass
+    return {}
+
+
+def _parse_comparison_mode(value: object) -> ComparisonMode:
+    if value is None:
+        return ComparisonMode.YOY
+    raw = str(value).strip()
+    if not raw:
+        return ComparisonMode.YOY
+    normalized = raw.lower().replace("-", "").replace("_", "")
+    if normalized in ("yoy", "yearoveryear", "yearonyear"):
+        return ComparisonMode.YOY
+    if normalized in ("qoq", "quarteroverquarter"):
+        return ComparisonMode.QOQ
+    if normalized in ("sequential", "seq", "periodoverperiod"):
+        return ComparisonMode.SEQUENTIAL
+    try:
+        return ComparisonMode(raw)
+    except ValueError:
+        return ComparisonMode.YOY
+
+
 def macro_router(state: AgentState, *, graph_api=None) -> dict:
     query = state["query"]
     snapshot_id = state["snapshot_id"]
@@ -53,17 +97,16 @@ def macro_router(state: AgentState, *, graph_api=None) -> dict:
         ]
     )
     text = resp.content if isinstance(resp.content, str) else str(resp.content)
-    try:
-        data = json.loads(text)
-    except json.JSONDecodeError:
+    data = _extract_json_from_llm(text)
+    if not data:
         data = {"intent_summary": query, "comparison_mode": "YoY"}
 
     selected = filings
     plan = MacroPlan(
-        intent_summary=data.get("intent_summary", query),
+        intent_summary=str(data.get("intent_summary") or query),
         temporal_scope=TemporalScope(
             anchor_periods=[filings[-1].period_end] if filings else [date.today()],
-            comparison_mode=ComparisonMode(data.get("comparison_mode", "YoY")),
+            comparison_mode=_parse_comparison_mode(data.get("comparison_mode")),
         ),
         rationale=text[:500],
     )

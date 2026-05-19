@@ -22,15 +22,15 @@ def filing_ref_from_manifest(manifest: XBRLArtifactManifest) -> FilingRef:
         form_type=r.form_type,
         filed_at=r.filed_at,
         period_end=r.period_end,
-        source_uri=r.sec_api_filing_url or f"sec://{r.accession}",
+        source_uri=r.edgar_filing_url or f"edgar://{r.accession}",
     )
 
 
-def parse_from_cache(entry: CacheEntry, *, use_docling: bool = True) -> ParsedDocument:
+def parse_from_cache(entry: CacheEntry) -> ParsedDocument:
     manifest = load_manifest(entry)
     instance = find_primary_parse_path(entry.local_path, manifest)
     filing = filing_ref_from_manifest(manifest)
-    return parse_filing_path(instance, filing, use_docling=use_docling)
+    return parse_filing_path(instance, filing, package_root=entry.local_path)
 
 
 def write_parsed_document(

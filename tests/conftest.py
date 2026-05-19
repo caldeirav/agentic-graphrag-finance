@@ -12,7 +12,7 @@ from graph.builder import build_snapshot
 from models.filing import FilingRef, SectionBlock, TableBlock
 from models.ingestion import FilingResolution, XBRLArtifact, XBRLArtifactManifest, XBRLArtifactRole
 from models.parsing import ParsedDocument
-from parsing.docling_pipeline import PARSER_VERSION
+from parsing.docling_xbrl import PARSER_VERSION
 
 
 @pytest.fixture(autouse=True)
@@ -22,8 +22,12 @@ def mock_llm_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
-def sec_api_mock_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SEC_API_KEY", os.environ.get("SEC_API_KEY", "test-mock"))
+def edgar_test_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(
+        "SEC_EDGAR_USER_AGENT",
+        os.environ.get("SEC_EDGAR_USER_AGENT", "agentic-graphrag-finance test@example.com"),
+    )
+    monkeypatch.setenv("USE_FIXTURE_INGESTION", os.environ.get("USE_FIXTURE_INGESTION", "1"))
     downloads = os.environ.get("SEC_DOWNLOADS_ROOT", "data/raw/sec_downloads")
     monkeypatch.setenv("SEC_DOWNLOADS_ROOT", downloads)
     from ingestion import settings
@@ -41,7 +45,7 @@ def sample_filing() -> FilingRef:
         form_type="10-K",
         filed_at=date(2024, 11, 1),
         period_end=date(2024, 9, 28),
-        source_uri="file://test/10k.html",
+        source_uri="fixture://AAPL/0000320193-24-000123",
     )
 
 
@@ -94,7 +98,7 @@ def sample_resolution() -> FilingResolution:
         form_type="10-K",
         filed_at=date(2024, 11, 1),
         period_end=date(2024, 9, 28),
-        sec_api_filing_url="https://sec.gov/mock",
+        edgar_filing_url="fixture://AAPL/0000320193-24-000123",
     )
 
 

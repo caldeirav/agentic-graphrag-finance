@@ -7,16 +7,16 @@ import json
 import typer
 
 from cli.pipeline import run_ask_pipeline
-from ingestion.sec_client import ResolutionError
+from ingestion.edgar_client import ResolutionError
 from models.ingestion import CLIAskRequest, IssuerIdentifierInput
 
 
 def _validate_identifiers(ticker: str | None, cik: str | None) -> None:
     if ticker and cik:
-        from ingestion.sec_client import _normalize_cik, resolve_ticker
+        from ingestion.edgar_client import normalize_cik, resolve_ticker
 
         resolved = resolve_ticker(ticker)
-        if resolved != _normalize_cik(cik):
+        if resolved != normalize_cik(cik):
             raise typer.BadParameter(
                 f"Ticker {ticker} maps to CIK {resolved}, but --cik {cik} was provided"
             )

@@ -17,13 +17,17 @@ class ConfigurationError(RuntimeError):
 class IngestionSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    sec_api_key: str = Field(default="", alias="SEC_API_KEY")
-    sec_api_requests_per_second: float = Field(default=2.0, alias="SEC_API_REQUESTS_PER_SECOND")
+    sec_edgar_user_agent: str = Field(default="", alias="SEC_EDGAR_USER_AGENT")
+    edgar_requests_per_second: float = Field(default=8.0, alias="EDGAR_REQUESTS_PER_SECOND")
     sec_downloads_root: Path = Field(
         default=Path("data/raw/sec_downloads"),
         alias="SEC_DOWNLOADS_ROOT",
     )
-    ticker_map_cache: Path = Field(default=Path("data/cache/sec-api/ticker_map.json"))
+    ticker_map_cache: Path = Field(default=Path("data/cache/edgar/ticker_map.json"))
+    fixture_downloads_root: Path = Field(
+        default=Path("tests/fixtures/sec_downloads"),
+        alias="FIXTURE_DOWNLOADS_ROOT",
+    )
 
 
 @lru_cache
@@ -31,16 +35,16 @@ def get_settings() -> IngestionSettings:
     return IngestionSettings()
 
 
-def require_sec_api_key() -> str:
-    key = get_settings().sec_api_key or os.environ.get("SEC_API_KEY", "")
-    if not key or not key.strip():
+def require_edgar_user_agent() -> str:
+    ua = get_settings().sec_edgar_user_agent or os.environ.get("SEC_EDGAR_USER_AGENT", "")
+    if not ua or not ua.strip():
         raise ConfigurationError(
-            "SEC_API_KEY is not set. Add it to .env (see .env.example). "
-            "Obtain a key at https://sec-api.io"
+            "SEC_EDGAR_USER_AGENT is not set. Add your name and email to .env "
+            "(SEC fair-access policy). See .env.example."
         )
-    return key.strip()
+    return ua.strip()
 
 
-def is_mock_mode() -> bool:
-    key = require_sec_api_key()
-    return key in ("test-mock", "mock", "test")
+def is_fixture_ingestion() -> bool:
+    """Use bundled XBRL packages under tests/fixtures (CI and offline dev)."""
+    return os.environ.get("USE_FIXTURE_INGESTION", "0") == "1"

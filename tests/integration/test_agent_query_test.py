@@ -4,7 +4,7 @@ from cli.main import app
 
 
 def test_agent_query_test_mock(monkeypatch):
-    monkeypatch.setenv("SEC_API_KEY", "test-mock")
+    monkeypatch.setenv("USE_FIXTURE_INGESTION", "1")
     from ingestion import settings
 
     settings.get_settings.cache_clear()

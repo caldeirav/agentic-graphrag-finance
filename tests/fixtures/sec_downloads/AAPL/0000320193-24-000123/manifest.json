@@ -6,19 +6,19 @@
     "form_type": "10-K",
     "filed_at": "2024-11-01",
     "period_end": "2024-09-28",
-    "sec_api_filing_url": "https://sec.gov/mock"
+    "edgar_filing_url": "fixture://AAPL/0000320193-24-000123"
   },
   "artifacts": [
     {
       "filename": "000032019324000123_htm.xml",
       "role": "instance",
-      "url": "mock://instance",
+      "url": "fixture://000032019324000123_htm.xml",
       "content_hash": null
     },
     {
       "filename": "000032019324000123.xsd",
       "role": "schema",
-      "url": "mock://schema",
+      "url": "fixture://000032019324000123.xsd",
       "content_hash": null
     }
   ],

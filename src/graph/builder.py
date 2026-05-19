@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from datetime import UTC, datetime
 
 from models.enums import GraphEdgeType, GraphNodeType
 from models.graph import GraphEdge, GraphManifest, GraphNode, GraphSnapshot
 from models.parsing import ParsedDocument
+from parsing.xbrl_facts import (
+    consolidate_xbrl_fact_rows,
+    fact_to_excerpt,
+    select_facts_for_index,
+)
 
-GRAPH_BUILDER_VERSION = "docling-graph-mapper-0.1.0"
+GRAPH_BUILDER_VERSION = "docling-graph-mapper-0.2.0"
 
 
 def build_snapshot(
@@ -40,6 +46,9 @@ def build_snapshot(
                 source_ref=doc.content_hash,
             )
         )
+
+        xbrl_section_id = f"{doc_id}-xbrl-facts"
+        has_xbrl_section = False
 
         prev_section_id: str | None = None
         for sec in doc.sections:
@@ -96,6 +105,53 @@ def build_snapshot(
                 edge_idx += 1
 
         for table in doc.tables:
+            if table.table_id.startswith("xbrl-facts"):
+                if not has_xbrl_section:
+                    nodes.append(
+                        GraphNode(
+                            node_id=xbrl_section_id,
+                            node_type=GraphNodeType.SECTION,
+                            label="XBRL Financial Facts",
+                            properties={"level": 0, "xbrl": True},
+                            source_ref="xbrl",
+                        )
+                    )
+                    edges.append(
+                        GraphEdge(
+                            edge_id=f"e-{edge_idx}",
+                            source_id=doc_id,
+                            target_id=xbrl_section_id,
+                            edge_type=GraphEdgeType.CONTAINS,
+                        )
+                    )
+                    edge_idx += 1
+                    has_xbrl_section = True
+
+                facts = consolidate_xbrl_fact_rows(table.rows)
+                for concept, fields in select_facts_for_index(facts):
+                    excerpt = fact_to_excerpt(concept, fields)
+                    h = hashlib.sha256(concept.encode()).hexdigest()[:12]
+                    fact_id = f"{doc_id}-xbrl-{h}"
+                    nodes.append(
+                        GraphNode(
+                            node_id=fact_id,
+                            node_type=GraphNodeType.CHUNK_PARAGRAPH,
+                            label=concept[:80],
+                            properties={"xbrl_concept": concept},
+                            source_ref=excerpt,
+                        )
+                    )
+                    edges.append(
+                        GraphEdge(
+                            edge_id=f"e-{edge_idx}",
+                            source_id=xbrl_section_id,
+                            target_id=fact_id,
+                            edge_type=GraphEdgeType.CONTAINS,
+                        )
+                    )
+                    edge_idx += 1
+                continue
+
             chunk_id = f"{doc_id}-{table.table_id}"
             nodes.append(
                 GraphNode(
@@ -106,7 +162,7 @@ def build_snapshot(
                     source_ref=table.table_id,
                 )
             )
-            parent = prev_section_id or doc_id
+            parent = xbrl_section_id if has_xbrl_section else (prev_section_id or doc_id)
             edges.append(
                 GraphEdge(
                     edge_id=f"e-{edge_idx}",
@@ -116,7 +172,7 @@ def build_snapshot(
                 )
             )
             edge_idx += 1
-            for ri, row in enumerate(table.rows[:5]):
+            for ri, row in enumerate(table.rows[:8]):
                 row_id = f"{chunk_id}-row-{ri}"
                 excerpt = " | ".join(row)
                 nodes.append(

@@ -1,23 +1,21 @@
-
 import pytest
 
-from ingestion.settings import ConfigurationError, require_sec_api_key
+from ingestion.settings import ConfigurationError, require_edgar_user_agent
 
 
-def test_missing_sec_api_key(monkeypatch):
-    monkeypatch.delenv("SEC_API_KEY", raising=False)
+def test_missing_edgar_user_agent(monkeypatch):
+    monkeypatch.delenv("SEC_EDGAR_USER_AGENT", raising=False)
     from ingestion import settings
 
     settings.get_settings.cache_clear()
-    monkeypatch.setenv("SEC_API_KEY", "")
-    settings.get_settings.cache_clear()
-    with pytest.raises(ConfigurationError, match="SEC_API_KEY"):
-        require_sec_api_key()
+    monkeypatch.setenv("SEC_EDGAR_USER_AGENT", "")
+    with pytest.raises(ConfigurationError, match="SEC_EDGAR_USER_AGENT"):
+        require_edgar_user_agent()
 
 
-def test_mock_key_accepted(monkeypatch):
-    monkeypatch.setenv("SEC_API_KEY", "test-mock")
+def test_edgar_user_agent_accepted(monkeypatch):
+    monkeypatch.setenv("SEC_EDGAR_USER_AGENT", "Test User test@example.com")
     from ingestion import settings
 
     settings.get_settings.cache_clear()
-    assert require_sec_api_key() == "test-mock"
+    assert require_edgar_user_agent() == "Test User test@example.com"

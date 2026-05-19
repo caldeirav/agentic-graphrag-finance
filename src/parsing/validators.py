@@ -19,7 +19,9 @@ def validate_parsed_document(
         raise ParseValidationError(
             f"parse_confidence {doc.parse_confidence} below threshold {min_confidence}"
         )
-    forms = require_tables_for_forms or {"10-K", "10-Q"}
+    forms = (
+        {"10-K", "10-Q"} if require_tables_for_forms is None else require_tables_for_forms
+    )
     if doc.filing.form_type in forms and not doc.tables:
         raise ParseValidationError(
             f"structurally lossy parse: no tables extracted for {doc.filing.form_type}"

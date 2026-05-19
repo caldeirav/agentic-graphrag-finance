@@ -1,6 +1,8 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 → 1.1.0
+- Version change: 1.1.0 → 1.2.0
+- Modified principles: II. Structural Semantics Preservation — XBRL-first ingestion mandate
+- Version change (prior): 1.0.0 → 1.1.0
 - Modified principles:
   - IV. Strict Separation of Concerns → redefined layer model (agentic retrieval unified;
     evaluation as independent layer)
@@ -37,6 +39,13 @@ or retrieval. Parsing architectures MUST preserve:
 - Table layouts (rows, columns, headers, merged cells where applicable)
 - Nested footnotes and cross-references
 - Tabular–textual hierarchy (statements, schedules, MD&A blocks, and their containment)
+
+**XBRL-first ingestion (live SEC path)**: For U.S. issuer filings, the ingestion layer
+MUST retrieve and persist the **full EDGAR XBRL package** (instance `*_htm.xml`, taxonomy
+`.xsd`, and calculation/definition/label/presentation linkbases, or official `*-xbrl.zip`)
+as the **primary** structured source for parsing and graph building. Filing HTML is
+supplementary narrative. Downloading only HTML, mock stubs, or JSON fact summaries without
+raw instance artifacts is insufficient for production graph materialization.
 
 Downstream graph and agentic retrieval layers MUST consume structured representations
 that retain these semantics; lossy flattening is permitted only behind explicit,
@@ -191,4 +200,4 @@ violations as CRITICAL.
 Runtime feature guidance lives in feature `plan.md` files and `.cursor/rules/specify-rules.mdc`
 (synchronized from the active plan).
 
-**Version**: 1.1.0 | **Ratified**: 2026-05-18 | **Last Amended**: 2026-05-18
+**Version**: 1.2.0 | **Ratified**: 2026-05-18 | **Last Amended**: 2026-05-19

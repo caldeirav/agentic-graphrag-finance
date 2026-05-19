@@ -1,5 +1,5 @@
 from ingestion.cache_manager import lookup_cache
-from ingestion.package_utils import is_mock_package
+from ingestion.package_utils import is_fixture_package
 from models.ingestion import (
     FilingResolution,
     XBRLArtifact,
@@ -8,7 +8,7 @@ from models.ingestion import (
 )
 
 
-def test_is_mock_package_detects_mock_urls():
+def test_is_fixture_package_detects_fixture_urls():
     manifest = XBRLArtifactManifest(
         resolution=FilingResolution(
             ticker="AAPL",
@@ -17,16 +17,16 @@ def test_is_mock_package_detects_mock_urls():
             form_type="10-K",
             filed_at=__import__("datetime").date.today(),
             period_end=__import__("datetime").date.today(),
-            sec_api_filing_url="https://sec.gov/mock/x",
+            edgar_filing_url="fixture://AAPL/0000320193-24-000123",
         ),
         artifacts=[],
         complete=True,
     )
-    assert is_mock_package(manifest)
+    assert is_fixture_package(manifest)
 
 
-def test_lookup_cache_ignores_mock_in_live_mode(tmp_path, monkeypatch):
-    monkeypatch.setenv("SEC_API_KEY", "real-key-not-mock")
+def test_lookup_cache_ignores_fixture_in_live_mode(tmp_path, monkeypatch):
+    monkeypatch.setenv("USE_FIXTURE_INGESTION", "0")
     monkeypatch.setenv("SEC_DOWNLOADS_ROOT", str(tmp_path / "downloads"))
     from ingestion import settings
 
@@ -39,15 +39,20 @@ def test_lookup_cache_ignores_mock_in_live_mode(tmp_path, monkeypatch):
         form_type="10-K",
         filed_at=__import__("datetime").date.today(),
         period_end=__import__("datetime").date.today(),
-        sec_api_filing_url="https://sec.gov/mock/x",
+        edgar_filing_url="fixture://AAPL/0000320193-24-000123",
     )
     dest = tmp_path / "downloads" / "AAPL" / resolution.accession
     dest.mkdir(parents=True)
-    (dest / "filing.html").write_text("x" * 6000)
+    (dest / "000032019324000123_htm.xml").write_text("x" * 1200)
+    (dest / "000032019324000123.xsd").write_text('<?xml version="1.0"?><schema/>')
     manifest = XBRLArtifactManifest(
         resolution=resolution,
         artifacts=[
-            XBRLArtifact(filename="filing.html", role=XBRLArtifactRole.FILING_HTML),
+            XBRLArtifact(
+                filename="000032019324000123_htm.xml",
+                role=XBRLArtifactRole.INSTANCE,
+            ),
+            XBRLArtifact(filename="000032019324000123.xsd", role=XBRLArtifactRole.SCHEMA),
         ],
         complete=True,
     )

@@ -26,7 +26,7 @@ def test_yaml_has_no_bash_placeholders():
         ("${MLFLOW_TRACKING_URI:-./mlruns}", "sqlite:"),
         ("${MLFLOW_TRACKING_URI:-./mlruns}/0", "sqlite:"),
         ("", "sqlite:"),
-        ("./mlruns", "file:"),
+        ("./mlruns", "sqlite:"),
         ("sqlite:///mlflow.db", "sqlite:"),
     ],
 )

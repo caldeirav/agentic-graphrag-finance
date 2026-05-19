@@ -2,7 +2,7 @@ from ingestion import fetch_filing
 
 
 def test_cache_hit_on_second_fetch(tmp_path, monkeypatch):
-    monkeypatch.setenv("SEC_API_KEY", "test-mock")
+    monkeypatch.setenv("USE_FIXTURE_INGESTION", "1")
     root = tmp_path / "downloads"
     monkeypatch.setenv("SEC_DOWNLOADS_ROOT", str(root))
     from ingestion import settings

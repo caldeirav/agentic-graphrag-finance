@@ -8,8 +8,10 @@ from pydantic import BaseModel, Field
 class XBRLArtifactRole(StrEnum):
     INSTANCE = "instance"
     FILING_HTML = "filing_html"
+    XBRL_ZIP = "xbrl_zip"
     SCHEMA = "schema"
     CALCULATION = "calculation"
+    DEFINITION = "definition"
     LABEL = "label"
     PRESENTATION = "presentation"
     OTHER = "other"
@@ -36,8 +38,7 @@ class FilingResolution(BaseModel):
     form_type: str
     filed_at: date
     period_end: date
-    sec_api_filing_url: str = ""
-    filing_document_url: str = ""
+    edgar_filing_url: str = ""
 
 
 class XBRLArtifact(BaseModel):

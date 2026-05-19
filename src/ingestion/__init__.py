@@ -1,12 +1,12 @@
-"""Live SEC XBRL ingestion layer."""
+"""Live SEC XBRL ingestion layer (EDGAR only)."""
 
 from __future__ import annotations
 
 import logging
 
 from ingestion.cache_manager import atomic_write_package, lookup_cache, save_package, update_index
-from ingestion.sec_client import resolve_from_input, resolve_identifier
-from ingestion.settings import ConfigurationError, require_sec_api_key
+from ingestion.edgar_client import resolve_from_input, resolve_identifier
+from ingestion.settings import ConfigurationError, require_edgar_user_agent
 from ingestion.validators import ValidationError
 from ingestion.xbrl_downloader import download_artifacts, package_dir, write_manifest
 from models.ingestion import CacheEntry, FetchJob, FetchJobStatus, IssuerIdentifierInput
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "ConfigurationError",
     "ValidationError",
-    "require_sec_api_key",
+    "require_edgar_user_agent",
     "resolve_identifier",
     "resolve_from_input",
     "fetch_filing",
@@ -33,8 +33,8 @@ def fetch_filing(
     form_type: str = "10-K",
     force_refresh: bool = False,
 ) -> CacheEntry:
-    """Resolve filing, download XBRL package, validate, and cache."""
-    require_sec_api_key()
+    """Resolve filing, download XBRL package from EDGAR, validate, and cache."""
+    require_edgar_user_agent()
     resolution = resolve_identifier(
         ticker=ticker,
         cik=cik,

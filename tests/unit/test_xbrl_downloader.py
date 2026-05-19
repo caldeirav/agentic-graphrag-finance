@@ -4,8 +4,8 @@ from ingestion.validators import validate_manifest
 from models.ingestion import XBRLArtifactManifest
 
 
-def test_fetch_filing_mock(tmp_path, monkeypatch):
-    monkeypatch.setenv("SEC_API_KEY", "test-mock")
+def test_fetch_filing_fixture(tmp_path, monkeypatch):
+    monkeypatch.setenv("USE_FIXTURE_INGESTION", "1")
     monkeypatch.setenv("SEC_DOWNLOADS_ROOT", str(tmp_path / "downloads"))
     from ingestion import settings
 

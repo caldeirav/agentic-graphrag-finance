@@ -30,13 +30,18 @@ def load_mlflow_config(config_path: Path | None = None) -> dict:
 def resolve_tracking_uri(cfg: dict | None = None) -> str:
     """Resolve a safe MLflow tracking URI (env > yaml > sqlite default)."""
     cfg = cfg or load_mlflow_config()
-    raw = os.environ.get("MLFLOW_TRACKING_URI") or cfg.get("tracking_uri") or _DEFAULT_TRACKING_URI
+    yaml_uri = str(cfg.get("tracking_uri") or _DEFAULT_TRACKING_URI).strip()
+    raw = os.environ.get("MLFLOW_TRACKING_URI") or yaml_uri or _DEFAULT_TRACKING_URI
     uri = str(raw).strip().strip('"').strip("'")
 
     if not uri or any(marker in uri for marker in _INVALID_MARKERS):
         return _DEFAULT_TRACKING_URI
 
-    # Relative filesystem paths → absolute file:// URIs (avoids cwd-dependent ./mlruns folders)
+    # Legacy ./mlruns in env → prefer sqlite from configs/mlflow.yaml (project default).
+    if uri in ("./mlruns", "mlruns") and yaml_uri.startswith("sqlite"):
+        return yaml_uri
+
+    # Other relative filesystem paths → absolute file:// URIs
     if uri.startswith("./") or uri == "mlruns":
         rel = uri[2:] if uri.startswith("./") else uri
         abs_path = (Path.cwd() / rel).resolve()

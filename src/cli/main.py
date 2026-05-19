@@ -4,6 +4,7 @@ import typer
 
 import cli.bootstrap  # noqa: F401  # load .env first
 from cli.commands.ask import ask
+from cli.commands.mlflow_clean import mlflow_clean
 from cli.commands.test import test_cmd
 
 app = typer.Typer(
@@ -13,3 +14,4 @@ app = typer.Typer(
 )
 app.command("ask")(ask)
 app.command("test")(test_cmd)
+app.command("mlflow-clean")(mlflow_clean)

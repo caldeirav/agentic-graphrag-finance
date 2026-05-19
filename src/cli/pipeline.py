@@ -36,7 +36,7 @@ def run_ask_pipeline(request: CLIAskRequest) -> CLIAskResult:
     timings["fetch"] = _ms(t0)
 
     t1 = time.perf_counter()
-    doc = parse_from_cache(entry, use_docling=False)
+    doc = parse_from_cache(entry)
     write_parsed_document(doc, Path("data/parsed"), ticker=ident.ticker)
     timings["parse"] = _ms(t1)
 
@@ -105,7 +105,7 @@ def run_test_pipeline(
         form_type=form_type,
         force_refresh=force_refresh,
     )
-    doc = parse_from_cache(entry, use_docling=False)
+    doc = parse_from_cache(entry)
     issuer = ticker.upper() if ticker else doc.filing.cik
     snapshot = build_snapshot(issuer, [doc])
     messages: list[str] = []

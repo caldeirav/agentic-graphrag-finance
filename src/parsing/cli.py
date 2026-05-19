@@ -1,4 +1,4 @@
-"""CLI: ingest SEC filings."""
+"""CLI: parse ingested XBRL packages."""
 
 from __future__ import annotations
 
@@ -6,44 +6,33 @@ import argparse
 import json
 from pathlib import Path
 
-from models.filing import FilingRef
-from parsing.docling_pipeline import parse_filing_path
-from parsing.edgar_fetch import download_filing, normalize_cik, parse_filing_metadata_from_path
+from ingestion import fetch_filing
+from parsing.sec_download_adapter import parse_from_cache, write_parsed_document
 from parsing.validators import validate_parsed_document
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Ingest SEC filings")
-    parser.add_argument("--cik", required=True)
+    parser = argparse.ArgumentParser(description="Parse ingested SEC XBRL packages")
+    parser.add_argument("--ticker", default="AAPL")
+    parser.add_argument("--cik", default="")
     parser.add_argument("--accession", default="")
     parser.add_argument("--form", default="10-K")
-    parser.add_argument("--input", type=Path, help="Local HTML file (skip download)")
     parser.add_argument("--out", type=Path, default=Path("data/parsed"))
-    parser.add_argument("--skip-docling", action="store_true")
+    parser.add_argument("--force-refresh", action="store_true")
     args = parser.parse_args()
 
-    raw_dir = Path("data/raw/edgar") / normalize_cik(args.cik)
-    if args.input:
-        path = args.input
-        filing = parse_filing_metadata_from_path(path, args.cik, args.form)
-    else:
-        filing = FilingRef(
-            cik=normalize_cik(args.cik),
-            accession=args.accession or "0000320193-24-000123",
-            form_type=args.form,
-            filed_at=__import__("datetime").date.today(),
-            period_end=__import__("datetime").date.today(),
-            source_uri="",
-        )
-        path = download_filing(filing, raw_dir)
-
-    doc = parse_filing_path(path, filing, use_docling=not args.skip_docling)
+    entry = fetch_filing(
+        ticker=args.ticker or None,
+        cik=args.cik or None,
+        accession=args.accession or None,
+        form_type=args.form,
+        force_refresh=args.force_refresh,
+    )
+    doc = parse_from_cache(entry)
     validate_parsed_document(doc)
-    out_dir = args.out / normalize_cik(args.cik)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_file = out_dir / f"{doc.filing.accession}.json"
-    out_file.write_text(doc.model_dump_json(indent=2))
-    print(json.dumps({"parsed": str(out_file), "confidence": doc.parse_confidence}))
+    ticker = args.ticker.upper() if args.ticker else doc.filing.cik
+    out_path = write_parsed_document(doc, args.out, ticker=ticker)
+    print(json.dumps({"parsed": str(out_path), "confidence": doc.parse_confidence}))
 
 
 if __name__ == "__main__":

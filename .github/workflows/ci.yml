@@ -22,11 +22,13 @@ jobs:
         env:
           USE_MOCK_LLM: "1"
           USE_MOCK_JUDGE: "1"
-          SEC_API_KEY: test-mock
+          USE_FIXTURE_INGESTION: "1"
+          SEC_EDGAR_USER_AGENT: "agentic-graphrag-finance-ci test@example.com"
         run: uv run pytest tests/unit tests/contract -q
       - name: Integration tests
         env:
           USE_MOCK_LLM: "1"
           USE_MOCK_JUDGE: "1"
-          SEC_API_KEY: test-mock
+          USE_FIXTURE_INGESTION: "1"
+          SEC_EDGAR_USER_AGENT: "agentic-graphrag-finance-ci test@example.com"
         run: uv run pytest tests/integration -q

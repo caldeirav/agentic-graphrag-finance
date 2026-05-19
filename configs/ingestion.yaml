@@ -1,3 +1,3 @@
 downloads_root: data/raw/sec_downloads
-ticker_map_cache: data/cache/sec-api/ticker_map.json
-requests_per_second: 2
+ticker_map_cache: data/cache/edgar/ticker_map.json
+edgar_requests_per_second: 8

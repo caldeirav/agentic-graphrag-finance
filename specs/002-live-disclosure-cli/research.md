@@ -83,6 +83,12 @@ CI sets `SEC_API_KEY=test-mock` or mocks HTTP.
 
 **Rationale**: sec-api.io account limits; spec edge case for unreachable API.
 
+## R9: XBRL-First Package Retrieval (Adopted 2026-05-19)
+
+**Decision**: Download **full raw XBRL** from **SEC EDGAR Archives** (free) as the canonical structured source; use sec-api for resolution and optional HTML. See [research-xbrl-retrieval.md](./research-xbrl-retrieval.md).
+
+**Implementation**: `src/ingestion/edgar_xbrl.py` + `xbrl_downloader.py` (EDGAR primary, sec-api fallback).
+
 ## Resolved Clarifications
 
 All technical context items resolved for Phase 1 design.

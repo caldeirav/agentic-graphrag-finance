@@ -10,8 +10,8 @@ import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 
-from ingestion.package_utils import is_mock_package, package_has_substantive_content
-from ingestion.settings import get_settings, is_mock_mode
+from ingestion.package_utils import is_fixture_package, package_has_substantive_content
+from ingestion.settings import get_settings, is_fixture_ingestion
 from ingestion.validators import validate_manifest
 from ingestion.xbrl_downloader import package_dir, write_manifest
 from models.ingestion import CacheEntry, FilingResolution, XBRLArtifactManifest
@@ -42,8 +42,8 @@ def lookup_cache(resolution: FilingResolution) -> CacheEntry | None:
     manifest = _load_manifest(manifest_path)
     if manifest is None or not manifest.complete:
         return None
-    if is_mock_package(manifest) and not is_mock_mode():
-        logger.info("ignoring mock cache for %s (live mode)", resolution.accession)
+    if is_fixture_package(manifest) and not is_fixture_ingestion():
+        logger.info("ignoring fixture cache for %s (live EDGAR mode)", resolution.accession)
         return None
     if not package_has_substantive_content(dest, manifest):
         logger.info("ignoring empty cache for %s", resolution.accession)

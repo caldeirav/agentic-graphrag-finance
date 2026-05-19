@@ -1,138 +1,49 @@
-"""Download XBRL instance and taxonomy artifacts."""
+"""Download XBRL instance and taxonomy artifacts from SEC EDGAR."""
 
 from __future__ import annotations
 
 import hashlib
 import logging
+import shutil
 from pathlib import Path
 
-from ingestion.sec_client import get_sec_client, with_retry
-from ingestion.settings import is_mock_mode
+from ingestion.edgar_xbrl import download_edgar_xbrl_package
+from ingestion.settings import get_settings, is_fixture_ingestion
 from models.ingestion import FilingResolution, XBRLArtifact, XBRLArtifactManifest, XBRLArtifactRole
 
 logger = logging.getLogger(__name__)
 
-_MOCK_HTML_FIXTURE = Path("tests/fixtures/sample_10k.html")
+
+def _fixture_source_dir(resolution: FilingResolution) -> Path:
+    root = get_settings().fixture_downloads_root
+    return root / resolution.ticker.upper() / resolution.accession
 
 
-def _mock_artifacts(resolution: FilingResolution) -> list[XBRLArtifact]:
-    base = resolution.accession.replace("-", "")
-    return [
-        XBRLArtifact(
-            filename="filing.html",
-            role=XBRLArtifactRole.FILING_HTML,
-            url="mock://filing_html",
-        ),
-        XBRLArtifact(
-            filename=f"{base}_htm.xml",
-            role=XBRLArtifactRole.INSTANCE,
-            url="mock://instance",
-        ),
-        XBRLArtifact(
-            filename=f"{base}.xsd",
-            role=XBRLArtifactRole.SCHEMA,
-            url="mock://schema",
-        ),
-    ]
-
-
-def _mock_write_files(dest: Path, artifacts: list[XBRLArtifact]) -> None:
+def _copy_fixture_package(resolution: FilingResolution, dest: Path) -> list[XBRLArtifact]:
+    src = _fixture_source_dir(resolution)
+    if not src.is_dir():
+        raise FileNotFoundError(f"Fixture package not found: {src}")
     dest.mkdir(parents=True, exist_ok=True)
-    html_body = (
-        _MOCK_HTML_FIXTURE.read_text()
-        if _MOCK_HTML_FIXTURE.exists()
-        else "<html><body><h1>Mock filing</h1></body></html>"
-    )
-    # Pad so mock packages pass the same size checks as live filing HTML downloads.
-    while len(html_body) < 5_500:
-        html_body += (
-            "<p>Revenue increased due to strong product demand and services growth.</p>"
-            "<table><tr><td>Net sales</td><td>100</td></tr></table>"
-        )
-    for art in artifacts:
-        path = dest / art.filename
-        if art.role == XBRLArtifactRole.FILING_HTML:
-            path.write_text(html_body)
-        elif art.role == XBRLArtifactRole.INSTANCE:
-            path.write_text(
-                '<?xml version="1.0"?><xbrl xmlns="http://www.xbrl.org/2003/instance">'
-                "<context id='c1'/><unit id='u1'/>"
-                "<dei:DocumentType contextRef='c1'>10-K</dei:DocumentType>"
-                "</xbrl>"
-            )
-        else:
-            path.write_text('<?xml version="1.0"?><schema xmlns="http://www.w3.org/2001/XMLSchema"/>')
-
-
-def _download_filing_html(resolution: FilingResolution, dest: Path) -> XBRLArtifact | None:
-    url = resolution.filing_document_url or resolution.sec_api_filing_url
-    if not url or not url.startswith("http"):
-        logger.warning("No filing HTML URL for %s", resolution.accession)
-        return None
-
-    client = get_sec_client()
-    assert client is not None
-    render = client["render"]
-
-    def _fetch():
-        return render.get_filing(url)
-
-    content = with_retry(_fetch)
-    path = dest / "filing.html"
-    if isinstance(content, bytes):
-        path.write_bytes(content)
-    else:
-        path.write_text(str(content))
-
-    if path.stat().st_size < 500:
-        logger.warning("Filing HTML download too small for %s", resolution.accession)
-        return None
-
-    size = path.stat().st_size
-    logger.info("Downloaded filing HTML (%s bytes) for %s", size, resolution.accession)
-    return XBRLArtifact(
-        filename="filing.html",
-        role=XBRLArtifactRole.FILING_HTML,
-        url=url,
-    )
-
-
-def list_xbrl_artifacts(resolution: FilingResolution) -> list[XBRLArtifact]:
-    if is_mock_mode():
-        return _mock_artifacts(resolution)
-
-    client = get_sec_client()
-    assert client is not None
-    xbrl_api = client["xbrl"]
-
-    def _fetch():
-        return xbrl_api.xbrl_to_json(
-            htm_url=resolution.filing_document_url or resolution.sec_api_filing_url or None,
-            accession_no=resolution.accession,
-        )
-
+    for path in src.iterdir():
+        if path.is_file():
+            shutil.copy2(path, dest / path.name)
     artifacts: list[XBRLArtifact] = []
-    try:
-        data = with_retry(_fetch)
-        if isinstance(data, dict):
-            for key, url in (data.get("instance") or {}).items():
-                if isinstance(url, str) and url.startswith("http"):
-                    artifacts.append(
-                        XBRLArtifact(
-                            filename=Path(url).name or f"{key}.xml",
-                            role=XBRLArtifactRole.INSTANCE,
-                            url=url,
-                        )
-                    )
-    except Exception as exc:
-        logger.warning("XBRL artifact listing failed for %s: %s", resolution.accession, exc)
+    for path in sorted(dest.rglob("*")):
+        if not path.is_file() or path.name == "manifest.json":
+            continue
+        rel = path.relative_to(dest)
+        from ingestion.edgar_xbrl import classify_filename, is_xbrl_package_file
 
+        if is_xbrl_package_file(path.name):
+            artifacts.append(
+                XBRLArtifact(
+                    filename=str(rel),
+                    role=classify_filename(path.name),
+                    url=f"fixture://{rel}",
+                )
+            )
     if not artifacts:
-        acc = resolution.accession.replace("-", "")
-        artifacts = [
-            XBRLArtifact(filename=f"{acc}.xml", role=XBRLArtifactRole.INSTANCE, url=""),
-            XBRLArtifact(filename=f"{acc}.xsd", role=XBRLArtifactRole.SCHEMA, url=""),
-        ]
+        raise RuntimeError(f"No XBRL files in fixture package {src}")
     return artifacts
 
 
@@ -143,28 +54,10 @@ def download_artifacts(
 ) -> XBRLArtifactManifest:
     dest.mkdir(parents=True, exist_ok=True)
 
-    if is_mock_mode():
-        arts = artifacts or _mock_artifacts(resolution)
-        _mock_write_files(dest, arts)
+    if is_fixture_ingestion():
+        arts = artifacts or _copy_fixture_package(resolution, dest)
     else:
-        import httpx
-
-        arts: list[XBRLArtifact] = []
-        html_art = _download_filing_html(resolution, dest)
-        if html_art is not None:
-            arts.append(html_art)
-
-        for art in artifacts or list_xbrl_artifacts(resolution):
-            if art.role == XBRLArtifactRole.FILING_HTML:
-                continue
-            path = dest / art.filename
-            if art.url and art.url.startswith("http"):
-                resp = httpx.get(art.url, timeout=120.0)
-                resp.raise_for_status()
-                path.write_bytes(resp.content)
-            elif not path.exists():
-                path.write_text(f"<!-- placeholder for {art.role} -->")
-            arts.append(art)
+        arts = list(download_edgar_xbrl_package(resolution, dest))
 
     updated: list[XBRLArtifact] = []
     for art in arts:
@@ -182,7 +75,5 @@ def write_manifest(dest: Path, manifest: XBRLArtifactManifest) -> Path:
 
 
 def package_dir(resolution: FilingResolution) -> Path:
-    from ingestion.settings import get_settings
-
     root = get_settings().sec_downloads_root
     return root / resolution.ticker.upper() / resolution.accession
