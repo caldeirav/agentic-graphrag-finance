@@ -114,6 +114,7 @@ def _query_latest_filing(cik: str, form_type: str) -> FilingResolution:
         filed_at=date.fromisoformat(f["filedAt"][:10]),
         period_end=date.fromisoformat(f.get("periodOfReport", f["filedAt"])[:10]),
         sec_api_filing_url=f.get("linkToFilingDetails", ""),
+        filing_document_url=f.get("linkToHtml", "") or f.get("linkToFilingDetails", ""),
     )
 
 
@@ -173,10 +174,10 @@ def get_sec_client():
     require_sec_api_key()
     if is_mock_mode():
         return None
-    from sec_api import QueryApi, XbrlApi
+    from sec_api import QueryApi, RenderApi, XbrlApi
 
     key = require_sec_api_key()
-    return {"query": QueryApi(key), "xbrl": XbrlApi(key)}
+    return {"query": QueryApi(key), "xbrl": XbrlApi(key), "render": RenderApi(key)}
 
 
 _last_request = 0.0

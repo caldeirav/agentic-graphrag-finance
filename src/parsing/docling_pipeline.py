@@ -20,6 +20,16 @@ from models.parsing import ParsedDocument
 PARSER_VERSION = "docling-xbrl-0.1.0"
 
 
+def find_primary_parse_path(root: Path, manifest: XBRLArtifactManifest) -> Path:
+    """Prefer full filing HTML over minimal XBRL instance stubs."""
+    for art in manifest.artifacts:
+        if art.role == XBRLArtifactRole.FILING_HTML:
+            path = root / art.filename
+            if path.exists() and path.stat().st_size > 500:
+                return path
+    return find_primary_instance_path(root, manifest)
+
+
 def find_primary_instance_path(root: Path, manifest: XBRLArtifactManifest) -> Path:
     """Locate primary XBRL instance XML from manifest roles."""
     for art in manifest.artifacts:

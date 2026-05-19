@@ -73,6 +73,27 @@ def build_snapshot(
                 )
                 edge_idx += 1
             prev_section_id = sec_id
+            body = (sec.text or "").strip()
+            if body and body != sec.title.strip() and len(body) > 40:
+                para_id = f"{sec_id}-body"
+                nodes.append(
+                    GraphNode(
+                        node_id=para_id,
+                        node_type=GraphNodeType.CHUNK_PARAGRAPH,
+                        label=sec.title[:80],
+                        properties={"section_id": sec.section_id},
+                        source_ref=body[:4000],
+                    )
+                )
+                edges.append(
+                    GraphEdge(
+                        edge_id=f"e-{edge_idx}",
+                        source_id=sec_id,
+                        target_id=para_id,
+                        edge_type=GraphEdgeType.CONTAINS,
+                    )
+                )
+                edge_idx += 1
 
         for table in doc.tables:
             chunk_id = f"{doc_id}-{table.table_id}"

@@ -68,6 +68,12 @@ uv run agent-query test --ticker AAPL --check-registry
 
 Flags: `--ticker`, `--cik`, `--accession`, `--form` (10-K / 10-Q), `--force-refresh`, `--json`.
 
+If you previously ran with `SEC_API_KEY=test-mock`, clear stale mock cache before live use:
+
+```bash
+uv run agent-query ask --ticker AAPL --query "..." --force-refresh
+```
+
 ### Core pipeline (offline / fixtures)
 
 ```bash

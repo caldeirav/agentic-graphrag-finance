@@ -22,6 +22,12 @@ def meso_router(state: AgentState, *, graph_api) -> dict:
             for k in ("financial", "balance", "income", "cash", "liquidity", "margin")
         ):
             score += 0.4
+        if any(k in query for k in ("revenue", "sales", "driver", "segment", "growth")):
+            if any(
+                k in sec.label.lower()
+                for k in ("revenue", "management", "md&a", "results", "operations", "business")
+            ):
+                score += 0.5
         candidates.append(
             SectionCandidate(section_node_id=sec.node_id, score=score, path=[sec.node_id])
         )

@@ -7,7 +7,7 @@ from pathlib import Path
 from models.filing import FilingRef
 from models.ingestion import CacheEntry, XBRLArtifactManifest
 from models.parsing import ParsedDocument
-from parsing.docling_pipeline import find_primary_instance_path, parse_filing_path
+from parsing.docling_pipeline import find_primary_parse_path, parse_filing_path
 
 
 def load_manifest(entry: CacheEntry) -> XBRLArtifactManifest:
@@ -28,7 +28,7 @@ def filing_ref_from_manifest(manifest: XBRLArtifactManifest) -> FilingRef:
 
 def parse_from_cache(entry: CacheEntry, *, use_docling: bool = True) -> ParsedDocument:
     manifest = load_manifest(entry)
-    instance = find_primary_instance_path(entry.local_path, manifest)
+    instance = find_primary_parse_path(entry.local_path, manifest)
     filing = filing_ref_from_manifest(manifest)
     return parse_filing_path(instance, filing, use_docling=use_docling)
 
