@@ -13,14 +13,21 @@ This repository implements the research direction described in *Graph-Grounded A
 | **Ingest** | Resolve ticker/CIK/accession via SEC EDGAR; download full XBRL instance + taxonomy linkbases (no third-party filing APIs). |
 | **Parse** | Mandatory [Docling XBRL conversion](https://docling-project.github.io/docling/examples/xbrl_conversion/) (`InputFormat.XML_XBRL`) — sections, tables, and consolidated numeric facts. No HTML fallback. |
 | **Graph** | Map `ParsedDocument` → `GraphSnapshot`: documents → sections → chunks; XBRL facts indexed as first-class paragraph chunks with human-readable excerpts. |
-| **Retrieve** | LangGraph agent: **macro** (temporal intent) → **meso** (section routing) → **micro** (chunk/XBRL extraction) → **synthesize** (LLM-grounded answer + citations). |
+| **Corpus** | Materialize issuer snapshots: latest **10-K** + trailing **10-Qs** (default 4); versioned under `data/graphs/{ticker}/`. |
+| **Retrieve** | CLI **temporal binding** (e.g. `prior-quarter`) → LangGraph: **macro** → **meso** → **micro** → **synthesize**, scoped to bound filing(s) and period-of-report. |
 | **Observe** | MLflow runs, LangGraph trajectories, and optional Gemini judge for benchmark suites. |
 
-The primary entry point is a single command that runs the full pipeline:
+Recommended workflow for multi-period questions:
 
 ```bash
-uv run agent-query ask --ticker AAPL --query "What was net sales?"
+# 1. Build (or refresh) the issuer corpus graph
+uv run agent-query materialize --ticker AAPL
+
+# 2. Ask with optional fiscal anchor
+uv run agent-query ask --ticker AAPL --anchor prior-quarter --query "What was revenue in the prior quarter?"
 ```
+
+Single-filing queries still work without an explicit `materialize` if a snapshot already exists.
 
 ---
 
@@ -79,10 +86,12 @@ stateDiagram-v2
 
 | Node | Role | Implementation notes |
 |------|------|----------------------|
-| **macro_router** | Intent and temporal framing | LLM selects comparison mode (YoY / QoQ / sequential) and filing context; falls back safely when the model returns null or invalid modes. |
-| **meso_router** | Structural navigation | Ranks graph **sections** by query overlap; boosts MD&A, revenue-related labels, and the **XBRL Financial Facts** section for numeric questions. |
-| **micro_extractor** | Granular evidence | Pulls table rows, paragraphs, and XBRL fact chunks; relevance scoring with extra weight for XBRL concepts matching the query (e.g. revenue, assets). |
-| **synthesize** | Grounded generation | LLM answer constrained to retrieved evidence; returns `INSUFFICIENT_EVIDENCE` when the corpus lacks support. |
+| **macro_router** | Filing set for retrieval | When the CLI pre-binds filings (`--anchor`, `--period`), passes them through unchanged. Otherwise uses the LLM to pick accessions from the snapshot manifest. |
+| **meso_router** | Structural navigation | Ranks **sections** only within the bound filing(s); boosts MD&A, revenue-related labels, and **XBRL Financial Facts**. |
+| **micro_extractor** | Granular evidence | Extracts chunks/XBRL only from bound `doc-{accession}` nodes; boosts facts whose duration period contains the filing `period_end`. |
+| **synthesize** | Grounded generation | Filters evidence to bound filings and aligned periods before LLM synthesis; template fallback if the model returns empty content. |
+
+**Temporal scope (CLI, before the agent):** flags like `--anchor prior-quarter` resolve to concrete accessions via `src/retrieval/temporal.py` (fiscal labels inferred from the 10-K year-end month). EDGAR `reportDate` is preserved on fetch; each XBRL concept can appear with **multiple period contexts** in the graph.
 
 ### Technical stack
 
@@ -143,23 +152,44 @@ Start LM Studio, load your model, and enable the local server before running liv
 
 | Command | Description |
 |---------|-------------|
-| `ask` | Fetch → parse → build graph → run agent → print answer |
+| `ask` | Materialize multi-filing corpus (if needed) → bind temporal scope → run agent |
+| `materialize` | Build versioned multi-filing graph snapshot (10-K + trailing 10-Qs) |
 | `test` | Structural smoke test (fetch, parse, graph node counts; no LLM) |
 | `mlflow-clean` | Reset SQLite tracking DB and remove legacy `mlruns/` dirs |
+
+#### Materialize (multi-filing corpus)
+
+```bash
+uv run agent-query materialize --ticker AAPL
+```
+
+Builds a versioned issuer snapshot under `data/graphs/AAPL/` (`index.json` + `{snapshot_id}.graphml` + `.manifest.json`) from the latest 10-K and trailing 10-Q filings (see `configs/corpus.yaml`).
+
+```bash
+# Re-download XBRL and rebuild graphs after parser or graph-builder changes
+uv run agent-query materialize --ticker AAPL --force-refresh
+```
 
 #### Ask
 
 ```bash
-# Live: EDGAR + Docling + LM Studio
+# Full snapshot (all materialized filings)
+uv run agent-query ask --ticker AAPL --query "What was net sales?"
+
+# Fiscal scope: second-latest 10-Q vs latest (issuer fiscal calendar)
 uv run agent-query ask \
   --ticker AAPL \
-  --query "What was net sales?"
+  --anchor prior-quarter \
+  --query "What was revenue in the prior quarter?"
 
-# Machine-readable output
+# Other anchors: latest-annual, latest-quarter; explicit --period FY2026-Q1
+uv run agent-query ask --ticker AAPL --period FY2026-Q1 --query "Revenue for that quarter?"
+
+# Machine-readable output (includes snapshot_scope.bound_filings)
 uv run agent-query ask --ticker AAPL --query "Summarize revenue drivers." --json
 
-# Re-download and rebuild graph after parser/graph changes
-uv run agent-query ask --ticker AAPL --query "..." --force-refresh
+# Reuse a specific snapshot version
+uv run agent-query ask --ticker AAPL --snapshot-id <uuid> --query "..."
 ```
 
 **Identifiers** (provide at least one):
@@ -171,18 +201,27 @@ uv run agent-query ask --ticker AAPL --query "..." --force-refresh
 | `--accession` / `-a` | Specific filing accession number |
 | `--form` / `-f` | `10-K` (default) or `10-Q` |
 | `--force-refresh` | Bypass cached XBRL under `data/raw/` |
-| `--json` | Emit full `CLIAskResult` JSON |
+| `--snapshot-id` | Reuse a published graph snapshot version |
+| `--anchor` | Temporal scope: `latest-annual`, `prior-quarter`, `latest-quarter` |
+| `--period` | Explicit fiscal label (repeatable), e.g. `FY2024-Q3` |
+| `--compare` | Comma-separated fiscal periods for comparison |
+| `--json` | Emit full `CLIAskResult` JSON (includes `snapshot_scope`) |
 
 **Example output:**
 
 ```text
-Apple reported net sales of $307.0 billion for the fiscal year ended September 28, 2025 ...
+Revenue for the prior quarter (period ended December 27, 2025) was $124.30 billion ...
 
 Status: SUCCESS
-Snapshot: fc95ac52-6828-4b88-8992-d14f4722a691
-MLflow run: 2de3797c2bed48dfb306f2899f51b931
-Citations: 3
-Timings (ms): fetch=1200, parse=8500, graph=12, query=3400
+Snapshot: c6e2eb96-63f9-4c92-b3a0-2695fa6d6026
+MLflow run: fab0ed2eef0145e4ba6c6972421d91b7
+Citations: 15
+Timings (ms): materialize=74, query=29941
+
+--- Snapshot scope ---
+Snapshot version: c6e2eb96-63f9-4c92-b3a0-2695fa6d6026
+Bound:
+  - FY2026-Q1 (10-Q) accession 0000320193-26-000006
 ```
 
 #### Test (offline / CI)
@@ -245,8 +284,8 @@ Open the printed URL to inspect runs, tags (`ticker`, `accession`, `cik`), and e
 |------|----------|
 | `data/raw/sec_downloads/{ticker}/{accession}/` | EDGAR XBRL package + `manifest.json` |
 | `data/cache/edgar/` | Cached `company_tickers.json` |
-| `data/parsed/` | `ParsedDocument` JSON per filing |
-| `data/graphs/{issuer}/` | `{snapshot_id}.graphml` + `.manifest.json` |
+| `data/parsed/{ticker}/{accession}.json` | `ParsedDocument` JSON per filing |
+| `data/graphs/{issuer}/` | `{snapshot_id}.graphml` + `.manifest.json` + `index.json` (multi-filing registry) |
 | `data/benchmarks/` | Benchmark JSONL inputs |
 | `tests/fixtures/sec_downloads/` | Offline XBRL for CI (`USE_FIXTURE_INGESTION=1`) |
 | `mlflow.db` | SQLite tracking store (gitignored) |
@@ -271,10 +310,10 @@ Contract tests verify import boundaries between layers. Integration tests may re
 
 ```text
 src/
-  ingestion/     EDGAR client, XBRL downloader
-  parsing/       Docling XBRL pipeline, fact consolidation
-  graph/         Snapshot builder, GraphML store, query API
-  retrieval/     LangGraph orchestration, synthesis, QueryService
+  ingestion/     EDGAR client, corpus materialize, XBRL downloader
+  parsing/       Docling XBRL pipeline, multi-context XBRL facts
+  graph/         Snapshot builder, issuer registry, GraphML store
+  retrieval/     Temporal binding, evidence_scope, LangGraph, synthesis
   evaluation/    Benchmark registry and Gemini judge
   tracing/       MLflow setup, trajectories, cleanup
   cli/           agent-query (ask · test · mlflow-clean)
@@ -290,4 +329,5 @@ src/
 |----------|-------|
 | [001 plan](specs/001-sec-disclosure-rag/plan.md) | Core GraphRAG pipeline and benchmarks |
 | [002 quickstart](specs/002-live-disclosure-cli/quickstart.md) | Live EDGAR ingestion and CLI contracts |
+| [003 quickstart](specs/003-multi-filing-corpus/quickstart.md) | Multi-filing corpus, materialize, temporal `ask` |
 | [XBRL research](specs/002-live-disclosure-cli/research-xbrl-retrieval.md) | XBRL-first retrieval design |

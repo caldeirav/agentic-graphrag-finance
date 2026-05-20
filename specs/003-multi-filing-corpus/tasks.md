@@ -28,9 +28,9 @@ description: "Task list for multi-filing issuer corpus and temporal snapshots"
 
 **Purpose**: Fixtures, config, and docs for multi-filing development
 
-- [ ] T001 [P] Add second fixture accession under `tests/fixtures/sec_downloads/AAPL/{accession}/` with valid `manifest.json` for multi-filing integration tests
-- [ ] T002 [P] Add `configs/corpus.yaml` with `max_filings: 12`, `trailing_10k: 1`, `trailing_10q: 4` defaults
-- [ ] T003 Document multi-filing storage (`data/parsed/{ticker}/{accession}.json`, `data/graphs/{issuer}/index.json`) in `README.md`
+- [x] T001 [P] Add second fixture accession under `tests/fixtures/sec_downloads/AAPL/{accession}/` with valid `manifest.json` for multi-filing integration tests
+- [x] T002 [P] Add `configs/corpus.yaml` with `max_filings: 12`, `trailing_10k: 1`, `trailing_10q: 4` defaults
+- [x] T003 Document multi-filing storage (`data/parsed/{ticker}/{accession}.json`, `data/graphs/{issuer}/index.json`) in `README.md`
 
 **Checkpoint**: Fixture corpus has ≥2 accessions; config loadable from tests
 
@@ -42,12 +42,12 @@ description: "Task list for multi-filing issuer corpus and temporal snapshots"
 
 **⚠️ CRITICAL**: No user story work until this phase is complete
 
-- [ ] T004 Add corpus Pydantic models (`CorpusDefinition`, `CorpusMember`, `CorpusMaterializationJob`, `FiscalPeriodLabel`, `FilingBinding`, `SnapshotScopeManifest`, `IssuerSnapshotIndex`) in `src/models/corpus.py` per `data-model.md`
-- [ ] T005 Extend `CLIAskRequest` and `CLIAskResult` in `src/models/ingestion.py` with `temporal_scope`, `corpus_definition`, `reuse_snapshot_id`, `snapshot_scope` fields
-- [ ] T006 Export corpus models from `src/models/__init__.py`
-- [ ] T007 [P] Add `CorpusCapExceededError` and definition validation helpers in `src/ingestion/corpus.py`
-- [ ] T008 [P] Add contract test `tests/contract/test_corpus_imports.py` asserting `ingestion.corpus` does not import `graph`, `retrieval`, or `evaluation`
-- [ ] T009 [P] Add unit test `tests/unit/test_corpus_models.py` for cap rejection when resolved members exceed `max_filings`
+- [x] T004 Add corpus Pydantic models (`CorpusDefinition`, `CorpusMember`, `CorpusMaterializationJob`, `FiscalPeriodLabel`, `FilingBinding`, `SnapshotScopeManifest`, `IssuerSnapshotIndex`) in `src/models/corpus.py` per `data-model.md`
+- [x] T005 Extend `CLIAskRequest` and `CLIAskResult` in `src/models/ingestion.py` with `temporal_scope`, `corpus_definition`, `reuse_snapshot_id`, `snapshot_scope` fields
+- [x] T006 Export corpus models from `src/models/__init__.py`
+- [x] T007 [P] Add `CorpusCapExceededError` and definition validation helpers in `src/ingestion/corpus.py`
+- [x] T008 [P] Add contract test `tests/contract/test_corpus_imports.py` asserting `ingestion.corpus` does not import `graph`, `retrieval`, or `evaluation`
+- [x] T009 [P] Add unit test `tests/unit/test_corpus_models.py` for cap rejection when resolved members exceed `max_filings`
 
 **Checkpoint**: Model validation tests pass; import boundary test passes
 
@@ -61,18 +61,18 @@ description: "Task list for multi-filing issuer corpus and temporal snapshots"
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Implement `list_recent_filings()` in `src/ingestion/edgar_client.py` using EDGAR `submissions.recent` with dedupe by fiscal period
-- [ ] T011 [US1] Implement `resolve_corpus_members(definition: CorpusDefinition)` in `src/ingestion/corpus.py` for `default_trailing`, `explicit_accessions`, and `date_range` modes
-- [ ] T012 [US1] Implement `materialize_corpus_members()` in `src/ingestion/corpus.py` batching `fetch_filing()` per member with per-filing status tracking
-- [ ] T013 [US1] Export `list_recent_filings`, `materialize_corpus`, and `CorpusCapExceededError` from `src/ingestion/__init__.py` per `contracts/corpus-boundary.md`
-- [ ] T014 [P] [US1] Add unit test `tests/unit/test_list_recent_filings.py` for fixture and dedupe behavior
-- [ ] T015 [P] [US1] Add unit test `tests/unit/test_corpus_materialize.py` for cap exceeded and partial failure recording
-- [ ] T016 [US1] Extend `write_parsed_document()` in `src/parsing/sec_download_adapter.py` to persist `data/parsed/{ticker}/{accession}.json` per filing
-- [ ] T017 [US1] Implement `build_issuer_snapshot()` in `src/graph/registry.py` wrapping `graph.builder.build_snapshot` and `graph.store.save_snapshot`
-- [ ] T018 [US1] Implement `register_snapshot()`, `get_latest_snapshot()`, and `IssuerSnapshotIndex` persistence in `src/graph/registry.py` at `data/graphs/{issuer}/index.json`
-- [ ] T019 [US1] Implement `run_materialize_pipeline()` in `src/cli/corpus_pipeline.py` orchestrating corpus fetch → parse each member → `build_issuer_snapshot` → register
-- [ ] T020 [US1] Implement `src/cli/commands/materialize.py` with `--ticker`, `--cik`, `--force-refresh`, corpus override flags; wire subcommand in `src/cli/main.py`
-- [ ] T021 [P] [US1] Add integration test `tests/integration/test_corpus_materialize.py` using multi-accession fixtures
+- [x] T010 [US1] Implement `list_recent_filings()` in `src/ingestion/edgar_client.py` using EDGAR `submissions.recent` with dedupe by fiscal period
+- [x] T011 [US1] Implement `resolve_corpus_members(definition: CorpusDefinition)` in `src/ingestion/corpus.py` for `default_trailing`, `explicit_accessions`, and `date_range` modes
+- [x] T012 [US1] Implement `materialize_corpus_members()` in `src/ingestion/corpus.py` batching `fetch_filing()` per member with per-filing status tracking
+- [x] T013 [US1] Export `list_recent_filings`, `materialize_corpus`, and `CorpusCapExceededError` from `src/ingestion/__init__.py` per `contracts/corpus-boundary.md`
+- [x] T014 [P] [US1] Add unit test `tests/unit/test_list_recent_filings.py` for fixture and dedupe behavior
+- [x] T015 [P] [US1] Add unit test `tests/unit/test_corpus_materialize.py` for cap exceeded and partial failure recording
+- [x] T016 [US1] Extend `write_parsed_document()` in `src/parsing/sec_download_adapter.py` to persist `data/parsed/{ticker}/{accession}.json` per filing
+- [x] T017 [US1] Implement `build_issuer_snapshot()` in `src/graph/registry.py` wrapping `graph.builder.build_snapshot` and `graph.store.save_snapshot`
+- [x] T018 [US1] Implement `register_snapshot()`, `get_latest_snapshot()`, and `IssuerSnapshotIndex` persistence in `src/graph/registry.py` at `data/graphs/{issuer}/index.json`
+- [x] T019 [US1] Implement `run_materialize_pipeline()` in `src/cli/corpus_pipeline.py` orchestrating corpus fetch → parse each member → `build_issuer_snapshot` → register
+- [x] T020 [US1] Implement `src/cli/commands/materialize.py` with `--ticker`, `--cik`, `--force-refresh`, corpus override flags; wire subcommand in `src/cli/main.py`
+- [x] T021 [P] [US1] Add integration test `tests/integration/test_corpus_materialize.py` using multi-accession fixtures
 
 **Checkpoint**: Materialize command succeeds on fixtures; snapshot manifest lists multiple `filing_refs` with temporal edges in graph
 
@@ -86,16 +86,16 @@ description: "Task list for multi-filing issuer corpus and temporal snapshots"
 
 ### Implementation for User Story 2
 
-- [ ] T022 [US2] Implement `fiscal_period_label()` from `FilingRef` in `src/retrieval/temporal.py` (issuer fiscal periods only)
-- [ ] T023 [US2] Implement `resolve_temporal_scope()` for structured anchors and explicit periods in `src/retrieval/temporal.py`
-- [ ] T024 [US2] Implement `bind_filings_for_query()` in `src/retrieval/temporal.py` returning `FilingBinding` with resolution notes
-- [ ] T025 [US2] Implement default corpus load-or-materialize and snapshot extend path in `src/cli/corpus_pipeline.py` `run_ask_pipeline()`
-- [ ] T026 [US2] Refactor `src/cli/pipeline.py` to delegate `run_ask_pipeline()` to `src/cli/corpus_pipeline.py`
-- [ ] T027 [US2] Extend `src/cli/commands/ask.py` with `--anchor`, `--period`, `--compare`, `--snapshot-id`, and explicit-scope conflict validation (FR-009c)
-- [ ] T028 [US2] Pass pre-bound `filing_set` and `binding_manifest` via `QueryRequest.metadata` in `src/retrieval/service.py` initial LangGraph state
-- [ ] T029 [US2] Update `macro_router` in `src/retrieval/orchestration/nodes/macro_router.py` to skip LLM filing selection when `filing_set` is pre-populated
-- [ ] T030 [P] [US2] Add unit test `tests/unit/test_temporal_binding.py` for latest_annual, prior_quarter, and comparison pairs on fixture manifest
-- [ ] T031 [P] [US2] Add integration test `tests/integration/test_multi_period_ask.py` for CLI structured scope vs benchmark structured scope parity
+- [x] T022 [US2] Implement `fiscal_period_label()` from `FilingRef` in `src/retrieval/temporal.py` (issuer fiscal periods only)
+- [x] T023 [US2] Implement `resolve_temporal_scope()` for structured anchors and explicit periods in `src/retrieval/temporal.py`
+- [x] T024 [US2] Implement `bind_filings_for_query()` in `src/retrieval/temporal.py` returning `FilingBinding` with resolution notes
+- [x] T025 [US2] Implement default corpus load-or-materialize and snapshot extend path in `src/cli/corpus_pipeline.py` `run_ask_pipeline()`
+- [x] T026 [US2] Refactor `src/cli/pipeline.py` to delegate `run_ask_pipeline()` to `src/cli/corpus_pipeline.py`
+- [x] T027 [US2] Extend `src/cli/commands/ask.py` with `--anchor`, `--period`, `--compare`, `--snapshot-id`, and explicit-scope conflict validation (FR-009c)
+- [x] T028 [US2] Pass pre-bound `filing_set` and `binding_manifest` via `QueryRequest.metadata` in `src/retrieval/service.py` initial LangGraph state
+- [x] T029 [US2] Update `macro_router` in `src/retrieval/orchestration/nodes/macro_router.py` to skip LLM filing selection when `filing_set` is pre-populated
+- [x] T030 [P] [US2] Add unit test `tests/unit/test_temporal_binding.py` for latest_annual, prior_quarter, and comparison pairs on fixture manifest
+- [x] T031 [P] [US2] Add integration test `tests/integration/test_multi_period_ask.py` for CLI structured scope vs benchmark structured scope parity
 
 **Checkpoint**: Ask binds subset without full re-materialize; missing period triggers new snapshot version
 
@@ -109,13 +109,13 @@ description: "Task list for multi-filing issuer corpus and temporal snapshots"
 
 ### Implementation for User Story 3
 
-- [ ] T032 [US3] Implement `probe_stale_filings()` in `src/graph/registry.py` comparing snapshot max `filed_at` to `list_recent_filings()`
-- [ ] T033 [US3] Build `SnapshotScopeManifest` (bound filings, stale flag, newer_available) in `src/cli/corpus_pipeline.py` and set on `CLIAskResult.snapshot_scope`
-- [ ] T034 [US3] Render human-readable **Snapshot scope** section and JSON fields in `src/cli/commands/ask.py` per `contracts/snapshot-scope-manifest.md`
-- [ ] T035 [US3] Log `binding_manifest.json` MLflow artifact and params (`bound_accessions`, `stale_snapshot`) in `src/cli/corpus_pipeline.py` or `src/tracing/mlflow_langgraph.py`
-- [ ] T036 [US3] Require `temporal_scope` on benchmark items and fail setup when missing in `src/evaluation/runner.py` / dataset adapters per `contracts/temporal-scope.md`
-- [ ] T037 [P] [US3] Add contract test `tests/contract/test_snapshot_scope_manifest.py` validating schema and SC-004 required fields
-- [ ] T038 [P] [US3] Add integration test `tests/integration/test_corpus_binding.py` asserting expected vs actual accessions for fixture benchmark cases
+- [x] T032 [US3] Implement `probe_stale_filings()` in `src/graph/registry.py` comparing snapshot max `filed_at` to `list_recent_filings()`
+- [x] T033 [US3] Build `SnapshotScopeManifest` (bound filings, stale flag, newer_available) in `src/cli/corpus_pipeline.py` and set on `CLIAskResult.snapshot_scope`
+- [x] T034 [US3] Render human-readable **Snapshot scope** section and JSON fields in `src/cli/commands/ask.py` per `contracts/snapshot-scope-manifest.md`
+- [x] T035 [US3] Log `binding_manifest.json` MLflow artifact and params (`bound_accessions`, `stale_snapshot`) in `src/cli/corpus_pipeline.py` or `src/tracing/mlflow_langgraph.py`
+- [x] T036 [US3] Require `temporal_scope` on benchmark items and fail setup when missing in `src/evaluation/runner.py` / dataset adapters per `contracts/temporal-scope.md`
+- [x] T037 [P] [US3] Add contract test `tests/contract/test_snapshot_scope_manifest.py` validating schema and SC-004 required fields
+- [x] T038 [P] [US3] Add integration test `tests/integration/test_corpus_binding.py` asserting expected vs actual accessions for fixture benchmark cases
 
 **Checkpoint**: 100% successful ask runs include snapshot scope; stale queries warn without blocking
 
@@ -125,11 +125,11 @@ description: "Task list for multi-filing issuer corpus and temporal snapshots"
 
 **Purpose**: Concurrency, partial failures, documentation, regression sweep
 
-- [ ] T039 [P] Add per-issuer materialize lock file in `src/graph/registry.py` or `src/ingestion/corpus.py` to prevent concurrent snapshot corruption
-- [ ] T040 Handle partial corpus member failures (exclude failed filings, block queries depending on missing members) in `src/ingestion/corpus.py` and `src/cli/corpus_pipeline.py`
-- [ ] T041 [P] Align `specs/003-multi-filing-corpus/quickstart.md` with implemented CLI flags
-- [ ] T042 [P] Update `README.md` with `agent-query materialize` and multi-period `ask` examples
-- [ ] T043 Run full `pytest` suite and fix layer import or binding regressions
+- [x] T039 [P] Add per-issuer materialize lock file in `src/graph/registry.py` or `src/ingestion/corpus.py` to prevent concurrent snapshot corruption
+- [x] T040 Handle partial corpus member failures (exclude failed filings, block queries depending on missing members) in `src/ingestion/corpus.py` and `src/cli/corpus_pipeline.py`
+- [x] T041 [P] Align `specs/003-multi-filing-corpus/quickstart.md` with implemented CLI flags
+- [x] T042 [P] Update `README.md` with `agent-query materialize` and multi-period `ask` examples
+- [x] T043 Run full `pytest` suite and fix layer import or binding regressions
 
 ---
 

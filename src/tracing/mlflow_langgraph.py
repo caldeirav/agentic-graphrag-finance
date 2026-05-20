@@ -11,6 +11,7 @@ from typing import Any
 import mlflow
 import yaml
 
+from models.corpus import SnapshotScopeManifest
 from models.query import TrajectoryRecord
 
 _DEFAULT_TRACKING_URI = "sqlite:///mlflow.db"
@@ -95,6 +96,22 @@ def traced_query_run(
         run = mlflow.active_run()
         run_id = run.info.run_id if run else ""
         yield run_id
+
+
+def log_binding_manifest(run_id: str, manifest: SnapshotScopeManifest) -> str:
+    setup_mlflow()
+    client = mlflow.tracking.MlflowClient()
+    path = "binding_manifest.json"
+    client.log_dict(run_id, manifest.model_dump(mode="json"), path)
+    bound = ",".join(b.accession for b in manifest.bound_filings)
+    mlflow.set_tags(
+        {
+            "stale_snapshot": str(manifest.stale_snapshot).lower(),
+            "bound_accessions": bound[:500],
+        }
+    )
+    uri = mlflow.get_tracking_uri()
+    return f"{uri}/runs/{run_id}/artifacts/{path}"
 
 
 def log_trajectory(run_id: str, trajectory: TrajectoryRecord) -> str:

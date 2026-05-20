@@ -9,15 +9,20 @@ import re
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from models.enums import QueryStatus, Sufficiency
+from models.filing import FilingRef
 from models.query import AnswerPackage, EvidenceChunk
+from retrieval.evidence_scope import filter_evidence_for_filing_set
 from retrieval.orchestration.llm import create_chat_llm
 from retrieval.orchestration.state import AgentState
 
 
 def synthesize(state: AgentState) -> dict:
-    evidence = state.get("evidence_chunks") or []
+    evidence = list(state.get("evidence_chunks") or [])
     query = state.get("query", "")
-    filing_set = state.get("filing_set") or []
+    filing_set: list[FilingRef] = list(state.get("filing_set") or [])
+
+    if filing_set:
+        evidence = filter_evidence_for_filing_set(evidence, filing_set)
 
     if not evidence or not filing_set:
         return {
@@ -33,12 +38,16 @@ def synthesize(state: AgentState) -> dict:
         }
 
     if os.environ.get("USE_MOCK_LLM", "0") == "1":
-        return _synthesize_template(evidence, query)
+        return _synthesize_template(evidence, query, filing_set)
 
     return _synthesize_with_llm(evidence, query, filing_set)
 
 
-def _synthesize_template(evidence: list[EvidenceChunk], query: str) -> dict:
+def _synthesize_template(
+    evidence: list[EvidenceChunk],
+    query: str,
+    filing_set: list[FilingRef],
+) -> dict:
     cited_numbers = _extract_numbers_from_evidence(evidence)
     parts = [f"Based on {len(evidence)} evidence chunk(s) from SEC filings:"]
     for i, chunk in enumerate(evidence[:5], 1):
@@ -62,6 +71,7 @@ def _synthesize_with_llm(
     filing_set: list,
 ) -> dict:
     llm = create_chat_llm()
+    period_ends = ", ".join(str(f.period_end) for f in filing_set)
     filing_ctx = json.dumps(
         [
             {
@@ -78,7 +88,7 @@ def _synthesize_with_llm(
     )
     prompt = f"""Answer the financial question using ONLY the SEC filing evidence below.
 
-Filings:
+Filings (use ONLY these — ignore any other period in your training data):
 {filing_ctx}
 
 Evidence:
@@ -89,7 +99,8 @@ Question: {query}
 Instructions:
 - Give a direct, definitive answer in the first sentence (include dollar amounts and period when present).
 - Use XBRL fact lines that match the question (e.g. RevenueFromContractWithCustomer for net sales/revenue).
-- If multiple periods appear, state the most recent period clearly.
+- The authoritative reporting period end date(s) for this answer: {period_ends}.
+- Prefer evidence whose "for period" range ends on that date; do not answer using prior-year comparative periods.
 - Do not list raw table IDs; cite fact concepts or filing sections.
 - If evidence is insufficient, say so explicitly."""
 
@@ -104,15 +115,34 @@ Instructions:
             HumanMessage(content=prompt),
         ]
     )
-    text = resp.content if isinstance(resp.content, str) else str(resp.content)
+    text = _message_content_to_text(resp.content).strip()
+    if not text:
+        return _synthesize_template(evidence, query, filing_set)
     return {
         "answer": AnswerPackage(
-            text=text.strip(),
+            text=text,
             citations=evidence[:15],
             sufficiency=Sufficiency.COMPLETE,
         ),
         "status": QueryStatus.SUCCESS,
     }
+
+
+def _message_content_to_text(content: object) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict):
+                if block.get("type") == "text":
+                    parts.append(str(block.get("text", "")))
+                elif "text" in block:
+                    parts.append(str(block["text"]))
+        return "\n".join(p for p in parts if p)
+    return str(content)
 
 
 def _extract_numbers_from_evidence(evidence: list[EvidenceChunk]) -> list[str]:

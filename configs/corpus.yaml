@@ -1,0 +1,7 @@
+# Multi-filing issuer corpus defaults (003)
+max_filings: 12
+trailing_10k: 1
+trailing_10q: 4
+form_types:
+  - "10-K"
+  - "10-Q"

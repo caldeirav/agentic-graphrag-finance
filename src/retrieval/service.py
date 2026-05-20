@@ -37,7 +37,7 @@ class QueryService:
         initial = {
             "query": request.query,
             "snapshot_id": request.snapshot_id,
-            "filing_set": [],
+            "filing_set": list(request.pre_bound_filings),
             "section_candidates": [],
             "evidence_chunks": [],
             "graph_traversal": [],

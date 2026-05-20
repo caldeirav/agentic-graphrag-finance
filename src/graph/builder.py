@@ -130,7 +130,8 @@ def build_snapshot(
                 facts = consolidate_xbrl_fact_rows(table.rows)
                 for concept, fields in select_facts_for_index(facts):
                     excerpt = fact_to_excerpt(concept, fields)
-                    h = hashlib.sha256(concept.encode()).hexdigest()[:12]
+                    period_key = fields.get("period", "")
+                    h = hashlib.sha256(f"{concept}|{period_key}".encode()).hexdigest()[:12]
                     fact_id = f"{doc_id}-xbrl-{h}"
                     nodes.append(
                         GraphNode(

@@ -16,6 +16,17 @@ from models.evaluation import (
 )
 from models.filing import CellSpan, FilingRef, FootnoteBlock, SectionBlock, TableBlock
 from models.graph import GraphEdge, GraphManifest, GraphNode, GraphSnapshot
+from models.corpus import (
+    BoundFilingEntry,
+    CorpusDefinition,
+    CorpusMaterializationJob,
+    CorpusMember,
+    CorpusTemporalScope,
+    FilingBinding,
+    FiscalPeriodLabel,
+    IssuerSnapshotIndex,
+    SnapshotScopeManifest,
+)
 from models.ingestion import (
     CacheEntry,
     CLIAskRequest,
@@ -75,4 +86,13 @@ __all__ = [
     "CLIAskRequest",
     "CLIAskResult",
     "CLITestResult",
+    "CorpusDefinition",
+    "CorpusMember",
+    "CorpusMaterializationJob",
+    "CorpusTemporalScope",
+    "FilingBinding",
+    "FiscalPeriodLabel",
+    "BoundFilingEntry",
+    "SnapshotScopeManifest",
+    "IssuerSnapshotIndex",
 ]

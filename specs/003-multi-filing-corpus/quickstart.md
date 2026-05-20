@@ -39,7 +39,7 @@ uv run agent-query ask \
   --compare FY2024-Q3,FY2024-Q2
 ```
 
-Explicit flags override NL period inference.
+Explicit flags override NL period inference. Supported flags: `--anchor` (`latest-annual`, `prior-quarter`, `latest-quarter`), `--period` (repeatable fiscal label), `--compare` (comma-separated periods), `--snapshot-id`.
 
 ## 4. Reuse snapshot (warn if stale)
 

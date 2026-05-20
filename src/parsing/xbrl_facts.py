@@ -22,29 +22,39 @@ _QUERY_CONCEPT_HINTS: dict[str, re.Pattern[str]] = {
 }
 
 
-def consolidate_xbrl_fact_rows(rows: list[list[str]]) -> dict[str, dict[str, str]]:
-    """Group flat key-value rows into concept → {value, period, currency, decimals}."""
-    facts: dict[str, dict[str, str]] = {}
-    current: str | None = None
+def consolidate_xbrl_fact_rows(rows: list[list[str]]) -> list[tuple[str, dict[str, str]]]:
+    """Group flat key-value rows into one record per concept value instance (all contexts)."""
+    facts: list[tuple[str, dict[str, str]]] = []
+    current_concept: str | None = None
+    current_fields: dict[str, str] = {}
+
+    def flush() -> None:
+        nonlocal current_fields, current_concept
+        if current_concept and "value" in current_fields:
+            facts.append((current_concept, dict(current_fields)))
+        current_fields = {}
+
     for row in rows:
         if len(row) < 2:
             continue
         left, right = row[0].strip(), row[1].strip()
         if right.startswith("value:"):
-            current = left or current
-            if current:
-                facts.setdefault(current, {})["value"] = right[6:].strip()
+            flush()
+            current_concept = left or current_concept
+            if current_concept:
+                current_fields = {"value": right[6:].strip()}
         elif right.startswith("period:"):
-            if current:
-                facts[current]["period"] = right[7:].strip()
+            if current_concept:
+                current_fields["period"] = right[7:].strip()
         elif right.startswith("currency:"):
-            if current:
-                facts[current]["currency"] = right[9:].strip()
+            if current_concept:
+                current_fields["currency"] = right[9:].strip()
         elif right.startswith("decimals:"):
-            if current:
-                facts[current]["decimals"] = right[9:].strip()
+            if current_concept:
+                current_fields["decimals"] = right[9:].strip()
         elif not right.startswith("dimension:") and left:
-            current = left
+            current_concept = left
+    flush()
     return facts
 
 
@@ -95,21 +105,22 @@ def concepts_for_query(query: str) -> re.Pattern[str] | None:
 
 
 def select_facts_for_index(
-    facts: dict[str, dict[str, str]],
+    facts: list[tuple[str, dict[str, str]]],
     *,
     query: str | None = None,
     max_facts: int = 400,
 ) -> list[tuple[str, dict[str, str]]]:
-    """Return concepts to materialize as graph evidence nodes."""
+    """Return concept instances to materialize as graph evidence nodes."""
     query_pat = concepts_for_query(query) if query else None
     selected: list[tuple[str, dict[str, str]]] = []
-    for concept, fields in facts.items():
+    for concept, fields in facts:
         if "value" not in fields:
             continue
         if query_pat and query_pat.search(concept):
             selected.append((concept, fields))
         elif is_prioritized_concept(concept):
             selected.append((concept, fields))
+
     def _rank(item: tuple[str, dict[str, str]]) -> tuple[int, str]:
         concept = item[0]
         if query_pat and query_pat.search(concept):

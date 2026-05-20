@@ -22,6 +22,15 @@ def mock_llm_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
+def mlflow_run_cleanup() -> None:
+    import mlflow
+
+    yield
+    while mlflow.active_run() is not None:
+        mlflow.end_run()
+
+
+@pytest.fixture(autouse=True)
 def edgar_test_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(
         "SEC_EDGAR_USER_AGENT",

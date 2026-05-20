@@ -6,83 +6,15 @@ import json
 import time
 from pathlib import Path
 
-from contracts.query import QueryRequest
+from cli.corpus_pipeline import run_ask_pipeline as _run_ask_corpus
 from graph.builder import build_snapshot
-from graph.store import save_snapshot
 from ingestion import fetch_filing
 from models.ingestion import CLIAskRequest, CLIAskResult
 from parsing.sec_download_adapter import parse_from_cache, write_parsed_document
-from retrieval.service import QueryService
-from tracing.mlflow_langgraph import setup_mlflow
-
-
-def _ms(start: float) -> int:
-    return int((time.perf_counter() - start) * 1000)
 
 
 def run_ask_pipeline(request: CLIAskRequest) -> CLIAskResult:
-    timings: dict[str, int] = {}
-    ident = request.identifier
-    form = request.form_types[0] if request.form_types else "10-K"
-
-    t0 = time.perf_counter()
-    entry = fetch_filing(
-        ticker=ident.ticker,
-        cik=ident.cik,
-        accession=ident.accession,
-        form_type=form,
-        force_refresh=request.force_refresh,
-    )
-    timings["fetch"] = _ms(t0)
-
-    t1 = time.perf_counter()
-    doc = parse_from_cache(entry)
-    write_parsed_document(doc, Path("data/parsed"), ticker=ident.ticker)
-    timings["parse"] = _ms(t1)
-
-    t2 = time.perf_counter()
-    issuer = ident.ticker.upper() if ident.ticker else doc.filing.cik
-    snapshot = build_snapshot(issuer, [doc], snapshot_id=request.snapshot_id)
-    save_snapshot(snapshot, Path("data/graphs"))
-    timings["graph"] = _ms(t2)
-
-    t3 = time.perf_counter()
-    import mlflow
-
-    setup_mlflow()
-    svc = QueryService(graph_base_dir=Path("data/graphs"), issuer_id=issuer)
-    resp = svc.answer(
-        QueryRequest(
-            query=request.query,
-            snapshot_id=snapshot.snapshot_id,
-            metadata={
-                "issuer_id": issuer,
-                "ticker": ident.ticker or "",
-                "accession": doc.filing.accession,
-            },
-        )
-    )
-    mlflow_run_id = resp.mlflow_run_id
-    if mlflow.active_run():
-        mlflow.set_tags(
-            {
-                "ticker": ident.ticker or "",
-                "accession": doc.filing.accession,
-                "cik": doc.filing.cik,
-            }
-        )
-    timings["query"] = _ms(t3)
-
-    answer = resp.answer
-    return CLIAskResult(
-        answer_text=answer.text if answer else "",
-        status=str(resp.status),
-        mlflow_run_id=mlflow_run_id,
-        snapshot_id=snapshot.snapshot_id,
-        filings_used=[],
-        timings_ms=timings,
-        citations_count=len(answer.citations) if answer else 0,
-    )
+    return _run_ask_corpus(request)
 
 
 def run_test_pipeline(

@@ -1,0 +1,26 @@
+{
+  "resolution": {
+    "ticker": "AAPL",
+    "cik": "0000320193",
+    "accession": "0000320193-24-000076",
+    "form_type": "10-Q",
+    "filed_at": "2024-08-02",
+    "period_end": "2024-06-29",
+    "edgar_filing_url": "fixture://AAPL/0000320193-24-000076"
+  },
+  "artifacts": [
+    {
+      "filename": "000032019324000123_htm.xml",
+      "role": "instance",
+      "url": "fixture://000032019324000123_htm.xml",
+      "content_hash": null
+    },
+    {
+      "filename": "000032019324000123.xsd",
+      "role": "schema",
+      "url": "fixture://000032019324000123.xsd",
+      "content_hash": null
+    }
+  ],
+  "complete": true
+}

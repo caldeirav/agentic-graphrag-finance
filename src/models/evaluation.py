@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 
+from models.corpus import CorpusTemporalScope
 from models.enums import OperationClass
 from models.query import AnswerPackage
 
@@ -10,6 +11,11 @@ class GroundTruth(BaseModel):
     rubric: str | None = None
 
 
+class ExpectedBindings(BaseModel):
+    accessions: list[str] = Field(default_factory=list)
+    fiscal_periods: list[str] = Field(default_factory=list)
+
+
 class BenchmarkItem(BaseModel):
     item_id: str
     dataset: str
@@ -17,6 +23,8 @@ class BenchmarkItem(BaseModel):
     ground_truth: GroundTruth | None = None
     relevant_chunk_ids: list[str] = Field(default_factory=list)
     operation_class: OperationClass = OperationClass.QUALITATIVE
+    temporal_scope: CorpusTemporalScope | None = None
+    expected_bindings: ExpectedBindings | None = None
 
 
 class RankingMetrics(BaseModel):

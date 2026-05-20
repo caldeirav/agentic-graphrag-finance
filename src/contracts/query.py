@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 
 from models.enums import QueryStatus
+from models.filing import FilingRef
 from models.query import AnswerPackage
 
 
@@ -8,6 +9,7 @@ class QueryRequest(BaseModel):
     query: str
     snapshot_id: str
     metadata: dict[str, str] = Field(default_factory=dict)
+    pre_bound_filings: list[FilingRef] = Field(default_factory=list)
 
 
 class QueryResponse(BaseModel):

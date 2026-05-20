@@ -60,10 +60,30 @@ class EvaluationRunner:
                     items = items[: suite.max_items]
 
                 for item in items:
+                    if item.temporal_scope is None and ds_name in (
+                        "finagentbench",
+                        "corpus_binding",
+                    ):
+                        raise ValueError(
+                            f"Benchmark item {item.item_id} missing required temporal_scope"
+                        )
+                    pre_bound = []
+                    if item.temporal_scope and item.temporal_scope.accessions:
+                        from graph.query_api import LocalGraphQueryAPI
+
+                        api = LocalGraphQueryAPI(
+                            query_service._graph_base, issuer_id or "AAPL"
+                        )
+                        snap = api.get_snapshot(snapshot_id)
+                        acc_set = set(item.temporal_scope.accessions)
+                        pre_bound = [
+                            r for r in snap.manifest.filing_refs if r.accession in acc_set
+                        ]
                     resp = query_service.answer(
                         QueryRequest(
                             query=item.question,
                             snapshot_id=snapshot_id,
+                            pre_bound_filings=pre_bound,
                             metadata={"issuer_id": issuer_id, "benchmark_item": item.item_id},
                         )
                     )

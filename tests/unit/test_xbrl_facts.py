@@ -14,8 +14,9 @@ def test_consolidate_revenue_fact():
         ["RevenueFromContractWithCustomerExcludingAssessedTax", "decimals: -6"],
     ]
     facts = consolidate_xbrl_fact_rows(rows)
-    assert "RevenueFromContractWithCustomerExcludingAssessedTax" in facts
-    assert facts["RevenueFromContractWithCustomerExcludingAssessedTax"]["value"] == "307003000000"
+    rev = [f for c, f in facts if c == "RevenueFromContractWithCustomerExcludingAssessedTax"]
+    assert rev
+    assert rev[0]["value"] == "307003000000"
 
 
 def test_format_revenue_billions():
@@ -35,6 +36,22 @@ def test_select_facts_for_revenue_query():
     selected = select_facts_for_index(facts, query="What was net sales?")
     concepts = [c for c, _ in selected]
     assert any("Revenue" in c for c in concepts)
+
+
+def test_consolidate_keeps_multiple_periods_per_concept():
+    rows = [
+        ["RevenueFromContractWithCustomerExcludingAssessedTax", "value: 143760000000"],
+        ["RevenueFromContractWithCustomerExcludingAssessedTax", "period: 2025-09-28 - 2025-12-28"],
+        ["RevenueFromContractWithCustomerExcludingAssessedTax", "decimals: -6"],
+        ["RevenueFromContractWithCustomerExcludingAssessedTax", "value: 124300000000"],
+        ["RevenueFromContractWithCustomerExcludingAssessedTax", "period: 2024-09-29 - 2024-12-29"],
+        ["RevenueFromContractWithCustomerExcludingAssessedTax", "decimals: -6"],
+    ]
+    facts = consolidate_xbrl_fact_rows(rows)
+    rev = [f for c, f in facts if c == "RevenueFromContractWithCustomerExcludingAssessedTax"]
+    periods = {f["period"] for f in rev}
+    assert "2025-09-28 - 2025-12-28" in periods
+    assert "2024-09-29 - 2024-12-29" in periods
 
 
 def test_fact_excerpt_readable():

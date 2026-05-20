@@ -1,8 +1,14 @@
+from __future__ import annotations
+
 from datetime import date, datetime
 from enum import StrEnum
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from models.corpus import CorpusDefinition, CorpusTemporalScope, SnapshotScopeManifest
 
 
 class XBRLArtifactRole(StrEnum):
@@ -76,6 +82,10 @@ class CLIAskRequest(BaseModel):
     form_types: list[str] = Field(default_factory=lambda: ["10-K", "10-Q"])
     force_refresh: bool = False
     snapshot_id: str | None = None
+    reuse_snapshot_id: str | None = None
+    temporal_scope: CorpusTemporalScope | None = None
+    corpus_definition: CorpusDefinition | None = None
+    force_corpus_refresh: bool = False
 
 
 class CLIAskResult(BaseModel):
@@ -86,6 +96,7 @@ class CLIAskResult(BaseModel):
     filings_used: list[FilingResolution] = Field(default_factory=list)
     timings_ms: dict[str, int] = Field(default_factory=dict)
     citations_count: int = 0
+    snapshot_scope: SnapshotScopeManifest | None = None
 
 
 class CLITestResult(BaseModel):
@@ -93,3 +104,18 @@ class CLITestResult(BaseModel):
     node_counts: dict[str, int] = Field(default_factory=dict)
     cache_entry_path: str = ""
     messages: list[str] = Field(default_factory=list)
+
+
+def _rebuild_cli_ingestion_models() -> None:
+    from models.corpus import CorpusDefinition, CorpusTemporalScope, SnapshotScopeManifest
+
+    ns = {
+        "CorpusDefinition": CorpusDefinition,
+        "CorpusTemporalScope": CorpusTemporalScope,
+        "SnapshotScopeManifest": SnapshotScopeManifest,
+    }
+    CLIAskRequest.model_rebuild(_types_namespace=ns)
+    CLIAskResult.model_rebuild(_types_namespace=ns)
+
+
+_rebuild_cli_ingestion_models()

@@ -62,10 +62,26 @@ def _parse_comparison_mode(value: object) -> ComparisonMode:
 def macro_router(state: AgentState, *, graph_api=None) -> dict:
     query = state["query"]
     snapshot_id = state["snapshot_id"]
-    filings: list[FilingRef] = []
-    if graph_api is not None:
+    pre_bound = list(state.get("filing_set") or [])
+    filings: list[FilingRef] = pre_bound
+    if graph_api is not None and not filings:
         snap = graph_api.get_snapshot(snapshot_id)
         filings = list(snap.manifest.filing_refs)
+
+    if pre_bound:
+        plan = MacroPlan(
+            intent_summary=query[:200],
+            temporal_scope=TemporalScope(
+                anchor_periods=[pre_bound[0].period_end] if pre_bound else [],
+                comparison_mode=ComparisonMode.YOY,
+            ),
+            rationale="pre-bound filing set from corpus temporal resolver",
+        )
+        return {
+            "macro_plan": plan,
+            "filing_set": pre_bound,
+            "graph_traversal": [{"node_id": "macro", "stage": "macro"}],
+        }
 
     if os.environ.get("USE_MOCK_LLM", "0") == "1" or not filings:
         plan = MacroPlan(

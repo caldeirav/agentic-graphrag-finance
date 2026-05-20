@@ -6,8 +6,15 @@ import hashlib
 import re
 
 from models.enums import GraphEdgeType, GraphNodeType
+from models.filing import FilingRef
 from models.query import EvidenceChunk
 from parsing.xbrl_facts import concepts_for_query
+from retrieval.evidence_scope import (
+    allowed_document_ids,
+    anchor_period_ends,
+    node_in_allowed_documents,
+    period_alignment_score,
+)
 from retrieval.orchestration.state import AgentState
 
 _FINANCIAL_QUERY = re.compile(
@@ -21,13 +28,15 @@ def micro_extractor(state: AgentState, *, graph_api) -> dict:
     snapshot_id = state["snapshot_id"]
     candidates = state.get("section_candidates") or []
     query = state.get("query", "")
+    filing_set: list[FilingRef] = list(state.get("filing_set") or [])
     snap = graph_api.get_snapshot(snapshot_id)
-    evidence: list[EvidenceChunk] = []
     visits = []
 
     section_ids = {c.section_node_id for c in candidates[:5]}
     query_pat = concepts_for_query(query)
     is_financial = bool(_FINANCIAL_QUERY.search(query))
+    doc_ids = allowed_document_ids(filing_set)
+    anchors = anchor_period_ends(filing_set)
 
     scored: list[tuple[float, EvidenceChunk]] = []
 
@@ -39,6 +48,9 @@ def micro_extractor(state: AgentState, *, graph_api) -> dict:
         ):
             continue
 
+        if doc_ids and not node_in_allowed_documents(node.node_id, doc_ids):
+            continue
+
         excerpt = (node.source_ref or node.label or "").strip()
         if not excerpt:
             continue
@@ -46,19 +58,18 @@ def micro_extractor(state: AgentState, *, graph_api) -> dict:
         parent_section = _parent_section(snap, node.node_id)
         is_xbrl_fact = excerpt.startswith("XBRL ") or "xbrl-fact" in node.node_id
 
-        if (
-            section_ids
-            and parent_section not in section_ids
-            and not is_xbrl_fact
-            and not is_financial
-        ):
+        if section_ids and parent_section not in section_ids and not is_xbrl_fact:
             continue
 
         score = _relevance_score(query, excerpt, node.label, query_pat)
         if is_xbrl_fact:
             score += 2.0
+            score += period_alignment_score(excerpt, anchors)
         if is_financial and is_xbrl_fact:
             score += 3.0
+
+        if score < 0:
+            continue
 
         chunk = EvidenceChunk(
             chunk_node_id=node.node_id,
