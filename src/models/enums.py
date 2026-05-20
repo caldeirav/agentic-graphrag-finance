@@ -7,6 +7,7 @@ class GraphNodeType(StrEnum):
     CHUNK_TABLE = "CHUNK_TABLE"
     CHUNK_ROW = "CHUNK_ROW"
     CHUNK_PARAGRAPH = "CHUNK_PARAGRAPH"
+    CHUNK_XBRL_FACT = "CHUNK_XBRL_FACT"
 
 
 class GraphEdgeType(StrEnum):
@@ -15,6 +16,7 @@ class GraphEdgeType(StrEnum):
     FOOTNOTE_OF = "FOOTNOTE_OF"
     REFERENCES = "REFERENCES"
     TEMPORAL_TRANSITION = "TEMPORAL_TRANSITION"
+    SEMANTIC_SIMILARITY = "SEMANTIC_SIMILARITY"
 
 
 class QueryStatus(StrEnum):

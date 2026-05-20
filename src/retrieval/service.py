@@ -37,6 +37,7 @@ class QueryService:
         initial = {
             "query": request.query,
             "snapshot_id": request.snapshot_id,
+            "temporal_anchor": request.metadata.get("temporal_anchor", ""),
             "filing_set": list(request.pre_bound_filings),
             "section_candidates": [],
             "evidence_chunks": [],

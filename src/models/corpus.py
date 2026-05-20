@@ -96,6 +96,10 @@ class SnapshotIndexEntry(BaseModel):
     created_at: datetime
     filing_refs: list[FilingRef] = Field(default_factory=list)
     corpus_definition_hash: str = ""
+    graph_builder_version: str = ""
+    audit_ready: bool = False
+    audit_pass_rate: float | None = None
+    reachability_artifact: str = ""
 
 
 class IssuerSnapshotIndex(BaseModel):

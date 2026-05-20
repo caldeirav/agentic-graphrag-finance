@@ -99,6 +99,20 @@ def run_materialize_pipeline(
         corpus_definition=defn,
     )
     job.snapshot_id = snapshot.snapshot_id
+
+    if snapshot.manifest.reachability_artifact:
+        from tracing.mlflow_langgraph import log_reachability_report, setup_mlflow
+
+        setup_mlflow()
+        if mlflow.active_run():
+            report_path = graphs_root / snapshot.manifest.reachability_artifact
+            log_reachability_report(mlflow.active_run().info.run_id, report_path)
+            mlflow.set_tags(
+                {
+                    "audit_ready": str(snapshot.manifest.audit_ready or False).lower(),
+                    "audit_pass_rate": str(snapshot.manifest.audit_pass_rate or 0.0),
+                }
+            )
     return job
 
 
@@ -203,6 +217,7 @@ def run_ask_pipeline(request: CLIAskRequest) -> CLIAskResult:
                 "ticker": request.identifier.ticker or "",
                 "stale_snapshot": str(stale),
                 "bound_accessions": ",".join(r.accession for r in binding.bound_filings),
+                "temporal_anchor": (scope.anchor if scope else "") or "",
             },
         )
     )

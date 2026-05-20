@@ -16,6 +16,12 @@ from models.evaluation import (
 )
 from models.filing import CellSpan, FilingRef, FootnoteBlock, SectionBlock, TableBlock
 from models.graph import GraphEdge, GraphManifest, GraphNode, GraphSnapshot
+from models.graph_audit import (
+    AuditEntry,
+    FilingMaterializationResult,
+    FilingMaterializationStatus,
+    ReachabilityAuditReport,
+)
 from models.corpus import (
     BoundFilingEntry,
     CorpusDefinition,
@@ -65,6 +71,10 @@ __all__ = [
     "GraphEdge",
     "GraphManifest",
     "GraphSnapshot",
+    "AuditEntry",
+    "FilingMaterializationResult",
+    "FilingMaterializationStatus",
+    "ReachabilityAuditReport",
     "MacroPlan",
     "TemporalScope",
     "SectionCandidate",

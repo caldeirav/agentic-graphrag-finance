@@ -45,6 +45,7 @@ def micro_extractor(state: AgentState, *, graph_api) -> dict:
             GraphNodeType.CHUNK_TABLE,
             GraphNodeType.CHUNK_ROW,
             GraphNodeType.CHUNK_PARAGRAPH,
+            GraphNodeType.CHUNK_XBRL_FACT,
         ):
             continue
 
@@ -56,7 +57,11 @@ def micro_extractor(state: AgentState, *, graph_api) -> dict:
             continue
 
         parent_section = _parent_section(snap, node.node_id)
-        is_xbrl_fact = excerpt.startswith("XBRL ") or "xbrl-fact" in node.node_id
+        is_xbrl_fact = (
+            node.node_type == GraphNodeType.CHUNK_XBRL_FACT
+            or excerpt.startswith("XBRL ")
+            or "xbrl-" in node.node_id
+        )
 
         if section_ids and parent_section not in section_ids and not is_xbrl_fact:
             continue
@@ -78,7 +83,14 @@ def micro_extractor(state: AgentState, *, graph_api) -> dict:
             citation_label=_citation_label(node, excerpt),
         )
         scored.append((score, chunk))
-        visits.append({"node_id": node.node_id, "stage": "micro"})
+        visit: dict = {"node_id": node.node_id, "stage": "micro"}
+        doc_id = _document_root_id(node.node_id)
+        if doc_id and hasattr(graph_api, "shortest_structural_path"):
+            path = graph_api.shortest_structural_path(snapshot_id, doc_id, node.node_id)
+            if path:
+                visit["path_node_ids"] = path[0]
+                visit["path_edge_types"] = path[1]
+        visits.append(visit)
 
     scored.sort(key=lambda x: -x[0])
     evidence = [c for _, c in scored[:20]]
@@ -108,6 +120,11 @@ def _citation_label(node, excerpt: str) -> str:
     if excerpt.startswith("XBRL "):
         return excerpt.split(":", 1)[0].replace("XBRL ", "")[:80]
     return (node.label or "evidence")[:80]
+
+
+def _document_root_id(node_id: str) -> str | None:
+    m = re.match(r"^(doc-\d{10}-\d{2}-\d{6})", node_id)
+    return m.group(1) if m else None
 
 
 def _parent_section(snap, node_id: str) -> str | None:

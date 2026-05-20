@@ -40,6 +40,8 @@ class GraphVisit(BaseModel):
     node_id: str
     edge_id: str | None = None
     stage: str = "meso"
+    path_edge_types: list[str] = Field(default_factory=list)
+    path_node_ids: list[str] = Field(default_factory=list)
 
 
 class TrajectoryRecord(BaseModel):

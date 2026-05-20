@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Protocol
 
+from graph.reachability import shortest_structural_path
 from graph.store import load_snapshot
 from models.enums import GraphEdgeType, GraphNodeType
 from models.filing import FilingRef
@@ -75,3 +76,14 @@ class LocalGraphQueryAPI:
                     if node.node_id == edge.target_id and node.node_type == GraphNodeType.SECTION:
                         sections.append(node)
         return sections
+
+    def shortest_structural_path(
+        self,
+        snapshot_id: str,
+        from_doc_id: str,
+        to_node_id: str,
+        *,
+        hop_budget: int = 6,
+    ) -> tuple[list[str], list[str]] | None:
+        snap = self.get_snapshot(snapshot_id)
+        return shortest_structural_path(snap, from_doc_id, to_node_id, hop_budget=hop_budget)

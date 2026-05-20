@@ -1,0 +1,12 @@
+hop_budget: 6
+sample_size: 100
+pass_threshold: 0.95
+random_seed: 42
+structural_edge_types:
+  - CONTAINS
+  - NEXT
+  - FOOTNOTE_OF
+  - REFERENCES
+stratification:
+  min_xbrl_fraction: 0.6
+  min_table_row_fraction: 0.4

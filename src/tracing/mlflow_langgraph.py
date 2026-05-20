@@ -114,6 +114,14 @@ def log_binding_manifest(run_id: str, manifest: SnapshotScopeManifest) -> str:
     return f"{uri}/runs/{run_id}/artifacts/{path}"
 
 
+def log_reachability_report(run_id: str, report_path: Path) -> str:
+    setup_mlflow()
+    client = mlflow.tracking.MlflowClient()
+    if report_path.exists():
+        client.log_artifact(run_id, str(report_path), artifact_path="reachability")
+    return str(report_path)
+
+
 def log_trajectory(run_id: str, trajectory: TrajectoryRecord) -> str:
     setup_mlflow()
     client = mlflow.tracking.MlflowClient()
@@ -128,7 +136,12 @@ def build_trajectory_from_state(state: dict[str, Any]) -> TrajectoryRecord:
     from models.query import GraphVisit
 
     visits = [
-        GraphVisit(node_id=v.get("node_id", ""), stage=v.get("stage", "meso"))
+        GraphVisit(
+            node_id=v.get("node_id", ""),
+            stage=v.get("stage", "meso"),
+            path_edge_types=list(v.get("path_edge_types") or []),
+            path_node_ids=list(v.get("path_node_ids") or []),
+        )
         for v in state.get("graph_traversal", [])
         if isinstance(v, dict)
     ]

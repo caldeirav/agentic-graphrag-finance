@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from graph.builder import build_snapshot
+from graph.reachability import audit_snapshot_reachability, save_reachability_report
 from graph.store import load_snapshot, save_snapshot
 from ingestion.corpus import corpus_definition_hash
 from ingestion.edgar_client import list_recent_filings
@@ -56,6 +57,9 @@ def register_snapshot(
     base_dir: Path,
     *,
     corpus_definition_hash: str = "",
+    audit_ready: bool = False,
+    audit_pass_rate: float | None = None,
+    reachability_artifact: str = "",
 ) -> None:
     with issuer_materialize_lock(snapshot.issuer_id, base_dir):
         index = load_index(snapshot.issuer_id, base_dir)
@@ -64,6 +68,10 @@ def register_snapshot(
             created_at=snapshot.manifest.created_at,
             filing_refs=list(snapshot.manifest.filing_refs),
             corpus_definition_hash=corpus_definition_hash,
+            graph_builder_version=snapshot.manifest.graph_builder_version,
+            audit_ready=audit_ready,
+            audit_pass_rate=audit_pass_rate,
+            reachability_artifact=reachability_artifact,
         )
         index.versions.append(entry)
         index.latest_snapshot_id = snapshot.snapshot_id
@@ -89,13 +97,36 @@ def build_issuer_snapshot(
     snapshot_id: str | None = None,
     base_dir: Path | None = None,
     corpus_definition: CorpusDefinition | None = None,
+    run_audit: bool = True,
 ) -> GraphSnapshot:
     out_dir = base_dir or Path("data/graphs")
     sid = snapshot_id or str(uuid.uuid4())
     snapshot = build_snapshot(issuer_id, documents, snapshot_id=sid)
+
+    audit_ready = False
+    audit_pass_rate: float | None = None
+    reachability_path = ""
+    if run_audit and snapshot.nodes:
+        report = audit_snapshot_reachability(snapshot)
+        reachability_path = str(
+            save_reachability_report(report, out_dir).relative_to(out_dir)
+        )
+        audit_ready = report.audit_ready
+        audit_pass_rate = report.pass_rate
+        snapshot.manifest.audit_ready = audit_ready
+        snapshot.manifest.audit_pass_rate = audit_pass_rate
+        snapshot.manifest.reachability_artifact = reachability_path
+
     save_snapshot(snapshot, out_dir)
     c_hash = corpus_definition_hash(corpus_definition) if corpus_definition else ""
-    register_snapshot(snapshot, out_dir, corpus_definition_hash=c_hash)
+    register_snapshot(
+        snapshot,
+        out_dir,
+        corpus_definition_hash=c_hash,
+        audit_ready=audit_ready,
+        audit_pass_rate=audit_pass_rate,
+        reachability_artifact=reachability_path,
+    )
     return snapshot
 
 

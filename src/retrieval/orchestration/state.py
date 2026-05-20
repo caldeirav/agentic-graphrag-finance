@@ -21,6 +21,7 @@ def _merge_visits(left: list, right: list) -> list:
 class AgentState(TypedDict, total=False):
     query: str
     snapshot_id: str
+    temporal_anchor: str
     macro_plan: MacroPlan | None
     filing_set: list[FilingRef]
     section_candidates: list[SectionCandidate]

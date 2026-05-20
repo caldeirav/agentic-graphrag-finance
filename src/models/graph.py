@@ -30,6 +30,9 @@ class GraphManifest(BaseModel):
     storage_path: str
     node_count: int = 0
     edge_count: int = 0
+    audit_ready: bool | None = None
+    audit_pass_rate: float | None = None
+    reachability_artifact: str = ""
 
 
 class GraphSnapshot(BaseModel):

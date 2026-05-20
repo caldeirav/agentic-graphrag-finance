@@ -153,7 +153,8 @@ Start LM Studio, load your model, and enable the local server before running liv
 | Command | Description |
 |---------|-------------|
 | `ask` | Materialize multi-filing corpus (if needed) → bind temporal scope → run agent |
-| `materialize` | Build versioned multi-filing graph snapshot (10-K + trailing 10-Qs) |
+| `materialize` | Build versioned multi-filing graph snapshot (10-K + trailing 10-Qs) + reachability audit |
+| `graph-audit` | Re-run structural reachability audit on an existing snapshot |
 | `test` | Structural smoke test (fetch, parse, graph node counts; no LLM) |
 | `mlflow-clean` | Reset SQLite tracking DB and remove legacy `mlruns/` dirs |
 
@@ -169,6 +170,14 @@ Builds a versioned issuer snapshot under `data/graphs/AAPL/` (`index.json` + `{s
 # Re-download XBRL and rebuild graphs after parser or graph-builder changes
 uv run agent-query materialize --ticker AAPL --force-refresh
 ```
+
+Materialize runs a **structural reachability audit** (≥100 stratified XBRL/table facts, hop budget 6, 95% pass gate) and writes `data/graphs/{issuer}/{snapshot_id}.reachability.json`. Snapshot manifests record `audit_ready` and `audit_pass_rate`. Re-run the audit alone:
+
+```bash
+uv run agent-query graph-audit --ticker AAPL --snapshot-id <uuid>
+```
+
+Config: `configs/graph_audit.yaml`, `configs/graph_similarity.yaml`. Details: [004 quickstart](specs/004-docling-graph-materialization/quickstart.md).
 
 #### Ask
 
