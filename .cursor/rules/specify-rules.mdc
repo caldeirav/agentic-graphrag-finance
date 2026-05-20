@@ -6,13 +6,13 @@ alwaysApply: true
 For additional context about technologies, project structure, shell commands, and
 pipeline segments, read the current implementation plan:
 
-**Plan**: `specs/002-live-disclosure-cli/plan.md` (active) | Base: `specs/001-sec-disclosure-rag/plan.md`
+**Plan**: `specs/003-multi-filing-corpus/plan.md` (active) | Prior: `specs/002-live-disclosure-cli/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
 
 Quick reference:
-- **Stack**: uv, **sec-api** (`SEC_API_KEY`), Docling, docling-graph, LangGraph, Qwen/LM Studio, MLflow, Gemini judge
-- **Layers**: `src/ingestion/` (live XBRL), `src/parsing/`, `src/graph/`, `src/retrieval/`, `src/evaluation/`, `src/cli/`
-- **CLI**: `uv run agent-query ask --ticker AAPL --query "..."`
-- **Storage**: `data/raw/sec_downloads/{ticker}/{accession}/`
-- **Phases**: P0 env → P1A live fetch → P1B parse/graph → P2–P4 (001) → P5 agent-query CLI
-- **Design artifacts**: `specs/002-live-disclosure-cli/{research,data-model,quickstart}.md` and `contracts/`
+- **Stack**: uv, EDGAR ingest (`EDGAR_USER_AGENT`), Docling, docling-graph, LangGraph, Qwen/LM Studio, MLflow, Gemini judge
+- **Layers**: `src/ingestion/` (+ `corpus.py`), `src/parsing/`, `src/graph/` (+ `registry.py`), `src/retrieval/` (+ `temporal.py`), `src/evaluation/`, `src/cli/`
+- **CLI**: `uv run agent-query materialize --ticker AAPL` then `uv run agent-query ask --ticker AAPL --query "..."`
+- **Storage**: `data/raw/sec_downloads/{ticker}/{accession}/`, `data/graphs/{issuer}/index.json`
+- **Phases**: P1A corpus fetch (002 extend) → P1B multi-filing graph → P2 temporal bind + ask → P3 eval manifests
+- **Design artifacts**: `specs/003-multi-filing-corpus/{research,data-model,quickstart}.md` and `contracts/`
 <!-- SPECKIT END -->
