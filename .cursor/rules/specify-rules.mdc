@@ -14,5 +14,5 @@ Quick reference:
 - **CLI**: `uv run agent-query materialize --ticker AAPL` then `uv run agent-query ask --ticker AAPL --query "..."`
 - **Storage**: `data/raw/sec_downloads/{ticker}/{accession}/`, `data/graphs/{issuer}/index.json`
 - **Phases**: P1A corpus fetch (002 extend) → P1B multi-filing graph → P2 temporal bind + ask → P3 eval manifests
-- **Design artifacts**: `specs/003-multi-filing-corpus/{research,data-model,quickstart}.md` and `contracts/`
+- **Design artifacts**: `specs/004-docling-graph-materialization/{research,data-model,quickstart}.md` and `contracts/`
 <!-- SPECKIT END -->
