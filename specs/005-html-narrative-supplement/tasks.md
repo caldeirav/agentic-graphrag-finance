@@ -29,10 +29,10 @@ description: "Task list for supplementary HTML narrative and intent router (005)
 
 **Purpose**: Config files, dependency, operator docs
 
-- [ ] T001 [P] Add `configs/html_narrative.yaml` with Item heading patterns, inline-vs-fallback heuristics, and default `html_narrative_enabled: true` per `research.md` R2
-- [ ] T002 [P] Add `configs/intent_router.yaml` with LLM prompt template, timeout, and keyword fallback lexicons per `research.md` R5
-- [ ] T003 Add `beautifulsoup4` to `pyproject.toml` and refresh `uv.lock` via `uv lock` per `research.md` R2
-- [ ] T004 Document HTML narrative default materialize, `--skip-html-narrative`, and intent router trace fields in `README.md` linking `specs/005-html-narrative-supplement/quickstart.md`
+- [x] T001 [P] Add `configs/html_narrative.yaml` with Item heading patterns, inline-vs-fallback heuristics, and default `html_narrative_enabled: true` per `research.md` R2
+- [x] T002 [P] Add `configs/intent_router.yaml` with LLM prompt template, timeout, and keyword fallback lexicons per `research.md` R5
+- [x] T003 Add `beautifulsoup4` to `pyproject.toml` and refresh `uv.lock` via `uv lock` per `research.md` R2
+- [x] T004 Document HTML narrative default materialize, `--skip-html-narrative`, and intent router trace fields in `README.md` linking `specs/005-html-narrative-supplement/quickstart.md`
 
 **Checkpoint**: Configs load in tests; README references 005 quickstart
 
@@ -44,14 +44,14 @@ description: "Task list for supplementary HTML narrative and intent router (005)
 
 **⚠️ CRITICAL**: No user story work until this phase is complete
 
-- [ ] T005 Add `EvidenceSourceType`, `QueryIntent`, `IntentSource`, `SourceBias`, `RouterFallbackReason`, `NarrativeSectionKind`, `HtmlNarrativeStatus` to `src/models/enums.py` per `data-model.md`
-- [ ] T006 Extend `SectionBlock` with `source_type` and `narrative_kind` in `src/models/filing.py` per `contracts/parsed-document-merge.md`
-- [ ] T007 Extend `ParsedDocument` with `html_narrative_status` and `html_artifact_path` in `src/models/parsing.py`
-- [ ] T008 Add `IntentRouterTrace` and extend `EvidenceChunk` with `source_type`, `accession`, `section_id` in `src/models/query.py` per `data-model.md`
-- [ ] T009 Extend `TrajectoryRecord` with `intent_router: IntentRouterTrace | None` in `src/models/query.py` per `contracts/intent-router-trace.md`
-- [ ] T010 Export new enums and models from `src/models/__init__.py`
-- [ ] T011 [P] Add contract test `tests/contract/test_html_ingest_boundary.py` asserting `ingestion.html_narrative` does not import `parsing`, `graph`, or `retrieval` per `contracts/html-narrative-ingest.md`
-- [ ] T012 [P] Add unit test `tests/unit/test_evidence_source_enums.py` validating enum values match spec router trace table
+- [x] T005 Add `EvidenceSourceType`, `QueryIntent`, `IntentSource`, `SourceBias`, `RouterFallbackReason`, `NarrativeSectionKind`, `HtmlNarrativeStatus` to `src/models/enums.py` per `data-model.md`
+- [x] T006 Extend `SectionBlock` with `source_type` and `narrative_kind` in `src/models/filing.py` per `contracts/parsed-document-merge.md`
+- [x] T007 Extend `ParsedDocument` with `html_narrative_status` and `html_artifact_path` in `src/models/parsing.py`
+- [x] T008 Add `IntentRouterTrace` and extend `EvidenceChunk` with `source_type`, `accession`, `section_id` in `src/models/query.py` per `data-model.md`
+- [x] T009 Extend `TrajectoryRecord` with `intent_router: IntentRouterTrace | None` in `src/models/query.py` per `contracts/intent-router-trace.md`
+- [x] T010 Export new enums and models from `src/models/__init__.py`
+- [x] T011 [P] Add contract test `tests/contract/test_html_ingest_boundary.py` asserting `ingestion.html_narrative` does not import `parsing`, `graph`, or `retrieval` per `contracts/html-narrative-ingest.md`
+- [x] T012 [P] Add unit test `tests/unit/test_evidence_source_enums.py` validating enum values match spec router trace table
 
 **Checkpoint**: Model tests pass; layer import boundary test passes
 
@@ -65,14 +65,14 @@ description: "Task list for supplementary HTML narrative and intent router (005)
 
 ### Implementation for User Story 1
 
-- [ ] T013 [US1] Implement `resolve_narrative_html()` in `src/ingestion/html_narrative.py` (inline package first, EDGAR `.htm` fallback) per `contracts/html-narrative-ingest.md`
-- [ ] T014 [US1] Implement `ingest_html_narrative()` with FR-001 gate (reject without complete XBRL package) in `src/ingestion/html_narrative.py`
-- [ ] T015 [P] [US1] Add inline HTML discovery helper in `src/ingestion/package_utils.py` and `src/ingestion/edgar_xbrl.py` per `research.md` R1
-- [ ] T016 [US1] Extend cache manifest serialization with `html_narrative_status`, `html_artifact_role`, `html_artifact_relpath` in `src/ingestion/cache_manager.py` (or manifest writer used by fetch)
-- [ ] T017 [US1] Wire `ingest_html_narrative()` after successful XBRL fetch in `src/ingestion/__init__.py` / `fetch_filing` path when HTML not skipped
-- [ ] T018 [US1] Reject orphan HTML-only cache creation in `src/ingestion/validators.py` per FR-001
-- [ ] T019 [P] [US1] Add unit test `tests/unit/test_html_narrative_ingest.py` for inline resolution, fallback path, and XBRL-missing rejection
-- [ ] T020 [US1] Extend `tests/integration/test_cache_roundtrip.py` (or add `tests/integration/test_html_narrative_ingest.py`) asserting paired ingest on AAPL fixture without invalidating XBRL manifest
+- [x] T013 [US1] Implement `resolve_narrative_html()` in `src/ingestion/html_narrative.py` (inline package first, EDGAR `.htm` fallback) per `contracts/html-narrative-ingest.md`
+- [x] T014 [US1] Implement `ingest_html_narrative()` with FR-001 gate (reject without complete XBRL package) in `src/ingestion/html_narrative.py`
+- [x] T015 [P] [US1] Add inline HTML discovery helper in `src/ingestion/package_utils.py` and `src/ingestion/edgar_xbrl.py` per `research.md` R1
+- [x] T016 [US1] Extend cache manifest serialization with `html_narrative_status`, `html_artifact_role`, `html_artifact_relpath` in `src/ingestion/cache_manager.py` (or manifest writer used by fetch)
+- [x] T017 [US1] Wire `ingest_html_narrative()` after successful XBRL fetch in `src/ingestion/__init__.py` / `fetch_filing` path when HTML not skipped
+- [x] T018 [US1] Reject orphan HTML-only cache creation in `src/ingestion/validators.py` per FR-001
+- [x] T019 [P] [US1] Add unit test `tests/unit/test_html_narrative_ingest.py` for inline resolution, fallback path, and XBRL-missing rejection
+- [x] T020 [US1] Extend `tests/integration/test_cache_roundtrip.py` (or add `tests/integration/test_html_narrative_ingest.py`) asserting paired ingest on AAPL fixture without invalidating XBRL manifest
 
 **Checkpoint**: Fixture accession has HTML artifact + manifest fields; HTML-only ingest fails closed
 
@@ -86,13 +86,13 @@ description: "Task list for supplementary HTML narrative and intent router (005)
 
 ### Implementation for User Story 2
 
-- [ ] T021 [US2] Implement `extract_narrative_sections()` in `src/parsing/html_narrative.py` using BS4 + `configs/html_narrative.yaml` heading map per `research.md` R2
-- [ ] T022 [US2] Implement `merge_html_into_document()` with `html-` section ID prefix and content hash recompute in `src/parsing/html_narrative.py` per `contracts/parsed-document-merge.md`
-- [ ] T023 [US2] Hook HTML extract-and-merge after XBRL parse in `src/parsing/sec_download_adapter.py` (`parse_from_cache` or dedicated `parse_with_narrative`)
-- [ ] T024 [US2] Extend `src/parsing/validators.py` to validate merged document (XBRL sections retain default `source_type`, HTML sections required tags)
-- [ ] T025 [P] [US2] Add unit test `tests/unit/test_html_narrative_parse.py` for Item 7/1/1A section extraction on fixture HTML
-- [ ] T026 [P] [US2] Add unit test `tests/unit/test_parsed_document_merge.py` asserting single JSON artifact and no XBRL section overwrite
-- [ ] T027 [US2] Add contract test `tests/contract/test_parsed_document_merge.py` enforcing no sidecar `*-html.json` per `contracts/parsed-document-merge.md`
+- [x] T021 [US2] Implement `extract_narrative_sections()` in `src/parsing/html_narrative.py` using BS4 + `configs/html_narrative.yaml` heading map per `research.md` R2
+- [x] T022 [US2] Implement `merge_html_into_document()` with `html-` section ID prefix and content hash recompute in `src/parsing/html_narrative.py` per `contracts/parsed-document-merge.md`
+- [x] T023 [US2] Hook HTML extract-and-merge after XBRL parse in `src/parsing/sec_download_adapter.py` (`parse_from_cache` or dedicated `parse_with_narrative`)
+- [x] T024 [US2] Extend `src/parsing/validators.py` to validate merged document (XBRL sections retain default `source_type`, HTML sections required tags)
+- [x] T025 [P] [US2] Add unit test `tests/unit/test_html_narrative_parse.py` for Item 7/1/1A section extraction on fixture HTML
+- [x] T026 [P] [US2] Add unit test `tests/unit/test_parsed_document_merge.py` asserting single JSON artifact and no XBRL section overwrite
+- [x] T027 [US2] Add contract test `tests/contract/test_parsed_document_merge_contract.py` enforcing no sidecar `*-html.json` per `contracts/parsed-document-merge.md`
 
 **Checkpoint**: `write_parsed_document` emits merged parse; malformed HTML records `html_narrative_status=failed` without breaking XBRL parse
 
@@ -106,18 +106,18 @@ description: "Task list for supplementary HTML narrative and intent router (005)
 
 ### Implementation for User Story 3
 
-- [ ] T028 [US3] Set `GraphNode.properties["source_type"]` and optional `narrative_kind` from `SectionBlock` in `src/graph/docling_graph_mapper.py`
-- [ ] T029 [US3] Call HTML narrative parse path in `src/cli/corpus_pipeline.py` materialize loop (default on; respect skip flag)
-- [ ] T030 [US3] Add `--skip-html-narrative` flag to materialize CLI in `src/cli/main.py` and plumb to `run_materialize_pipeline()` per FR-010
-- [ ] T031 [US3] Implement `intent_router()` with LLM JSON classify in `src/retrieval/orchestration/nodes/intent_router.py` per `contracts/intent-router-trace.md`
-- [ ] T032 [US3] Implement `classify_intent_keywords()` fallback in `src/retrieval/orchestration/nodes/intent_router.py` loading `configs/intent_router.yaml`
-- [ ] T033 [US3] Insert `intent_router` node between `macro_router` and `meso_router` in `src/retrieval/orchestration/graph.py`
-- [ ] T034 [US3] Add `intent_trace` to `src/retrieval/orchestration/state.py`
-- [ ] T035 [US3] Apply source-bias scoring in `src/retrieval/orchestration/nodes/micro_extractor.py` from `state["intent_trace"].source_bias_applied` per `research.md` R7
-- [ ] T036 [US3] Boost HTML section labels in `src/retrieval/orchestration/nodes/meso_router.py` when `query_intent` is `qualitative` or `hybrid`
-- [ ] T037 [P] [US3] Add unit test `tests/unit/test_intent_router.py` for LLM path, invalid label fallback, and `USE_MOCK_LLM=1` keyword path
-- [ ] T038 [P] [US3] Add unit test `tests/unit/test_micro_extractor_source_bias.py` for xbrl_primary vs html_primary ranking
-- [ ] T039 [US3] Add integration test `tests/integration/test_graph_html_nodes.py` asserting HTML-tagged nodes reachable from document root on fixture snapshot
+- [x] T028 [US3] Set `GraphNode.properties["source_type"]` and optional `narrative_kind` from `SectionBlock` in `src/graph/docling_graph_mapper.py`
+- [x] T029 [US3] Call HTML narrative parse path in `src/cli/corpus_pipeline.py` materialize loop (default on; respect skip flag)
+- [x] T030 [US3] Add `--skip-html-narrative` flag to materialize CLI in `src/cli/main.py` and plumb to `run_materialize_pipeline()` per FR-010
+- [x] T031 [US3] Implement `intent_router()` with LLM JSON classify in `src/retrieval/orchestration/nodes/intent_router.py` per `contracts/intent-router-trace.md`
+- [x] T032 [US3] Implement `classify_intent_keywords()` fallback in `src/retrieval/orchestration/nodes/intent_router.py` loading `configs/intent_router.yaml`
+- [x] T033 [US3] Insert `intent_router` node between `macro_router` and `meso_router` in `src/retrieval/orchestration/graph.py`
+- [x] T034 [US3] Add `intent_trace` to `src/retrieval/orchestration/state.py`
+- [x] T035 [US3] Apply source-bias scoring in `src/retrieval/orchestration/nodes/micro_extractor.py` from `state["intent_trace"].source_bias_applied` per `research.md` R7
+- [x] T036 [US3] Boost HTML section labels in `src/retrieval/orchestration/nodes/meso_router.py` when `query_intent` is `qualitative` or `hybrid`
+- [x] T037 [P] [US3] Add unit test `tests/unit/test_intent_router.py` for LLM path, invalid label fallback, and `USE_MOCK_LLM=1` keyword path
+- [x] T038 [P] [US3] Add unit test `tests/unit/test_micro_extractor_source_bias.py` for xbrl_primary vs html_primary ranking
+- [x] T039 [US3] Add integration test `tests/integration/test_graph_html_nodes.py` asserting HTML-tagged nodes reachable from document root on fixture snapshot
 
 **Checkpoint**: `materialize` produces HTML graph nodes; `ask` qualitative query returns HTML-biased evidence when narrative indexed
 
@@ -131,11 +131,11 @@ description: "Task list for supplementary HTML narrative and intent router (005)
 
 ### Implementation for User Story 4
 
-- [ ] T040 [US4] Populate `EvidenceChunk.source_type`, `accession`, `section_id` from graph node properties in `src/retrieval/orchestration/nodes/micro_extractor.py` per `contracts/source-tagged-citations.md`
-- [ ] T041 [US4] Render `source_type` in citation output in `src/retrieval/synthesis.py` and `src/retrieval/cli.py` (JSON + text modes) per FR-008
-- [ ] T042 [US4] Extend `src/contracts/query.py` / ask response schema docs if typed response wrapper exists
-- [ ] T043 [P] [US4] Add unit test `tests/unit/test_citation_source_type.py` for synthesis/CLI citation serialization
-- [ ] T044 [US4] Add integration test `tests/integration/test_ask_html_citation.py` for qualitative MD&A query with ≥1 HTML citation on fixture corpus (SC-001 pilot subset)
+- [x] T040 [US4] Populate `EvidenceChunk.source_type`, `accession`, `section_id` from graph node properties in `src/retrieval/orchestration/nodes/micro_extractor.py` per `contracts/source-tagged-citations.md`
+- [x] T041 [US4] Render `source_type` in citation output in `src/retrieval/synthesis.py` and `src/retrieval/cli.py` (JSON + text modes) per FR-008
+- [x] T042 [US4] Extend `src/contracts/query.py` / ask response schema docs if typed response wrapper exists
+- [x] T043 [P] [US4] Add unit test `tests/unit/test_citation_source_type.py` for synthesis/CLI citation serialization
+- [x] T044 [US4] Add integration test `tests/integration/test_ask_html_citation.py` for qualitative MD&A query with ≥1 HTML citation on fixture corpus (SC-001 pilot subset)
 
 **Checkpoint**: SC-003 — 100% of cited successful asks show `source_type` on every citation
 
@@ -149,13 +149,13 @@ description: "Task list for supplementary HTML narrative and intent router (005)
 
 ### Implementation for User Story 5
 
-- [ ] T045 [US5] Map `state["intent_trace"]` → `TrajectoryRecord.intent_router` in `src/tracing/mlflow_langgraph.py` `build_trajectory_from_state()` per FR-013
-- [ ] T046 [US5] Log MLflow params `query_intent`, `intent_source`, `source_bias_applied`, and optional `router_fallback_reason` in `src/tracing/mlflow_langgraph.py` / `src/retrieval/service.py` per FR-015
-- [ ] T047 [US5] Log artifact `intent_router.json` (full `IntentRouterTrace`) alongside `trajectory.json` in `src/tracing/mlflow_langgraph.py`
-- [ ] T048 [US5] Ensure `macro_router` does not overwrite `query_intent` on trajectory (document route only) in `src/retrieval/orchestration/nodes/macro_router.py`
-- [ ] T049 [P] [US5] Add unit test `tests/unit/test_intent_router_trace.py` for required fields on LLM and fallback paths (SC-006)
-- [ ] T050 [US5] Add contract test `tests/contract/test_trajectory_router_fields.py` validating stable `intent_router` schema for eval loader
-- [ ] T051 [US5] Extend `src/evaluation/metrics/trajectory.py` (optional) to score presence of `intent_router` fields for benchmark runs
+- [x] T045 [US5] Map `state["intent_trace"]` → `TrajectoryRecord.intent_router` in `src/tracing/mlflow_langgraph.py` `build_trajectory_from_state()` per FR-013
+- [x] T046 [US5] Log MLflow params `query_intent`, `intent_source`, `source_bias_applied`, and optional `router_fallback_reason` in `src/tracing/mlflow_langgraph.py` / `src/retrieval/service.py` per FR-015
+- [x] T047 [US5] Log artifact `intent_router.json` (full `IntentRouterTrace`) alongside `trajectory.json` in `src/tracing/mlflow_langgraph.py`
+- [x] T048 [US5] Ensure `macro_router` does not overwrite `query_intent` on trajectory (document route only) in `src/retrieval/orchestration/nodes/macro_router.py`
+- [x] T049 [P] [US5] Add unit test `tests/unit/test_intent_router_trace.py` for required fields on LLM and fallback paths (SC-006)
+- [x] T050 [US5] Add contract test `tests/contract/test_trajectory_router_fields.py` validating stable `intent_router` schema for eval loader
+- [x] T051 [US5] Extend `src/evaluation/metrics/trajectory.py` (optional) to score presence of `intent_router` fields for benchmark runs
 
 **Checkpoint**: SC-006/SC-007 — pilot audit can determine intent and fallback from artifacts alone
 
@@ -165,11 +165,11 @@ description: "Task list for supplementary HTML narrative and intent router (005)
 
 **Purpose**: Reachability stratification, benchmarks, docs, end-to-end validation
 
-- [ ] T052 [P] Extend `src/graph/reachability.py` stratification to include HTML prose chunks where configured per US3 acceptance scenario 5
-- [ ] T053 [P] Tag pilot benchmark items with `requires_narrative: true` in evaluation dataset config (≥10 items) per `research.md` R8
-- [ ] T054 Run and fix gaps from `specs/005-html-narrative-supplement/quickstart.md` steps 1–7 on AAPL fixture corpus
-- [ ] T055 [P] Add contract test `tests/contract/test_layer_boundaries_005.py` asserting parsing does not import retrieval and graph does not import `html_narrative` ingest network calls
-- [ ] T056 Update `.cursor/rules/specify-rules.mdc` if CLI flags or storage paths changed during implementation
+- [x] T052 [P] Extend `src/graph/reachability.py` stratification to include HTML prose chunks where configured per US3 acceptance scenario 5
+- [x] T053 [P] Tag pilot benchmark items with `requires_narrative: true` in evaluation dataset config (≥10 items) per `research.md` R8
+- [x] T054 Run and fix gaps from `specs/005-html-narrative-supplement/quickstart.md` steps 1–7 on AAPL fixture corpus
+- [x] T055 [P] Add contract test `tests/contract/test_layer_boundaries_005.py` asserting parsing does not import retrieval and graph does not import `html_narrative` ingest network calls
+- [x] T056 Update `.cursor/rules/specify-rules.mdc` if CLI flags or storage paths changed during implementation
 
 **Checkpoint**: Quickstart reproducible; layer contracts green; ready for `/speckit-implement`
 

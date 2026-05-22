@@ -9,6 +9,7 @@ from models.filing import FilingRef
 from models.query import (
     AnswerPackage,
     EvidenceChunk,
+    IntentRouterTrace,
     MacroPlan,
     SectionCandidate,
 )
@@ -23,6 +24,7 @@ class AgentState(TypedDict, total=False):
     snapshot_id: str
     temporal_anchor: str
     macro_plan: MacroPlan | None
+    intent_trace: IntentRouterTrace | None
     filing_set: list[FilingRef]
     section_candidates: list[SectionCandidate]
     evidence_chunks: list[EvidenceChunk]

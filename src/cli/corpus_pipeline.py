@@ -65,6 +65,7 @@ def run_materialize_pipeline(
     ticker: str | None = None,
     cik: str | None = None,
     force_refresh: bool = False,
+    skip_html_narrative: bool = False,
     graphs_dir: Path | None = None,
     parsed_dir: Path | None = None,
 ) -> CorpusMaterializationJob:
@@ -83,8 +84,9 @@ def run_materialize_pipeline(
         entry = fetch_filing(
             resolution=member.resolution,
             force_refresh=force_refresh,
+            skip_html_narrative=skip_html_narrative,
         )
-        doc = parse_from_cache(entry)
+        doc = parse_from_cache(entry, skip_html_narrative=skip_html_narrative)
         write_parsed_document(doc, parsed_root, ticker=member.resolution.ticker)
 
     docs = _load_parsed_docs(job, parsed_root)

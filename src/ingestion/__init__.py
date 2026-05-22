@@ -10,7 +10,7 @@ from ingestion.edgar_client import list_recent_filings, resolve_from_input, reso
 from ingestion.settings import ConfigurationError, require_edgar_user_agent
 from ingestion.validators import ValidationError
 from ingestion.xbrl_downloader import download_artifacts, package_dir, write_manifest
-from models.ingestion import CacheEntry, FetchJob, FetchJobStatus, IssuerIdentifierInput
+from models.ingestion import CacheEntry, FetchJob, FetchJobStatus, FilingResolution, IssuerIdentifierInput
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +55,7 @@ def fetch_filing(
     form_type: str = "10-K",
     resolution: FilingResolution | None = None,
     force_refresh: bool = False,
+    skip_html_narrative: bool = False,
 ) -> CacheEntry:
     """Resolve filing, download XBRL package from EDGAR, validate, and cache."""
     require_edgar_user_agent()
@@ -70,6 +71,15 @@ def fetch_filing(
         if cached is not None:
             _sync_manifest_resolution(cached.local_path, resolution)
             logger.info("cache hit for %s", resolution.accession)
+            if not skip_html_narrative:
+                from ingestion.html_narrative import ingest_html_for_cache_entry
+
+                ingest_html_for_cache_entry(
+                    cached,
+                    resolution,
+                    skip=False,
+                    force_refresh=False,
+                )
             return cached
 
     dest = package_dir(resolution)
@@ -85,6 +95,14 @@ def fetch_filing(
     manifest = XBRLArtifactManifest.model_validate_json(manifest_path.read_text())
     entry = save_package(resolution, manifest, dest=dest)
     update_index(entry, resolution)
+    from ingestion.html_narrative import ingest_html_for_cache_entry
+
+    ingest_html_for_cache_entry(
+        entry,
+        resolution,
+        skip=skip_html_narrative,
+        force_refresh=force_refresh,
+    )
     return entry
 
 

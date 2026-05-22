@@ -2,4 +2,16 @@
 base_url: http://localhost:1234/v1
 model: qwen/qwen3.6-35b-a3b
 temperature: 0.1
-max_tokens: 4096
+
+# Must match LM Studio "Context Length" after loading/reloading the model.
+# If ask fails with n_ctx: 4096, either reload the model at 16384 in LM Studio
+# or set LLM_CONTEXT_TOKENS=4096 in .env until you do.
+context_tokens: 16384
+
+# Completion reserve (input + completion + slack must fit in context_tokens).
+max_tokens: 3072
+
+# Optional tighter caps (never exceed token-derived safe limits):
+# max_evidence_chunks: 12
+# max_excerpt_chars: 1500
+# max_prompt_chars: 48000

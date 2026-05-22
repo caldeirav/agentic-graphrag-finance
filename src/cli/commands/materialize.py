@@ -15,6 +15,11 @@ def materialize(
     ticker: str | None = typer.Option(None, "--ticker", "-t"),
     cik: str | None = typer.Option(None, "--cik"),
     force_refresh: bool = typer.Option(False, "--force-refresh"),
+    skip_html_narrative: bool = typer.Option(
+        False,
+        "--skip-html-narrative",
+        help="XBRL-only materialize (skip supplementary HTML narrative)",
+    ),
     max_filings: int = typer.Option(12, "--max-filings"),
     as_json: bool = typer.Option(False, "--json"),
 ) -> None:
@@ -24,7 +29,13 @@ def materialize(
     try:
         defn = default_corpus_definition(issuer, ticker=ticker)
         defn = defn.model_copy(update={"max_filings": max_filings})
-        job = run_materialize_pipeline(defn, ticker=ticker, cik=cik, force_refresh=force_refresh)
+        job = run_materialize_pipeline(
+            defn,
+            ticker=ticker,
+            cik=cik,
+            force_refresh=force_refresh,
+            skip_html_narrative=skip_html_narrative,
+        )
     except CorpusCapExceededError as exc:
         raise typer.BadParameter(str(exc)) from exc
     except ResolutionError as exc:

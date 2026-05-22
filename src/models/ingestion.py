@@ -58,6 +58,9 @@ class XBRLArtifactManifest(BaseModel):
     resolution: FilingResolution
     artifacts: list[XBRLArtifact] = Field(default_factory=list)
     complete: bool = False
+    html_narrative_status: str = "not_attempted"
+    html_artifact_role: str = ""
+    html_artifact_relpath: str = ""
 
 
 class CacheEntry(BaseModel):

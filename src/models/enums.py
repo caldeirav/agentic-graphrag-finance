@@ -44,3 +44,46 @@ class ComparisonMode(StrEnum):
     YOY = "YoY"
     QOQ = "QoQ"
     SEQUENTIAL = "sequential"
+
+
+class EvidenceSourceType(StrEnum):
+    XBRL = "XBRL"
+    HTML = "HTML"
+
+
+class QueryIntent(StrEnum):
+    NUMERIC = "numeric"
+    QUALITATIVE = "qualitative"
+    HYBRID = "hybrid"
+
+
+class IntentSource(StrEnum):
+    LLM = "llm"
+    KEYWORD_FALLBACK = "keyword_fallback"
+
+
+class SourceBias(StrEnum):
+    XBRL_PRIMARY = "xbrl_primary"
+    HTML_PRIMARY = "html_primary"
+    BLENDED = "blended"
+
+
+class RouterFallbackReason(StrEnum):
+    LLM_TIMEOUT = "llm_timeout"
+    INVALID_LABEL = "invalid_label"
+    MOCK_LLM = "mock_llm"
+    ROUTER_ERROR = "router_error"
+
+
+class NarrativeSectionKind(StrEnum):
+    BUSINESS_DESCRIPTION = "business_description"
+    RISK_FACTORS = "risk_factors"
+    MD_AND_A = "md_and_a"
+    OTHER = "other"
+
+
+class HtmlNarrativeStatus(StrEnum):
+    SUCCESS = "success"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+    NOT_ATTEMPTED = "not_attempted"

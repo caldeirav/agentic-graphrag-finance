@@ -6,6 +6,7 @@ import calendar
 import re
 from datetime import date
 
+from models.enums import EvidenceSourceType
 from models.filing import FilingRef
 from models.query import EvidenceChunk
 
@@ -151,14 +152,27 @@ def filter_evidence_for_filing_set(
     if not scoped:
         return []
 
-    anchors = anchor_period_ends(filings)
-    aligned = [
+    html_chunks = [
         c
         for c in scoped
+        if c.source_type == EvidenceSourceType.HTML
+        or getattr(c.source_type, "value", "") == EvidenceSourceType.HTML.value
+    ]
+    numeric_chunks = [c for c in scoped if c not in html_chunks]
+
+    anchors = anchor_period_ends(filings)
+    aligned_numeric = [
+        c
+        for c in numeric_chunks
         if period_matches_anchor(
             parse_period_end_from_excerpt(c.excerpt),
             anchors,
             excerpt=c.excerpt,
         )
     ]
-    return aligned if aligned else scoped
+    if not aligned_numeric:
+        aligned_numeric = numeric_chunks
+
+    if html_chunks:
+        return html_chunks + aligned_numeric
+    return aligned_numeric

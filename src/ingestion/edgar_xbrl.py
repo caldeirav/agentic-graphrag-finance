@@ -16,7 +16,7 @@ from pathlib import Path
 
 import httpx
 
-from models.ingestion import FilingResolution, XBRLArtifact, XBRLArtifactRole
+from models.ingestion import FilingResolution, XBRLArtifact, XBRLArtifactManifest, XBRLArtifactRole
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +65,18 @@ def classify_filename(name: str) -> XBRLArtifactRole:
     if lower.endswith(".xml"):
         return XBRLArtifactRole.OTHER
     return XBRLArtifactRole.OTHER
+
+
+def find_inline_narrative_path(
+    package_root: Path,
+    manifest: XBRLArtifactManifest,
+    *,
+    min_bytes: int = 5000,
+) -> Path | None:
+    """Return path to inline/iXBRL or filing HTML for narrative extraction."""
+    from ingestion.package_utils import find_narrative_html_candidate
+
+    return find_narrative_html_candidate(package_root, manifest, min_bytes=min_bytes)
 
 
 def is_xbrl_package_file(name: str) -> bool:

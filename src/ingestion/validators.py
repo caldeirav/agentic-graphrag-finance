@@ -52,3 +52,15 @@ def validate_manifest(manifest: XBRLArtifactManifest, root: Path) -> None:
                 break
     if not xsd_present:
         raise ValidationError("Missing taxonomy schema (.xsd) in package")
+
+
+def validate_not_html_only_package(root: Path, manifest: XBRLArtifactManifest) -> None:
+    """FR-001: prohibit HTML-only cache without XBRL package."""
+    from ingestion.package_utils import xbrl_package_is_complete
+
+    if xbrl_package_is_complete(root, manifest):
+        return
+    has_html = any(a.role == XBRLArtifactRole.FILING_HTML for a in manifest.artifacts)
+    has_xbrl = XBRLArtifactRole.INSTANCE in {a.role for a in manifest.artifacts}
+    if has_html and not has_xbrl:
+        raise ValidationError("HTML-only ingestion is not permitted without a complete XBRL package")

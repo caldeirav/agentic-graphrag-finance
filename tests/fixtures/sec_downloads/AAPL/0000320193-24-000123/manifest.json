@@ -20,7 +20,16 @@
       "role": "schema",
       "url": "fixture://000032019324000123.xsd",
       "content_hash": null
+    },
+    {
+      "filename": "R1.htm",
+      "role": "filing_html",
+      "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/R1.htm",
+      "content_hash": null
     }
   ],
-  "complete": true
+  "complete": true,
+  "html_narrative_status": "success",
+  "html_artifact_role": "filing_htm_fallback",
+  "html_artifact_relpath": "R1.htm"
 }

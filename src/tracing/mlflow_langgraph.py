@@ -12,7 +12,7 @@ import mlflow
 import yaml
 
 from models.corpus import SnapshotScopeManifest
-from models.query import TrajectoryRecord
+from models.query import IntentRouterTrace, TrajectoryRecord
 
 _DEFAULT_TRACKING_URI = "sqlite:///mlflow.db"
 _CONFIGURED = False
@@ -122,6 +122,22 @@ def log_reachability_report(run_id: str, report_path: Path) -> str:
     return str(report_path)
 
 
+def log_intent_router(run_id: str, trace: IntentRouterTrace) -> str:
+    setup_mlflow()
+    client = mlflow.tracking.MlflowClient()
+    params = {
+        "query_intent": trace.query_intent.value,
+        "intent_source": trace.intent_source.value,
+        "source_bias_applied": trace.source_bias_applied.value,
+    }
+    if trace.router_fallback_reason is not None:
+        params["router_fallback_reason"] = trace.router_fallback_reason.value
+    mlflow.log_params(params)
+    client.log_dict(run_id, trace.model_dump(mode="json"), "intent_router.json")
+    uri = mlflow.get_tracking_uri()
+    return f"{uri}/runs/{run_id}/artifacts/intent_router.json"
+
+
 def log_trajectory(run_id: str, trajectory: TrajectoryRecord) -> str:
     setup_mlflow()
     client = mlflow.tracking.MlflowClient()
@@ -147,6 +163,7 @@ def build_trajectory_from_state(state: dict[str, Any]) -> TrajectoryRecord:
     ]
     return TrajectoryRecord(
         plan=state.get("macro_plan"),
+        intent_router=state.get("intent_trace"),
         document_route=state.get("filing_set") or [],
         graph_traversal=visits,
         evidence=state.get("evidence_chunks") or [],

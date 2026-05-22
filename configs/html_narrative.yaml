@@ -1,0 +1,18 @@
+html_narrative_enabled: true
+min_html_bytes: 1000
+inline_roles:
+  - inline_ixbrl
+  - filing_htm
+section_patterns:
+  business_description:
+    - "item 1."
+    - "item 1 "
+    - "business"
+  risk_factors:
+    - "item 1a"
+    - "risk factors"
+  md_and_a:
+    - "item 7"
+    - "management's discussion"
+    - "management’s discussion"
+    - "md&a"

@@ -1,10 +1,17 @@
 """Shared Pydantic data contracts."""
 
 from models.enums import (
+    EvidenceSourceType,
     GraphEdgeType,
     GraphNodeType,
+    HtmlNarrativeStatus,
+    IntentSource,
+    NarrativeSectionKind,
     OperationClass,
+    QueryIntent,
     QueryStatus,
+    RouterFallbackReason,
+    SourceBias,
     Sufficiency,
 )
 from models.evaluation import (
@@ -49,6 +56,7 @@ from models.query import (
     AnswerPackage,
     EvidenceChunk,
     GraphVisit,
+    IntentRouterTrace,
     MacroPlan,
     SectionCandidate,
     TemporalScope,
@@ -56,6 +64,13 @@ from models.query import (
 )
 
 __all__ = [
+    "EvidenceSourceType",
+    "QueryIntent",
+    "IntentSource",
+    "SourceBias",
+    "RouterFallbackReason",
+    "NarrativeSectionKind",
+    "HtmlNarrativeStatus",
     "GraphEdgeType",
     "GraphNodeType",
     "OperationClass",
@@ -79,6 +94,7 @@ __all__ = [
     "TemporalScope",
     "SectionCandidate",
     "EvidenceChunk",
+    "IntentRouterTrace",
     "AnswerPackage",
     "GraphVisit",
     "TrajectoryRecord",

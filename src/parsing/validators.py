@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from models.enums import EvidenceSourceType
 from models.parsing import ParsedDocument
 
 
@@ -26,3 +27,6 @@ def validate_parsed_document(
         raise ParseValidationError(
             f"structurally lossy parse: no tables extracted for {doc.filing.form_type}"
         )
+    for sec in doc.sections:
+        if sec.source_type == EvidenceSourceType.HTML and not (sec.text or "").strip():
+            raise ParseValidationError(f"HTML section {sec.section_id} has empty body")

@@ -84,12 +84,17 @@ def map_filing(
 
     for sec in doc.sections:
         sec_id = f"{doc_id}-{sec.section_id}"
+        sec_source = getattr(sec.source_type, "value", str(sec.source_type))
         nodes.append(
             GraphNode(
                 node_id=sec_id,
                 node_type=GraphNodeType.SECTION,
                 label=sec.title,
-                properties={"level": sec.level, "section_id": sec.section_id},
+                properties={
+                    "level": sec.level,
+                    "section_id": sec.section_id,
+                    "source_type": sec_source,
+                },
                 source_ref=sec.section_id,
             )
         )
@@ -132,25 +137,32 @@ def map_filing(
 
         body = (sec.text or "").strip()
         if body and body != sec.title.strip() and len(body) > 40:
-            para_id = f"{sec_id}-body"
-            nodes.append(
-                GraphNode(
-                    node_id=para_id,
-                    node_type=GraphNodeType.CHUNK_PARAGRAPH,
-                    label=sec.title[:80],
-                    properties={"section_id": sec.section_id},
-                    source_ref=body[:4000],
+            chunk_size = 6000 if sec_source == "HTML" else 4000
+            windows = [body[i : i + chunk_size] for i in range(0, len(body), chunk_size)]
+            for win_idx, window in enumerate(windows[:12]):
+                para_id = f"{sec_id}-body-{win_idx}" if win_idx else f"{sec_id}-body"
+                nodes.append(
+                    GraphNode(
+                        node_id=para_id,
+                        node_type=GraphNodeType.CHUNK_PARAGRAPH,
+                        label=sec.title[:80],
+                        properties={
+                            "section_id": sec.section_id,
+                            "source_type": sec_source,
+                            "window_index": win_idx,
+                        },
+                        source_ref=window,
+                    )
                 )
-            )
-            edges.append(
-                GraphEdge(
-                    edge_id=f"e-{edge_idx}",
-                    source_id=sec_id,
-                    target_id=para_id,
-                    edge_type=GraphEdgeType.CONTAINS,
+                edges.append(
+                    GraphEdge(
+                        edge_id=f"e-{edge_idx}",
+                        source_id=sec_id,
+                        target_id=para_id,
+                        edge_type=GraphEdgeType.CONTAINS,
+                    )
                 )
-            )
-            edge_idx += 1
+                edge_idx += 1
 
     for table in doc.tables:
         if table.table_id.startswith("xbrl-facts"):

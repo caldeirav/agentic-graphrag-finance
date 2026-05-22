@@ -2,6 +2,8 @@ from datetime import date
 
 from pydantic import BaseModel, Field
 
+from models.enums import EvidenceSourceType, NarrativeSectionKind
+
 
 class FilingRef(BaseModel):
     cik: str
@@ -25,6 +27,8 @@ class SectionBlock(BaseModel):
     level: int = 1
     text: str = ""
     parent_section_id: str | None = None
+    source_type: EvidenceSourceType = EvidenceSourceType.XBRL
+    narrative_kind: NarrativeSectionKind | None = None
 
 
 class TableBlock(BaseModel):

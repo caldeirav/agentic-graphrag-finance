@@ -26,11 +26,23 @@ def filing_ref_from_manifest(manifest: XBRLArtifactManifest) -> FilingRef:
     )
 
 
-def parse_from_cache(entry: CacheEntry) -> ParsedDocument:
+def parse_from_cache(
+    entry: CacheEntry,
+    *,
+    skip_html_narrative: bool = False,
+) -> ParsedDocument:
     manifest = load_manifest(entry)
     instance = find_primary_parse_path(entry.local_path, manifest)
     filing = filing_ref_from_manifest(manifest)
-    return parse_filing_path(instance, filing, package_root=entry.local_path)
+    doc = parse_filing_path(instance, filing, package_root=entry.local_path)
+    from parsing.html_narrative import enrich_document_with_html_narrative
+
+    return enrich_document_with_html_narrative(
+        doc,
+        entry.local_path,
+        manifest,
+        skip=skip_html_narrative,
+    )
 
 
 def write_parsed_document(

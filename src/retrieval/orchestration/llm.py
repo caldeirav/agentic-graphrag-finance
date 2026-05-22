@@ -31,7 +31,11 @@ def load_lm_config(config_path: Path | None = None) -> dict:
         "base_url": _strip_placeholder(str(base), _DEFAULT_BASE_URL),
         "model": _strip_placeholder(str(model), _DEFAULT_MODEL),
         "temperature": float(cfg.get("temperature", 0.1)),
-        "max_tokens": int(cfg.get("max_tokens", 4096)),
+        "context_tokens": int(cfg.get("context_tokens", 16384)),
+        "max_tokens": int(cfg.get("max_tokens", 3072)),
+        "max_evidence_chunks": int(cfg.get("max_evidence_chunks", 12)),
+        "max_excerpt_chars": int(cfg.get("max_excerpt_chars", 1500)),
+        "max_prompt_chars": int(cfg.get("max_prompt_chars", 48_000)),
     }
 
 

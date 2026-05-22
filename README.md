@@ -140,9 +140,13 @@ Edit `.env`:
 | `USE_MOCK_JUDGE` | Optional | `1` = skip Gemini in benchmarks |
 | `USE_FIXTURE_INGESTION` | Optional | `1` = bundled XBRL under `tests/fixtures/` |
 
+Prompt sizing for live `ask` is in `configs/lm_studio.yaml` (`context_tokens`, `max_tokens`). Set `context_tokens` to match LM Studio **Context Length** (e.g. `16384`) **after you reload the model** in LM Studio. The app probes `/v1/models` and clamps budgets to the server’s reported limit when it is smaller than your config.
+
+If you see `n_ctx: 4096` in a 400 error while `context_tokens` is `16384`, LM Studio is still serving a 4096 context — reload the model with 16384, or set `LLM_CONTEXT_TOKENS=4096` until you do. On overflow, synthesis retries once with a tighter budget.
+
 > **Note:** If your shell exports `MLFLOW_TRACKING_URI=./mlruns`, the app maps that to SQLite from `configs/mlflow.yaml`. Prefer `sqlite:///mlflow.db` in `.env`. Do not use bash placeholders like `${VAR:-default}` in config files.
 
-Start LM Studio, load your model, and enable the local server before running live queries.
+Start LM Studio, load your model (set context length to match `context_tokens` in `configs/lm_studio.yaml`), and enable the local server before running live queries.
 
 ---
 
@@ -178,6 +182,10 @@ uv run agent-query graph-audit --ticker AAPL --snapshot-id <uuid>
 ```
 
 Config: `configs/graph_audit.yaml`, `configs/graph_similarity.yaml`. Details: [004 quickstart](specs/004-docling-graph-materialization/quickstart.md).
+
+**HTML narrative supplement (005)** — `materialize` includes supplementary MD&A / risk-factor prose from inline iXBRL HTML in the cached XBRL package (merged into `data/parsed/{ticker}/{accession}.json`). Opt out with `--skip-html-narrative`. Each `ask` run logs an **intent router trace** (`query_intent`, `intent_source`, `source_bias_applied`) on MLflow as `intent_router.json` plus `trajectory.json`. Citations include `source_type` (`XBRL` | `HTML`).
+
+Config: `configs/html_narrative.yaml`, `configs/intent_router.yaml`. Details: [005 quickstart](specs/005-html-narrative-supplement/quickstart.md).
 
 #### Ask
 

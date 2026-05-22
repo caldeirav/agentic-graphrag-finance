@@ -109,6 +109,29 @@ def resolve_temporal_scope(
     return selected
 
 
+def _narrative_query_filings(query: str, refs: list[FilingRef]) -> list[FilingRef] | None:
+    """Qualitative prose (risk, MD&A) is typically answered from the latest 10-K."""
+    q = query.lower()
+    if not any(
+        k in q
+        for k in (
+            "risk factor",
+            "principal risk",
+            "md&a",
+            "management's discussion",
+            "management discussion",
+            "business description",
+            "outlook",
+            "liquidity and capital",
+        )
+    ):
+        return None
+    annuals = [f for f in refs if f.form_type.upper() == "10-K"]
+    if not annuals:
+        return None
+    return [max(annuals, key=lambda f: f.period_end)]
+
+
 def bind_filings_for_query(
     scope: CorpusTemporalScope | None,
     snapshot: GraphSnapshot,
@@ -126,7 +149,13 @@ def bind_filings_for_query(
         and not scope.accessions
     ):
         bound = list(snapshot.manifest.filing_refs)
-        if query:
+        narrative = _narrative_query_filings(query, bound) if query else None
+        if narrative:
+            bound = narrative
+            assumptions.append(
+                "no explicit temporal scope; bound latest 10-K for narrative/qualitative query"
+            )
+        elif query:
             assumptions.append("no explicit temporal scope; using full snapshot filing set")
         return FilingBinding(
             snapshot_id=snapshot.snapshot_id,

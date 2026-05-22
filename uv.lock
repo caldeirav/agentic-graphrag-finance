@@ -29,6 +29,7 @@ name = "agentic-graphrag-finance"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "beautifulsoup4" },
     { name = "docling", extra = ["xbrl"] },
     { name = "docling-graph" },
     { name = "httpx" },
@@ -36,6 +37,7 @@ dependencies = [
     { name = "langchain-google-genai" },
     { name = "langchain-openai" },
     { name = "langgraph" },
+    { name = "lxml" },
     { name = "mlflow" },
     { name = "mypy" },
     { name = "networkx" },
@@ -50,6 +52,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "beautifulsoup4", specifier = ">=4.12.0" },
     { name = "docling", extras = ["xbrl"], specifier = ">=2.94.0" },
     { name = "docling-graph", specifier = ">=1.5.1" },
     { name = "httpx", specifier = ">=0.28.1" },
@@ -57,6 +60,7 @@ requires-dist = [
     { name = "langchain-google-genai", specifier = ">=4.2.2" },
     { name = "langchain-openai", specifier = ">=1.2.1" },
     { name = "langgraph", specifier = ">=1.2.0" },
+    { name = "lxml", specifier = ">=5.0.0" },
     { name = "mlflow", specifier = ">=3.12.0" },
     { name = "mypy", specifier = ">=2.1.0" },
     { name = "networkx", specifier = ">=3.6.1" },

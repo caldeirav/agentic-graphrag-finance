@@ -10,6 +10,7 @@ from models.enums import QueryStatus
 from retrieval.orchestration.graph import build_agent_graph
 from tracing.mlflow_langgraph import (
     build_trajectory_from_state,
+    log_intent_router,
     log_trajectory,
     traced_query_run,
 )
@@ -48,6 +49,8 @@ class QueryService:
         with traced_query_run(request.query, request.snapshot_id, nested=nested) as run_id:
             result = compiled.invoke(initial)
             trajectory = build_trajectory_from_state(result)
+            if run_id and result.get("intent_trace") is not None:
+                log_intent_router(run_id, result["intent_trace"])
             traj_uri = log_trajectory(run_id, trajectory) if run_id else ""
 
         status = result.get("status", QueryStatus.SUCCESS)

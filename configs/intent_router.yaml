@@ -1,0 +1,32 @@
+llm_timeout_seconds: 30
+prompt: |
+  Classify the financial disclosure question intent.
+  Return JSON only: {"query_intent": "numeric"|"qualitative"|"hybrid"}
+  - numeric: revenue, EPS, assets, ratios, dollar amounts
+  - qualitative: MD&A, risk factors, strategy, management outlook
+  - hybrid: numeric trend plus management explanation
+keyword_fallback:
+  numeric:
+    - revenue
+    - sales
+    - eps
+    - earnings
+    - assets
+    - liabilities
+    - cash
+    - margin
+    - billion
+    - million
+  qualitative:
+    - risk
+    - md&a
+    - management
+    - strategy
+    - outlook
+    - liquidity discussion
+    - business description
+  hybrid:
+    - trend
+    - growth and
+    - explain
+    - compared to prior

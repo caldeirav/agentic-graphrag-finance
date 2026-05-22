@@ -9,9 +9,15 @@ import re
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from models.corpus import FiscalPeriodLabel, infer_fiscal_year_end_month
-from models.enums import QueryStatus, Sufficiency
+from models.enums import QueryIntent, QueryStatus, Sufficiency
 from models.filing import FilingRef
 from models.query import AnswerPackage, EvidenceChunk
+from retrieval.context_budget import (
+    budget_for_context_error,
+    compact_evidence_for_llm,
+    is_context_length_error,
+    trim_prompt_text,
+)
 from retrieval.evidence_scope import filter_evidence_for_filing_set
 from retrieval.orchestration.llm import create_chat_llm
 from retrieval.orchestration.state import AgentState
@@ -42,10 +48,35 @@ def synthesize(state: AgentState) -> dict:
 
     if os.environ.get("USE_MOCK_LLM", "0") == "1":
         return _synthesize_template(
-            evidence, query, filing_set, temporal_anchor=temporal_anchor
+            evidence,
+            query,
+            filing_set,
+            temporal_anchor=temporal_anchor,
+            state=state,
         )
 
-    return _synthesize_with_llm(evidence, query, filing_set, temporal_anchor=temporal_anchor)
+    try:
+        return _synthesize_with_llm(
+            evidence,
+            query,
+            filing_set,
+            temporal_anchor=temporal_anchor,
+            state=state,
+        )
+    except Exception as exc:
+        if not is_context_length_error(exc):
+            raise
+        fallback = budget_for_context_error(exc)
+        if fallback is None:
+            raise
+        return _synthesize_with_llm(
+            evidence,
+            query,
+            filing_set,
+            temporal_anchor=temporal_anchor,
+            state=state,
+            budget=fallback,
+        )
 
 
 def _synthesize_template(
@@ -54,8 +85,36 @@ def _synthesize_template(
     filing_set: list[FilingRef],
     *,
     temporal_anchor: str = "",
+    state: AgentState | None = None,
 ) -> dict:
     period_ends = ", ".join(str(f.period_end) for f in filing_set)
+    intent_trace = (state or {}).get("intent_trace") if state else None
+    if intent_trace and intent_trace.query_intent == QueryIntent.QUALITATIVE:
+        html_chunks = [c for c in evidence if "HTML" in str(getattr(c.source_type, "value", c.source_type))]
+        if html_chunks:
+            if "risk" in query.lower():
+                risk_chunks = [
+                    c
+                    for c in html_chunks
+                    if "risk" in c.excerpt.lower() or "risk" in (c.section_id or "").lower()
+                ]
+                lead_chunk = (
+                    max(risk_chunks, key=lambda c: len(c.excerpt)) if risk_chunks else html_chunks[0]
+                )
+            else:
+                lead_chunk = max(html_chunks, key=lambda c: len(c.excerpt))
+            lead = lead_chunk.excerpt[:1200]
+            return {
+                "answer": AnswerPackage(
+                    text=(
+                        "Principal risk factors from the bound filing narrative (HTML excerpt): "
+                        f"{lead}..."
+                    ),
+                    citations=html_chunks[:5],
+                    sufficiency=Sufficiency.COMPLETE,
+                ),
+                "status": QueryStatus.SUCCESS,
+            }
     revenue_line = _best_revenue_excerpt(evidence, filing_set)
     if revenue_line and _normalize_anchor(temporal_anchor) in (
         "prior_quarter",
@@ -71,7 +130,8 @@ def _synthesize_template(
         cited_numbers = _extract_numbers_from_evidence(evidence)
         parts = [f"Based on {len(evidence)} evidence chunk(s) from SEC filings:"]
         for i, chunk in enumerate(evidence[:5], 1):
-            parts.append(f"[{i}] ({chunk.citation_label}): {chunk.excerpt[:300]}")
+            src = getattr(chunk.source_type, "value", str(chunk.source_type))
+            parts.append(f"[{i}] [{src}] ({chunk.citation_label}): {chunk.excerpt[:300]}")
         answer_text = "\n".join(parts)
         if cited_numbers:
             answer_text += f"\nReferenced values from source: {', '.join(cited_numbers[:10])}"
@@ -135,6 +195,8 @@ def _synthesize_with_llm(
     filing_set: list,
     *,
     temporal_anchor: str = "",
+    state: AgentState | None = None,
+    budget: dict[str, int] | None = None,
 ) -> dict:
     llm = create_chat_llm()
     period_ends = ", ".join(str(f.period_end) for f in filing_set)
@@ -153,13 +215,52 @@ def _synthesize_with_llm(
         ],
         indent=2,
     )
+    intent_trace = state.get("intent_trace") if isinstance(state, dict) else None
+    qualitative = (
+        intent_trace is not None and intent_trace.query_intent == QueryIntent.QUALITATIVE
+    )
+    query_intent = intent_trace.query_intent if intent_trace else None
+    prompt_evidence = compact_evidence_for_llm(
+        evidence,
+        query=query,
+        query_intent=query_intent,
+        budget=budget,
+    )
     evidence_block = "\n".join(
-        f"[{i}] ({c.citation_label}): {c.excerpt}" for i, c in enumerate(evidence[:15], 1)
+        f"[{i}] [{getattr(c.source_type, 'value', c.source_type)}] ({c.citation_label}): {c.excerpt}"
+        for i, c in enumerate(prompt_evidence, 1)
     )
     temporal_guidance = _temporal_synthesis_guidance(
         temporal_anchor, filing_set, period_ends=period_ends
     )
-    prompt = f"""Answer the financial question using ONLY the SEC filing evidence below.
+    if qualitative:
+        instructions = (
+            "- Answer from HTML narrative excerpts (Item 1A risk factors, MD&A, business description).\n"
+            "- Summarize principal risks in prose; do not reply with only XBRL numeric facts.\n"
+            "- Prefer the annual report (10-K) when multiple filings are bound.\n"
+            "- If risk-factor narrative is present in evidence, extract and list the main themes.\n"
+            "- If evidence lacks narrative risk discussion, say so explicitly."
+        )
+        system = (
+            "You are a financial analyst answering from SEC filing narrative (HTML) sections. "
+            "Focus on qualitative disclosures, not taxonomy numbers."
+        )
+    else:
+        instructions = (
+            "- Give a direct, definitive answer in the first sentence (include dollar amounts and period when present).\n"
+            "- Use XBRL fact lines that match the question (e.g. RevenueFromContractWithCustomer for net sales/revenue).\n"
+            f"- {temporal_guidance}\n"
+            "- Ignore prior-year comparative XBRL periods unless the question explicitly asks for year-over-year comparison.\n"
+            "- Do not list raw table IDs; cite fact concepts or filing sections.\n"
+            "- If no evidence matches the bound period, say so explicitly."
+        )
+        system = (
+            "You are a financial analyst answering from SEC XBRL and filing text. "
+            "Be precise with numbers and periods."
+        )
+
+    prompt = trim_prompt_text(
+        f"""Answer the financial question using ONLY the SEC filing evidence below.
 
 Filings (use ONLY these — ignore any other period in your training data):
 {filing_ctx}
@@ -170,21 +271,13 @@ Evidence:
 Question: {query}
 
 Instructions:
-- Give a direct, definitive answer in the first sentence (include dollar amounts and period when present).
-- Use XBRL fact lines that match the question (e.g. RevenueFromContractWithCustomer for net sales/revenue).
-- {temporal_guidance}
-- Ignore prior-year comparative XBRL periods unless the question explicitly asks for year-over-year comparison.
-- Do not list raw table IDs; cite fact concepts or filing sections.
-- If no evidence matches the bound period, say so explicitly."""
+{instructions}""",
+        budget=budget,
+    )
 
     resp = llm.invoke(
         [
-            SystemMessage(
-                content=(
-                    "You are a financial analyst answering from SEC XBRL and filing text. "
-                    "Be precise with numbers and periods."
-                )
-            ),
+            SystemMessage(content=system),
             HumanMessage(content=prompt),
         ]
     )
@@ -196,7 +289,7 @@ Instructions:
     return {
         "answer": AnswerPackage(
             text=text,
-            citations=evidence[:15],
+            citations=evidence[: len(prompt_evidence)],
             sufficiency=Sufficiency.COMPLETE,
         ),
         "status": QueryStatus.SUCCESS,

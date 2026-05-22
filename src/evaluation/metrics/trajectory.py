@@ -25,6 +25,10 @@ def trajectory_fidelity_score(
 ) -> float:
     visited = [v.node_id for v in trajectory.graph_traversal]
     structural = structural_overlap(visited, expected_section_ids or [])
+    router_bonus = 0.0
+    if trajectory.intent_router is not None:
+        router_bonus = 0.1
+    base = min(1.0, structural + router_bonus)
     if judge_score is not None:
-        return 0.5 * structural + 0.5 * judge_score
-    return structural
+        return 0.5 * base + 0.5 * judge_score
+    return base
