@@ -89,6 +89,8 @@ class CLIAskRequest(BaseModel):
     temporal_scope: CorpusTemporalScope | None = None
     corpus_definition: CorpusDefinition | None = None
     force_corpus_refresh: bool = False
+    trace_level: str | None = None
+    trace_json: bool = False
 
 
 class CLIAskResult(BaseModel):

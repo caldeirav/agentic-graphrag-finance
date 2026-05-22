@@ -60,6 +60,42 @@ _ITEM_HEADING = re.compile(
     r"(?is)\bitem\s+(1a|1|7)\b[\s\.\-–—:]*"
     r"(risk\s+factors|business|management.?s\s+discussion|md&a)?"
 )
+_ITEM_CROSS_REFERENCE = re.compile(
+    r"of\s+this\s+Form\s+10-?K\s+under\s+the\s+heading",
+    re.I,
+)
+_PRIMARY_ITEM_HEADING = re.compile(
+    r"Item\s+\d+[A-Z]?\.\s*(?:&#160;|&nbsp;|\s)+",
+    re.I,
+)
+
+
+def _is_primary_item_boundary(text: str, match: re.Match[str]) -> bool:
+    """True for SEC part headings; false for TOC links and in-body cross-references."""
+    start = match.start()
+    heading = text[start : start + 120]
+    if _ITEM_CROSS_REFERENCE.search(heading):
+        return False
+    if "</a>" in heading[:80]:
+        return False
+    if re.search(r"Item\s+\d+[A-Z]?\s*,", heading[:50], re.I):
+        return False
+    return bool(_PRIMARY_ITEM_HEADING.search(heading[:80]))
+
+
+def _primary_item_boundaries(text: str) -> list[re.Match[str]]:
+    """First primary heading per Item number (1, 1A, 7, …) in document order."""
+    seen: set[str] = set()
+    primary: list[re.Match[str]] = []
+    for match in _ITEM_HEADING.finditer(text):
+        if not _is_primary_item_boundary(text, match):
+            continue
+        item_key = (match.group(1) or "").lower()
+        if item_key in seen:
+            continue
+        seen.add(item_key)
+        primary.append(match)
+    return primary
 
 
 def _extract_sections_from_item_boundaries(
@@ -67,7 +103,7 @@ def _extract_sections_from_item_boundaries(
     patterns: dict[str, list[str]],
 ) -> list[SectionBlock]:
     """Split inline iXBRL / filing text on SEC Item headings (full document)."""
-    matches = list(_ITEM_HEADING.finditer(text))
+    matches = _primary_item_boundaries(text)
     if len(matches) < 2:
         return []
 

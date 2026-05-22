@@ -7,6 +7,7 @@ import json
 import typer
 
 from cli.pipeline import run_ask_pipeline
+from tracing.console_trace.config import resolve_trace_level
 from ingestion.edgar_client import ResolutionError
 from models.corpus import CorpusTemporalScope
 from models.ingestion import CLIAskRequest, IssuerIdentifierInput
@@ -56,6 +57,12 @@ def ask(
         None, "--compare", help="Comma-separated fiscal periods to compare"
     ),
     as_json: bool = typer.Option(False, "--json"),
+    trace: str | None = typer.Option(
+        None,
+        "--trace",
+        help="Console trace verbosity: quiet, normal, verbose",
+    ),
+    trace_json: bool = typer.Option(False, "--trace-json", help="Emit JSONL trace on stderr"),
 ) -> None:
     if not ticker and not cik and not accession:
         raise typer.BadParameter("Provide --ticker, --cik, or --accession")
@@ -70,6 +77,7 @@ def ask(
             "Cannot combine --accession with --anchor, --period, or --compare temporal flags"
         )
 
+    trace_level = resolve_trace_level(trace).value
     request = CLIAskRequest(
         identifier=IssuerIdentifierInput(ticker=ticker, cik=cik, accession=accession),
         query=query,
@@ -77,6 +85,8 @@ def ask(
         force_refresh=force_refresh,
         reuse_snapshot_id=snapshot_id,
         temporal_scope=temporal,
+        trace_level=trace_level,
+        trace_json=trace_json,
     )
     try:
         result = run_ask_pipeline(request)

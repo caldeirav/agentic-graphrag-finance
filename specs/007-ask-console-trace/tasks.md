@@ -28,9 +28,9 @@ description: "Task list for ask console trajectory trace (007)"
 
 **Purpose**: Dependency, trace config, operator docs stub
 
-- [ ] T001 [P] Add `rich` to `pyproject.toml` and refresh `uv.lock` via `uv lock` per `research.md` R1
-- [ ] T002 [P] Add `configs/trace.yaml` with `prompt_preview_chars`, `excerpt_preview_chars`, `panel_enabled` per `data-model.md`
-- [ ] T003 [P] Implement `load_trace_config()` in `src/tracing/console_trace/config.py` reading `configs/trace.yaml` and env overrides
+- [x] T001 [P] Add `rich` to `pyproject.toml` and refresh `uv.lock` via `uv lock` per `research.md` R1
+- [x] T002 [P] Add `configs/trace.yaml` with `prompt_preview_chars`, `excerpt_preview_chars`, `panel_enabled` per `data-model.md`
+- [x] T003 [P] Implement `load_trace_config()` in `src/tracing/console_trace/config.py` reading `configs/trace.yaml` and env overrides
 
 **Checkpoint**: `uv run python -c "from tracing.console_trace.config import load_trace_config; load_trace_config()"` succeeds
 
@@ -42,14 +42,14 @@ description: "Task list for ask console trajectory trace (007)"
 
 **⚠️ CRITICAL**: No user story work until this phase is complete
 
-- [ ] T004 [P] Add `TraceLevel`, `TraceEventType` to `src/tracing/console_trace/models.py` (or `src/models/enums.py` if re-exported) per `data-model.md`
-- [ ] T005 [P] Implement `TraceEvent`, `LlmIoRecord`, `TraceRunConfig` Pydantic models in `src/tracing/console_trace/models.py`
-- [ ] T006 Extend `AgentState` in `src/retrieval/orchestration/state.py` with `trace_events` (append reducer) and `trace_config` per `data-model.md`
-- [ ] T007 Implement `trace_emit()` and `trace_stage_start`/`trace_stage_end` helpers in `src/tracing/console_trace/emitter.py`
-- [ ] T008 Scaffold `ASK_TRACE_REGISTRY` with five stage entries (`macro_router`, `intent_router`, `meso_router`, `micro_extractor`, `synthesize`) in `src/tracing/console_trace/registry.py` per `contracts/ask-trace-registry.md`
-- [ ] T009 [P] Add contract test `tests/contract/test_ask_trace_registry.py` asserting graph node keys == registry keys (fails on missing stage) per FR-006
-- [ ] T010 [P] Add contract test `tests/contract/test_ask_trace_schema.py` snapshot of trace-relevant fields on `IntentRouterTrace`, `MacroPlan`, `EvidenceChunk` per FR-016
-- [ ] T011 [P] Add unit test `tests/unit/test_trace_emitter.py` for append-only `trace_events` merge and event serialization
+- [x] T004 [P] Add `TraceLevel`, `TraceEventType` to `src/tracing/console_trace/models.py` (or `src/models/enums.py` if re-exported) per `data-model.md`
+- [x] T005 [P] Implement `TraceEvent`, `LlmIoRecord`, `TraceRunConfig` Pydantic models in `src/tracing/console_trace/models.py`
+- [x] T006 Extend `AgentState` in `src/retrieval/orchestration/state.py` with `trace_events` (append reducer) and `trace_config` per `data-model.md`
+- [x] T007 Implement `trace_emit()` and `trace_stage_start`/`trace_stage_end` helpers in `src/tracing/console_trace/emitter.py`
+- [x] T008 Scaffold `ASK_TRACE_REGISTRY` with five stage entries (`macro_router`, `intent_router`, `meso_router`, `micro_extractor`, `synthesize`) in `src/tracing/console_trace/registry.py` per `contracts/ask-trace-registry.md`
+- [x] T009 [P] Add contract test `tests/contract/test_ask_trace_registry.py` asserting graph node keys == registry keys (fails on missing stage) per FR-006
+- [x] T010 [P] Add contract test `tests/contract/test_ask_trace_schema.py` snapshot of trace-relevant fields on `IntentRouterTrace`, `MacroPlan`, `EvidenceChunk` per FR-016
+- [x] T011 [P] Add unit test `tests/unit/test_trace_emitter.py` for append-only `trace_events` merge and event serialization
 
 **Checkpoint**: `uv run pytest tests/contract/test_ask_trace_registry.py tests/unit/test_trace_emitter.py -q` passes
 
@@ -63,21 +63,21 @@ description: "Task list for ask console trajectory trace (007)"
 
 ### Tests for User Story 1
 
-- [ ] T012 [P] [US1] Add unit test `tests/unit/test_console_trace_reporter.py` rendering fixture `trace_events` to normalized plain text (no ANSI) per `research.md` R6
-- [ ] T013 [US1] Add integration test `tests/integration/test_ask_trace_streams.py` asserting stdout has no trace keys under `--json --trace quiet` and stderr receives stage headers under `--trace normal` per SC-006
+- [x] T012 [P] [US1] Add unit test `tests/unit/test_console_trace_reporter.py` rendering fixture `trace_events` to normalized plain text (no ANSI) per `research.md` R6
+- [x] T013 [US1] Add integration test `tests/integration/test_ask_trace_streams.py` asserting stdout has no trace keys under `--json --trace quiet` and stderr receives stage headers under `--trace normal` per SC-006
 
 ### Implementation for User Story 1
 
-- [ ] T014 [US1] Implement `ConsoleTraceReporter` with Rich panels writing to stderr and plain fallback in `src/tracing/console_trace/reporter.py` per FR-003
-- [ ] T015 [US1] Implement `_traced_node(fn, stage_id)` wrapper emitting start/end + calling `reporter.flush_stage` in `src/retrieval/orchestration/graph.py`
-- [ ] T016 [US1] Wrap all five graph nodes with `_traced_node` in `src/retrieval/orchestration/graph.py` preserving existing edges
-- [ ] T017 [P] [US1] Add stub `build_*_trace_payload` returning minimal `decision_summary` in `src/retrieval/orchestration/trace_payloads.py` (one function per stage)
-- [ ] T018 [US1] Wire payload builders into `_traced_node` via registry `state_field_map` in `src/tracing/console_trace/registry.py`
-- [ ] T019 [US1] Implement `resolve_trace_level()` (CLI > `AGENT_QUERY_TRACE` > TTY) in `src/cli/commands/ask.py` per `contracts/ask-cli-trace-flags.md`
-- [ ] T020 [US1] Add `--trace {quiet,normal,verbose}` Typer option to `ask` in `src/cli/commands/ask.py`
-- [ ] T021 [US1] Build `TraceRunConfig` in `src/retrieval/service.py` and pass into graph `initial` state; attach `ConsoleTraceReporter` for run duration
-- [ ] T022 [US1] Ensure `ask` prints answer + status footer on stdout only; move any trace echo out of stdout paths in `src/cli/commands/ask.py`
-- [ ] T023 [US1] Emit final stderr summary footer (duration, status, citations) from `ConsoleTraceReporter` after graph completes in `src/retrieval/service.py`
+- [x] T014 [US1] Implement `ConsoleTraceReporter` with Rich panels writing to stderr and plain fallback in `src/tracing/console_trace/reporter.py` per FR-003
+- [x] T015 [US1] Implement `_traced_node(fn, stage_id)` wrapper emitting start/end + calling `reporter.flush_stage` in `src/retrieval/orchestration/graph.py`
+- [x] T016 [US1] Wrap all five graph nodes with `_traced_node` in `src/retrieval/orchestration/graph.py` preserving existing edges
+- [x] T017 [P] [US1] Add stub `build_*_trace_payload` returning minimal `decision_summary` in `src/retrieval/orchestration/trace_payloads.py` (one function per stage)
+- [x] T018 [US1] Wire payload builders into `_traced_node` via registry `state_field_map` in `src/tracing/console_trace/registry.py`
+- [x] T019 [US1] Implement `resolve_trace_level()` (CLI > `AGENT_QUERY_TRACE` > TTY) in `src/cli/commands/ask.py` per `contracts/ask-cli-trace-flags.md`
+- [x] T020 [US1] Add `--trace {quiet,normal,verbose}` Typer option to `ask` in `src/cli/commands/ask.py`
+- [x] T021 [US1] Build `TraceRunConfig` in `src/retrieval/service.py` and pass into graph `initial` state; attach `ConsoleTraceReporter` for run duration
+- [x] T022 [US1] Ensure `ask` prints answer + status footer on stdout only; move any trace echo out of stdout paths in `src/cli/commands/ask.py`
+- [x] T023 [US1] Emit final stderr summary footer (duration, status, citations) from `ConsoleTraceReporter` after graph completes in `src/retrieval/service.py`
 
 **Checkpoint**: US1 quickstart steps 1–2 pass; SC-001 mock run shows five stages on stderr
 
@@ -91,11 +91,11 @@ description: "Task list for ask console trajectory trace (007)"
 
 ### Implementation for User Story 4
 
-- [ ] T024 [US4] Register per-stage `schema_version` and renderer callables in `src/tracing/console_trace/registry.py` (no ranking logic in renderers) per FR-007
-- [ ] T025 [US4] Add `get_ask_graph_stage_ids()` helper imported by contract test from `src/retrieval/orchestration/graph.py`
-- [ ] T026 [US4] Extend `test_ask_trace_registry.py` to validate registered `event_type` values and `state_field_map` keys exist on `AgentState`
-- [ ] T027 [US4] Add CI step or path filter in `.github/workflows/ci.yml` running `tests/contract/test_ask_trace_registry.py` on PRs touching `src/retrieval/orchestration/` per FR-019
-- [ ] T028 [P] [US4] Document registry change protocol in `specs/007-ask-console-trace/contracts/ask-trace-registry.md` cross-link from `README.md` (trace section)
+- [x] T024 [US4] Register per-stage `schema_version` and renderer callables in `src/tracing/console_trace/registry.py` (no ranking logic in renderers) per FR-007
+- [x] T025 [US4] Add `get_ask_graph_stage_ids()` helper imported by contract test from `src/retrieval/orchestration/graph.py`
+- [x] T026 [US4] Extend `test_ask_trace_registry.py` to validate registered `event_type` values and `state_field_map` keys exist on `AgentState`
+- [x] T027 [US4] Add CI step or path filter in `.github/workflows/ci.yml` running `tests/contract/test_ask_trace_registry.py` on PRs touching `src/retrieval/orchestration/` per FR-019
+- [x] T028 [P] [US4] Document registry change protocol in `specs/007-ask-console-trace/contracts/ask-trace-registry.md` cross-link from `README.md` (trace section)
 
 **Checkpoint**: SC-003 — deliberate unregistered node fails contract in <1s
 
@@ -109,19 +109,19 @@ description: "Task list for ask console trajectory trace (007)"
 
 ### Tests for User Story 2
 
-- [ ] T029 [P] [US2] Add unit test `tests/unit/test_traced_llm_invoke.py` asserting `llm_io` events with truncated messages in `src/tracing/console_trace/llm.py`
-- [ ] T030 [US2] Extend `tests/unit/test_console_trace_reporter.py` for intent_router panel with fallback reason vs LLM source
+- [x] T029 [P] [US2] Add unit test `tests/unit/test_traced_llm_invoke.py` asserting `llm_io` events with truncated messages in `src/tracing/console_trace/llm.py`
+- [x] T030 [US2] Extend `tests/unit/test_console_trace_reporter.py` for intent_router panel with fallback reason vs LLM source
 
 ### Implementation for User Story 2
 
-- [ ] T031 [US2] Implement `traced_llm_invoke(stage_id, llm, messages, ...)` in `src/tracing/console_trace/llm.py` per `research.md` R4
-- [ ] T032 [US2] Replace direct `llm.invoke` with `traced_llm_invoke` in `src/retrieval/orchestration/nodes/intent_router.py`
-- [ ] T033 [US2] Replace direct `llm.invoke` with `traced_llm_invoke` in `src/retrieval/orchestration/nodes/macro_router.py` (LLM path only)
-- [ ] T034 [US2] Replace direct `llm.invoke` with `traced_llm_invoke` in `src/retrieval/synthesis.py`
-- [ ] T035 [US2] Implement `build_intent_router_trace_payload` mirroring `IntentRouterTrace` fields in `src/retrieval/orchestration/trace_payloads.py`
-- [ ] T036 [US2] Implement `build_macro_router_trace_payload` with `pre_bound`, `llm_skipped`, filing list in `src/retrieval/orchestration/trace_payloads.py`
-- [ ] T037 [US2] Register intent/macro renderers showing `query_intent`, `intent_source`, `router_fallback_reason`, `llm_io` previews in `src/tracing/console_trace/registry.py`
-- [ ] T038 [US2] Gate full prompt/response body display behind `--trace verbose` in `src/tracing/console_trace/reporter.py`
+- [x] T031 [US2] Implement `traced_llm_invoke(stage_id, llm, messages, ...)` in `src/tracing/console_trace/llm.py` per `research.md` R4
+- [x] T032 [US2] Replace direct `llm.invoke` with `traced_llm_invoke` in `src/retrieval/orchestration/nodes/intent_router.py`
+- [x] T033 [US2] Replace direct `llm.invoke` with `traced_llm_invoke` in `src/retrieval/orchestration/nodes/macro_router.py` (LLM path only)
+- [x] T034 [US2] Replace direct `llm.invoke` with `traced_llm_invoke` in `src/retrieval/synthesis.py`
+- [x] T035 [US2] Implement `build_intent_router_trace_payload` mirroring `IntentRouterTrace` fields in `src/retrieval/orchestration/trace_payloads.py`
+- [x] T036 [US2] Implement `build_macro_router_trace_payload` with `pre_bound`, `llm_skipped`, filing list in `src/retrieval/orchestration/trace_payloads.py`
+- [x] T037 [US2] Register intent/macro renderers showing `query_intent`, `intent_source`, `router_fallback_reason`, `llm_io` previews in `src/tracing/console_trace/registry.py`
+- [x] T038 [US2] Gate full prompt/response body display behind `--trace verbose` in `src/tracing/console_trace/reporter.py`
 
 **Checkpoint**: US2 quickstart steps 5–6; SC-004 reviewer can read intent from stderr trace
 
@@ -135,17 +135,17 @@ description: "Task list for ask console trajectory trace (007)"
 
 ### Tests for User Story 3
 
-- [ ] T039 [P] [US3] Add unit test `tests/unit/test_trace_payloads_micro.py` for `evidence_snapshot` payload shape per `contracts/trace-event-schema.md`
-- [ ] T040 [US3] Add golden fixture `tests/fixtures/console_trace/qualitative_mock.txt` (normalized stderr) updated when payload changes per FR-018
+- [x] T039 [P] [US3] Add unit test `tests/unit/test_trace_payloads_micro.py` for `evidence_snapshot` payload shape per `contracts/trace-event-schema.md`
+- [x] T040 [US3] Add golden fixture `tests/fixtures/console_trace/qualitative_mock.txt` (normalized stderr) updated when payload changes per FR-018
 
 ### Implementation for User Story 3
 
-- [ ] T041 [US3] Implement `build_meso_router_trace_payload` with `section_candidates` top-N in `src/retrieval/orchestration/trace_payloads.py`
-- [ ] T042 [US3] Implement `build_micro_extractor_trace_payload` with `count_before`, `count_after`, `source_bias`, `top_chunks` previews in `src/retrieval/orchestration/trace_payloads.py`
-- [ ] T043 [US3] Implement `build_synthesize_trace_payload` with `evidence_in_prompt`, context budget from `load_context_budget()`, sufficiency in `src/retrieval/orchestration/trace_payloads.py`
-- [ ] T044 [US3] Register meso/micro/synthesize renderers displaying `graph_traversal` visits in `src/tracing/console_trace/registry.py`
-- [ ] T045 [US3] Surface synthesis context-overflow retry in `build_synthesize_trace_payload` when tighter budget applied in `src/retrieval/synthesis.py`
-- [ ] T046 [P] [US3] Add golden fixture `tests/fixtures/console_trace/numeric_mock.txt` for numeric pilot query stderr snapshot
+- [x] T041 [US3] Implement `build_meso_router_trace_payload` with `section_candidates` top-N in `src/retrieval/orchestration/trace_payloads.py`
+- [x] T042 [US3] Implement `build_micro_extractor_trace_payload` with `count_before`, `count_after`, `source_bias`, `top_chunks` previews in `src/retrieval/orchestration/trace_payloads.py`
+- [x] T043 [US3] Implement `build_synthesize_trace_payload` with `evidence_in_prompt`, context budget from `load_context_budget()`, sufficiency in `src/retrieval/orchestration/trace_payloads.py`
+- [x] T044 [US3] Register meso/micro/synthesize renderers displaying `graph_traversal` visits in `src/tracing/console_trace/registry.py`
+- [x] T045 [US3] Surface synthesis context-overflow retry in `build_synthesize_trace_payload` when tighter budget applied in `src/retrieval/synthesis.py`
+- [x] T046 [P] [US3] Add golden fixture `tests/fixtures/console_trace/numeric_mock.txt` for numeric pilot query stderr snapshot
 
 **Checkpoint**: US3 quickstart qualitative/numeric scenarios; meso/micro sections populated on live corpus
 
@@ -155,11 +155,11 @@ description: "Task list for ask console trajectory trace (007)"
 
 **Purpose**: `--trace-json`, JSONL stderr, polish
 
-- [ ] T047 [P] Emit JSONL `TraceEvent.model_dump_json()` lines on stderr per stage flush when `--trace-json` in `src/tracing/console_trace/reporter.py` per FR-011
-- [ ] T048 Add `--trace-json` flag to `src/cli/commands/ask.py` and set `TraceRunConfig.emit_jsonl` in `src/retrieval/service.py`
-- [ ] T049 Extend `tests/integration/test_ask_trace_streams.py` for `--trace-json` JSONL line count >= stage count per SC-007
-- [ ] T050 [P] Document `--trace`, `AGENT_QUERY_TRACE`, stderr/stdout split in `README.md` linking `specs/007-ask-console-trace/quickstart.md`
-- [ ] T051 Run full quickstart validation and mark completed items in `specs/007-ask-console-trace/checklists/requirements.md`
+- [x] T047 [P] Emit JSONL `TraceEvent.model_dump_json()` lines on stderr per stage flush when `--trace-json` in `src/tracing/console_trace/reporter.py` per FR-011
+- [x] T048 Add `--trace-json` flag to `src/cli/commands/ask.py` and set `TraceRunConfig.emit_jsonl` in `src/retrieval/service.py`
+- [x] T049 Extend `tests/integration/test_ask_trace_streams.py` for `--trace-json` JSONL line count >= stage count per SC-007
+- [x] T050 [P] Document `--trace`, `AGENT_QUERY_TRACE`, stderr/stdout split in `README.md` linking `specs/007-ask-console-trace/quickstart.md`
+- [x] T051 Run full quickstart validation and mark completed items in `specs/007-ask-console-trace/checklists/requirements.md`
 
 **Checkpoint**: quickstart.md steps 1–8 pass on fixture + optional live LM Studio
 

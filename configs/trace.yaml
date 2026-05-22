@@ -1,0 +1,6 @@
+prompt_preview_chars: 800
+excerpt_preview_chars: 400
+panel_enabled: true
+top_evidence_preview: 10
+top_section_candidates: 10
+top_structural_paths: 3

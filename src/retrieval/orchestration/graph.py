@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
+
 from langgraph.graph import END, StateGraph
 
 from retrieval.orchestration.nodes.intent_router import intent_router
@@ -9,17 +12,86 @@ from retrieval.orchestration.nodes.macro_router import macro_router
 from retrieval.orchestration.nodes.meso_router import meso_router
 from retrieval.orchestration.nodes.micro_extractor import micro_extractor
 from retrieval.orchestration.state import AgentState
+from retrieval.orchestration.trace_payloads import build_stage_trace_payload
 from retrieval.synthesis import synthesize
+from tracing.console_trace.context import get_trace_reporter
+from tracing.console_trace.emitter import StageTimer, trace_stage_start
+
+
+def get_ask_graph_stage_ids() -> set[str]:
+    """Stage node names (excludes LangGraph __start__/__end__)."""
+    return {
+        "macro_router",
+        "intent_router",
+        "meso_router",
+        "micro_extractor",
+        "synthesize",
+    }
+
+
+def _merge_trace_into_result(result: dict, extra: dict) -> dict:
+    if not extra.get("trace_events"):
+        return result
+    merged = dict(result)
+    events = list(merged.get("trace_events") or [])
+    events.extend(extra.get("trace_events") or [])
+    merged["trace_events"] = events
+    return merged
+
+
+def _traced_node(
+    fn: Callable[..., dict],
+    stage_id: str,
+    *,
+    graph_api: Any = None,
+) -> Callable[[AgentState], dict]:
+    def wrapped(state: AgentState) -> dict:
+        reporter = get_trace_reporter()
+        timer = StageTimer(stage_id)
+        start_patch = trace_stage_start(stage_id)
+        accumulated: dict = {"trace_events": list(start_patch.get("trace_events") or [])}
+
+        if graph_api is not None:
+            result = fn(state, graph_api=graph_api)
+        else:
+            result = fn(state)
+
+        built = build_stage_trace_payload(stage_id, {**state, **result})
+        from tracing.console_trace.emitter import trace_stage_end
+
+        end_patch = trace_stage_end(
+            stage_id,
+            duration_ms=timer.elapsed_ms,
+            decision_summary=built["decision_summary"],
+            payload=built.get("payload"),
+        )
+        accumulated["trace_events"].extend(end_patch.get("trace_events") or [])
+
+        merged = _merge_trace_into_result(result, accumulated)
+        if reporter is not None:
+            reporter.flush_stage(stage_id, {**state, **merged})
+        return merged
+
+    return wrapped
 
 
 def build_agent_graph(graph_api):
     g = StateGraph(AgentState)
 
-    g.add_node("macro_router", lambda s: macro_router(s, graph_api=graph_api))
-    g.add_node("intent_router", intent_router)
-    g.add_node("meso_router", lambda s: meso_router(s, graph_api=graph_api))
-    g.add_node("micro_extractor", lambda s: micro_extractor(s, graph_api=graph_api))
-    g.add_node("synthesize", synthesize)
+    g.add_node(
+        "macro_router",
+        _traced_node(macro_router, "macro_router", graph_api=graph_api),
+    )
+    g.add_node("intent_router", _traced_node(intent_router, "intent_router"))
+    g.add_node(
+        "meso_router",
+        _traced_node(meso_router, "meso_router", graph_api=graph_api),
+    )
+    g.add_node(
+        "micro_extractor",
+        _traced_node(micro_extractor, "micro_extractor", graph_api=graph_api),
+    )
+    g.add_node("synthesize", _traced_node(synthesize, "synthesize"))
 
     g.set_entry_point("macro_router")
     g.add_edge("macro_router", "intent_router")

@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 from contracts.query import QueryRequest, QueryResponse
 from graph.query_api import LocalGraphQueryAPI
 from models.enums import QueryStatus
 from retrieval.orchestration.graph import build_agent_graph
+from tracing.console_trace.config import build_trace_run_config
+from tracing.console_trace.context import set_trace_reporter
+from tracing.console_trace.models import TraceLevel
+from tracing.console_trace.reporter import ConsoleTraceReporter
 from tracing.mlflow_langgraph import (
     build_trajectory_from_state,
     log_intent_router,
@@ -35,6 +40,14 @@ class QueryService:
         graph_api = LocalGraphQueryAPI(self._graph_base, issuer)
         compiled = build_agent_graph(graph_api)
 
+        trace_level_raw = request.metadata.get("trace_level", "")
+        trace_level = TraceLevel(trace_level_raw) if trace_level_raw else TraceLevel.QUIET
+        emit_jsonl = request.metadata.get("trace_json", "").lower() in ("1", "true", "yes")
+        trace_config = build_trace_run_config(trace_level, emit_jsonl=emit_jsonl)
+        reporter = ConsoleTraceReporter(trace_config)
+        reporter.mark_run_start()
+        set_trace_reporter(reporter)
+
         initial = {
             "query": request.query,
             "snapshot_id": request.snapshot_id,
@@ -43,15 +56,30 @@ class QueryService:
             "section_candidates": [],
             "evidence_chunks": [],
             "graph_traversal": [],
+            "trace_config": trace_config,
         }
 
         nested = __import__("mlflow").active_run() is not None
-        with traced_query_run(request.query, request.snapshot_id, nested=nested) as run_id:
-            result = compiled.invoke(initial)
-            trajectory = build_trajectory_from_state(result)
-            if run_id and result.get("intent_trace") is not None:
-                log_intent_router(run_id, result["intent_trace"])
-            traj_uri = log_trajectory(run_id, trajectory) if run_id else ""
+        t0 = time.perf_counter()
+        run_id = ""
+        result: dict = {}
+        try:
+            with traced_query_run(request.query, request.snapshot_id, nested=nested) as rid:
+                run_id = rid or ""
+                result = compiled.invoke(initial)
+        finally:
+            answer = result.get("answer")
+            reporter.write_summary(
+                status=str(result.get("status", QueryStatus.SUCCESS)),
+                citation_count=len(answer.citations) if answer else 0,
+                total_ms=int((time.perf_counter() - t0) * 1000),
+            )
+            set_trace_reporter(None)
+
+        trajectory = build_trajectory_from_state(result)
+        if run_id and result.get("intent_trace") is not None:
+            log_intent_router(run_id, result["intent_trace"])
+        traj_uri = log_trajectory(run_id, trajectory) if run_id else ""
 
         status = result.get("status", QueryStatus.SUCCESS)
         return QueryResponse(

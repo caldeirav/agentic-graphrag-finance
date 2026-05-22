@@ -220,6 +220,8 @@ def run_ask_pipeline(request: CLIAskRequest) -> CLIAskResult:
                 "stale_snapshot": str(stale),
                 "bound_accessions": ",".join(r.accession for r in binding.bound_filings),
                 "temporal_anchor": (scope.anchor if scope else "") or "",
+                "trace_level": request.trace_level or "",
+                "trace_json": "true" if request.trace_json else "",
             },
         )
     )

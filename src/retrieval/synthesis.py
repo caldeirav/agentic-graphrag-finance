@@ -20,6 +20,7 @@ from retrieval.context_budget import (
 )
 from retrieval.evidence_scope import filter_evidence_for_filing_set
 from retrieval.orchestration.llm import create_chat_llm
+from tracing.console_trace.llm import traced_llm_invoke
 from retrieval.orchestration.state import AgentState
 
 
@@ -69,7 +70,7 @@ def synthesize(state: AgentState) -> dict:
         fallback = budget_for_context_error(exc)
         if fallback is None:
             raise
-        return _synthesize_with_llm(
+        result = _synthesize_with_llm(
             evidence,
             query,
             filing_set,
@@ -77,6 +78,8 @@ def synthesize(state: AgentState) -> dict:
             state=state,
             budget=fallback,
         )
+        result["synthesis_retry_budget"] = True
+        return result
 
 
 def _synthesize_template(
@@ -275,18 +278,21 @@ Instructions:
         budget=budget,
     )
 
-    resp = llm.invoke(
-        [
-            SystemMessage(content=system),
-            HumanMessage(content=prompt),
-        ]
-    )
+    messages = [
+        SystemMessage(content=system),
+        HumanMessage(content=prompt),
+    ]
+    resp, trace_patch = traced_llm_invoke("synthesize", llm, messages)
     text = _message_content_to_text(resp.content).strip()
     if not text:
         return _synthesize_template(
-            evidence, query, filing_set, temporal_anchor=temporal_anchor
+            evidence,
+            query,
+            filing_set,
+            temporal_anchor=temporal_anchor,
+            state=state,
         )
-    return {
+    out = {
         "answer": AnswerPackage(
             text=text,
             citations=evidence[: len(prompt_evidence)],
@@ -294,6 +300,9 @@ Instructions:
         ),
         "status": QueryStatus.SUCCESS,
     }
+    if trace_patch.get("trace_events"):
+        out["trace_events"] = trace_patch["trace_events"]
+    return out
 
 
 def _best_revenue_excerpt(

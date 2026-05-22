@@ -12,6 +12,7 @@ from models.enums import ComparisonMode
 from models.filing import FilingRef
 from models.query import MacroPlan, TemporalScope
 from retrieval.orchestration.llm import create_chat_llm
+from tracing.console_trace.llm import traced_llm_invoke
 from retrieval.orchestration.state import AgentState
 
 
@@ -80,6 +81,7 @@ def macro_router(state: AgentState, *, graph_api=None) -> dict:
         return {
             "macro_plan": plan,
             "filing_set": pre_bound,
+            "macro_llm_skipped": True,
             "graph_traversal": [{"node_id": "macro", "stage": "macro"}],
         }
 
@@ -95,6 +97,7 @@ def macro_router(state: AgentState, *, graph_api=None) -> dict:
         return {
             "macro_plan": plan,
             "filing_set": filings or [],
+            "macro_llm_skipped": True,
             "graph_traversal": [{"node_id": "macro", "stage": "macro"}],
         }
 
@@ -106,12 +109,11 @@ def macro_router(state: AgentState, *, graph_api=None) -> dict:
         "Return JSON with intent_summary, comparison_mode (YoY|QoQ|sequential), "
         "and accession numbers to use."
     )
-    resp = llm.invoke(
-        [
-            SystemMessage(content="You are a financial disclosure routing agent."),
-            HumanMessage(content=prompt),
-        ]
-    )
+    messages = [
+        SystemMessage(content="You are a financial disclosure routing agent."),
+        HumanMessage(content=prompt),
+    ]
+    resp, trace_patch = traced_llm_invoke("macro_router", llm, messages)
     text = resp.content if isinstance(resp.content, str) else str(resp.content)
     data = _extract_json_from_llm(text)
     if not data:
@@ -126,8 +128,11 @@ def macro_router(state: AgentState, *, graph_api=None) -> dict:
         ),
         rationale=text[:500],
     )
-    return {
+    out = {
         "macro_plan": plan,
         "filing_set": selected,
         "graph_traversal": [{"node_id": "macro", "stage": "macro"}],
     }
+    if trace_patch.get("trace_events"):
+        out["trace_events"] = trace_patch["trace_events"]
+    return out

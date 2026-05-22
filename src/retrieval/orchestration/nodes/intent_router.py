@@ -18,6 +18,7 @@ from models.enums import (
 )
 from models.query import IntentRouterTrace
 from retrieval.orchestration.llm import create_chat_llm
+from tracing.console_trace.llm import traced_llm_invoke
 from retrieval.orchestration.nodes.macro_router import _extract_json_from_llm
 from retrieval.orchestration.state import AgentState
 
@@ -61,22 +62,21 @@ def _parse_intent_label(raw: object) -> QueryIntent | None:
     return None
 
 
-def _intent_from_llm(query: str, cfg: dict) -> tuple[QueryIntent | None, str, str]:
+def _intent_from_llm(query: str, cfg: dict) -> tuple[QueryIntent | None, str, str, dict]:
     llm = create_chat_llm()
     prompt = cfg.get("prompt", "").strip() or (
         'Return JSON: {"query_intent": "numeric"|"qualitative"|"hybrid"}'
     )
-    resp = llm.invoke(
-        [
-            SystemMessage(content="You classify financial disclosure query intent."),
-            HumanMessage(content=f"{prompt}\n\nQuestion: {query}"),
-        ]
-    )
+    messages = [
+        SystemMessage(content="You classify financial disclosure query intent."),
+        HumanMessage(content=f"{prompt}\n\nQuestion: {query}"),
+    ]
+    resp, trace_patch = traced_llm_invoke("intent_router", llm, messages)
     text = resp.content if isinstance(resp.content, str) else str(resp.content)
     data = _extract_json_from_llm(text)
     intent = _parse_intent_label(data.get("query_intent"))
     model_id = getattr(llm, "model_name", None) or getattr(llm, "model", "") or "local-llm"
-    return intent, text[:500], str(model_id)
+    return intent, text[:500], str(model_id), trace_patch
 
 
 def intent_router(state: AgentState) -> dict:
@@ -102,11 +102,12 @@ def intent_router(state: AgentState) -> dict:
     intent: QueryIntent | None = None
     raw_label = ""
     model_id = ""
+    trace_patch: dict = {}
     fallback_reason: RouterFallbackReason | None = None
     source = IntentSource.LLM
 
     try:
-        intent, raw_label, model_id = _intent_from_llm(query, cfg)
+        intent, raw_label, model_id, trace_patch = _intent_from_llm(query, cfg)
     except Exception:
         fallback_reason = RouterFallbackReason.ROUTER_ERROR
         source = IntentSource.KEYWORD_FALLBACK
@@ -126,7 +127,10 @@ def intent_router(state: AgentState) -> dict:
         router_latency_ms=int((time.perf_counter() - started) * 1000),
         classified_at=datetime.now(UTC),
     )
-    return {
+    out: dict = {
         "intent_trace": trace,
         "graph_traversal": [{"node_id": "intent_router", "stage": "intent_router"}],
     }
+    if trace_patch.get("trace_events"):
+        out["trace_events"] = trace_patch["trace_events"]
+    return out

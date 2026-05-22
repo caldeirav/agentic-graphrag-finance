@@ -14,20 +14,18 @@ from models.enums import (
 )
 from models.filing import FilingRef
 from models.query import EvidenceChunk
-from parsing.xbrl_facts import concepts_for_query
 from retrieval.evidence_scope import (
     allowed_document_ids,
     anchor_period_ends,
     node_in_allowed_documents,
-    period_alignment_score,
+)
+from retrieval.orchestration.micro_scoring import (
+    is_financial_query,
+    rank_trace_row,
+    score_chunk,
+    source_bias_multiplier as _source_bias_multiplier,
 )
 from retrieval.orchestration.state import AgentState
-
-_FINANCIAL_QUERY = re.compile(
-    r"\b(revenue|sales|income|earnings|profit|assets|liabilities|cash|eps|margin|"
-    r"debt|dividend|shares|cost|expense|growth|yoy|qoq|billion|million|\$)\b",
-    re.I,
-)
 
 
 def micro_extractor(state: AgentState, *, graph_api) -> dict:
@@ -37,10 +35,10 @@ def micro_extractor(state: AgentState, *, graph_api) -> dict:
     filing_set: list[FilingRef] = list(state.get("filing_set") or [])
     snap = graph_api.get_snapshot(snapshot_id)
     visits = []
+    path_by_chunk: dict[str, list[str]] = {}
 
     section_ids = {c.section_node_id for c in candidates[:5]}
-    query_pat = concepts_for_query(query)
-    is_financial = bool(_FINANCIAL_QUERY.search(query))
+    is_financial = is_financial_query(query)
     intent_trace = state.get("intent_trace")
     bias = intent_trace.source_bias_applied if intent_trace else SourceBias.BLENDED
     query_intent = intent_trace.query_intent if intent_trace else None
@@ -48,7 +46,7 @@ def micro_extractor(state: AgentState, *, graph_api) -> dict:
     doc_ids = allowed_document_ids(filing_set)
     anchors = anchor_period_ends(filing_set)
 
-    scored: list[tuple[float, EvidenceChunk]] = []
+    scored: list[tuple[float, EvidenceChunk, dict]] = []
 
     for node in snap.nodes:
         if node.node_type not in (
@@ -85,27 +83,23 @@ def micro_extractor(state: AgentState, *, graph_api) -> dict:
         if section_ids and not html_section_gate and not is_xbrl_fact:
             continue
 
-        score = _relevance_score(query, excerpt, node.label, query_pat)
-        score += _qualitative_keyword_boost(query, excerpt, node_source)
-        if is_xbrl_fact:
-            score += 2.0
-            score += period_alignment_score(excerpt, anchors)
-        if is_financial and is_xbrl_fact:
-            score += 3.0
-
-        score *= _source_bias_multiplier(node_source, bias)
-        if qualitative_only and node_source == EvidenceSourceType.HTML:
-            score += 5.0
-            if "risk_factors" in str(node.properties.get("section_id", "")):
-                score += 8.0
-            if len(excerpt) > 3000:
-                score += 3.0
-
+        section_id = str(node.properties.get("section_id", ""))
+        score, components = score_chunk(
+            query=query,
+            excerpt=excerpt,
+            label=node.label or "",
+            node_source=node_source,
+            is_xbrl_fact=is_xbrl_fact,
+            is_financial_query=is_financial,
+            qualitative_only=qualitative_only,
+            section_id=section_id,
+            bias=bias,
+            anchors=anchors,
+        )
         if score < 0:
             continue
 
         accession = _accession_from_node_id(node.node_id)
-        section_id = str(node.properties.get("section_id", ""))
         chunk = EvidenceChunk(
             chunk_node_id=node.node_id,
             excerpt=excerpt[:2000],
@@ -115,7 +109,7 @@ def micro_extractor(state: AgentState, *, graph_api) -> dict:
             accession=accession,
             section_id=section_id,
         )
-        scored.append((score, chunk))
+        scored.append((score, chunk, components))
         visit: dict = {"node_id": node.node_id, "stage": "micro"}
         doc_id = _document_root_id(node.node_id)
         if doc_id and hasattr(graph_api, "shortest_structural_path"):
@@ -123,13 +117,45 @@ def micro_extractor(state: AgentState, *, graph_api) -> dict:
             if path:
                 visit["path_node_ids"] = path[0]
                 visit["path_edge_types"] = path[1]
+                path_by_chunk[node.node_id] = list(path[1])
         visits.append(visit)
 
     scored.sort(key=lambda x: -x[0])
-    evidence = [c for _, c in scored[:20]]
+    ranked_count = len(scored)
+    evidence = [c for _, c, _ in scored[:20]]
     evidence = _ensure_hybrid_html(evidence, scored, bias)
 
-    return {"evidence_chunks": evidence, "graph_traversal": visits}
+    cfg_excerpt = 400
+    try:
+        from tracing.console_trace.config import load_trace_config
+
+        cfg_excerpt = int(load_trace_config().get("excerpt_preview_chars", 400))
+    except Exception:
+        pass
+
+    rank_trace: list[dict] = []
+    for score, chunk, components in scored[:10]:
+        preview = chunk.excerpt[:cfg_excerpt] + (
+            "..." if len(chunk.excerpt) > cfg_excerpt else ""
+        )
+        rank_trace.append(
+            rank_trace_row(
+                chunk_node_id=chunk.chunk_node_id,
+                source_type=getattr(chunk.source_type, "value", str(chunk.source_type)),
+                section_id=chunk.section_id,
+                score=score,
+                components=components,
+                excerpt_preview=preview,
+                structural_path=path_by_chunk.get(chunk.chunk_node_id),
+            )
+        )
+
+    return {
+        "evidence_chunks": evidence,
+        "graph_traversal": visits,
+        "micro_ranked_count": ranked_count,
+        "micro_rank_trace": rank_trace,
+    }
 
 
 def _node_source_type(node) -> EvidenceSourceType:
@@ -141,14 +167,6 @@ def _node_source_type(node) -> EvidenceSourceType:
     return EvidenceSourceType.XBRL
 
 
-def _source_bias_multiplier(source: EvidenceSourceType, bias: SourceBias) -> float:
-    if bias == SourceBias.XBRL_PRIMARY:
-        return 1.5 if source == EvidenceSourceType.XBRL else 0.7
-    if bias == SourceBias.HTML_PRIMARY:
-        return 1.5 if source == EvidenceSourceType.HTML else 0.7
-    return 1.0
-
-
 def _accession_from_node_id(node_id: str) -> str:
     m = re.search(r"doc-(\d{10}-\d{2}-\d{6})", node_id)
     return m.group(1) if m else ""
@@ -156,58 +174,19 @@ def _accession_from_node_id(node_id: str) -> str:
 
 def _ensure_hybrid_html(
     evidence: list[EvidenceChunk],
-    scored: list[tuple[float, EvidenceChunk]],
+    scored: list[tuple[float, EvidenceChunk, dict]],
     bias: SourceBias,
 ) -> list[EvidenceChunk]:
     if bias != SourceBias.BLENDED:
         return evidence
     if any(c.source_type == EvidenceSourceType.HTML for c in evidence):
         return evidence
-    for _, chunk in scored:
+    for _, chunk, _ in scored:
         if chunk.source_type == EvidenceSourceType.HTML:
             evidence = list(evidence)
             evidence.append(chunk)
             return evidence[:20]
     return evidence
-
-
-def _qualitative_keyword_boost(
-    query: str,
-    excerpt: str,
-    source: EvidenceSourceType,
-) -> float:
-    if source != EvidenceSourceType.HTML:
-        return 0.0
-    q = query.lower()
-    ex = excerpt.lower()
-    boost = 0.0
-    if "risk" in q and "risk" in ex:
-        boost += 10.0
-    if any(k in q for k in ("md&a", "management", "liquidity", "outlook")) and any(
-        k in ex for k in ("management", "md&a", "discussion", "liquidity")
-    ):
-        boost += 6.0
-    if "business" in q and "business" in ex:
-        boost += 4.0
-    return boost
-
-
-def _relevance_score(
-    query: str,
-    excerpt: str,
-    label: str,
-    query_pat: re.Pattern[str] | None,
-) -> float:
-    q_tokens = set(re.findall(r"[a-z0-9]+", query.lower()))
-    text = f"{excerpt} {label}".lower()
-    score = sum(0.25 for t in q_tokens if t in text and len(t) > 2)
-    if query_pat and query_pat.search(excerpt):
-        score += 5.0
-    if re.search(r"\$[\d,.]+ (billion|million)", excerpt):
-        score += 1.0
-    if label.startswith("table-") and "value:" not in excerpt:
-        score -= 1.0
-    return score
 
 
 def _citation_label(node, excerpt: str) -> str:

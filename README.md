@@ -222,7 +222,21 @@ uv run agent-query ask --ticker AAPL --snapshot-id <uuid> --query "..."
 | `--anchor` | Temporal scope: `latest-annual`, `prior-quarter`, `latest-quarter` |
 | `--period` | Explicit fiscal label (repeatable), e.g. `FY2024-Q3` |
 | `--compare` | Comma-separated fiscal periods for comparison |
-| `--json` | Emit full `CLIAskResult` JSON (includes `snapshot_scope`) |
+| `--json` | Emit full `CLIAskResult` JSON on **stdout** (includes `snapshot_scope`) |
+| `--trace` | Console trajectory on **stderr**: `quiet` (default non-TTY), `normal`, `verbose` |
+| `--trace-json` | JSONL trace events on stderr (one object per line per stage) |
+
+Set `AGENT_QUERY_TRACE=normal|verbose|quiet` to override the non-TTY default. Trace does not change routing or answers. See [specs/007-ask-console-trace/quickstart.md](specs/007-ask-console-trace/quickstart.md).
+
+**Meso/micro explainability** (`--trace normal`): section and chunk **score breakdowns** (keyword match, XBRL boost, period alignment, bias multiplier, etc.). **`--trace verbose`** additionally prints **structural path edge types** (`CONTAINS → …`) from document root to the top evidence chunks. Tune preview depth in `configs/trace.yaml` (`top_evidence_preview`, `top_section_candidates`).
+
+```bash
+# Stream stage panels on stderr; answer on stdout
+uv run agent-query ask --ticker AAPL --trace normal --query "What are the principal risk factors?"
+
+# Pipe JSON without trace noise on stdout
+uv run agent-query ask --ticker AAPL --json --trace quiet 2>/dev/null | jq .status
+```
 
 **Example output:**
 
