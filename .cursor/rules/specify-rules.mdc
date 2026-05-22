@@ -6,13 +6,13 @@ alwaysApply: true
 For additional context about technologies, project structure, shell commands, and
 pipeline segments, read the current implementation plan:
 
-**Plan**: `specs/004-docling-graph-materialization/plan.md` (active — specify) | Prior: `specs/003-multi-filing-corpus/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
+**Plan**: `specs/005-html-narrative-supplement/plan.md` (active) | Prior: `specs/004-docling-graph-materialization/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
 
 Quick reference:
-- **Stack**: uv, EDGAR ingest (`EDGAR_USER_AGENT`), Docling, docling-graph, LangGraph, Qwen/LM Studio, MLflow, Gemini judge
-- **Layers**: `src/ingestion/` (+ `corpus.py`), `src/parsing/`, `src/graph/` (+ `registry.py`), `src/retrieval/` (+ `temporal.py`), `src/evaluation/`, `src/cli/`
-- **CLI**: `uv run agent-query materialize --ticker AAPL` then `uv run agent-query ask --ticker AAPL --query "..."`
-- **Storage**: `data/raw/sec_downloads/{ticker}/{accession}/`, `data/graphs/{issuer}/index.json`
-- **Phases**: P1A corpus fetch (002 extend) → P1B multi-filing graph → P2 temporal bind + ask → P3 eval manifests
-- **Design artifacts**: `specs/004-docling-graph-materialization/{research,data-model,quickstart}.md` and `contracts/`
+- **Stack**: uv, EDGAR ingest (`SEC_EDGAR_USER_AGENT`), Docling, docling-graph, LangGraph (+ intent router), Qwen/LM Studio, MLflow, Gemini judge
+- **Layers**: `src/ingestion/` (+ `html_narrative.py`), `src/parsing/`, `src/graph/`, `src/retrieval/` (+ `intent_router`), `src/evaluation/`, `src/cli/`
+- **CLI**: `uv run agent-query materialize --ticker AAPL` (HTML on by default; `--skip-html-narrative` opt-out) then `ask`
+- **Storage**: `data/raw/sec_downloads/{ticker}/{accession}/`, `data/parsed/{ticker}/{accession}.json` (merged XBRL+HTML), `data/graphs/{issuer}/`
+- **Phases**: P1 HTML ingest → P2 parse merge → P3 graph source_type → P4 intent router + trace → P5 citations/benchmarks
+- **Design artifacts**: `specs/005-html-narrative-supplement/{research,data-model,quickstart}.md` and `contracts/`
 <!-- SPECKIT END -->
