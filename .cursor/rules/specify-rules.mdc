@@ -6,13 +6,13 @@ alwaysApply: true
 For additional context about technologies, project structure, shell commands, and
 pipeline segments, read the current implementation plan:
 
-**Plan**: `specs/005-html-narrative-supplement/plan.md` (active) | Prior: `specs/004-docling-graph-materialization/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
+**Plan**: `specs/007-ask-console-trace/plan.md` (active) | Prior: `specs/005-html-narrative-supplement/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
 
 Quick reference:
-- **Stack**: uv, EDGAR ingest (`SEC_EDGAR_USER_AGENT`), Docling, docling-graph, LangGraph (+ intent router), Qwen/LM Studio, MLflow, Gemini judge
-- **Layers**: `src/ingestion/` (+ `html_narrative.py`), `src/parsing/`, `src/graph/`, `src/retrieval/` (+ `intent_router`), `src/evaluation/`, `src/cli/`
-- **CLI**: `uv run agent-query materialize --ticker AAPL` (HTML on by default; `--skip-html-narrative` opt-out) then `ask`
-- **Storage**: `data/raw/sec_downloads/{ticker}/{accession}/`, `data/parsed/{ticker}/{accession}.json` (merged XBRL+HTML), `data/graphs/{issuer}/`
-- **Phases**: P1 HTML ingest → P2 parse merge → P3 graph source_type → P4 intent router + trace → P5 citations/benchmarks
-- **Design artifacts**: `specs/005-html-narrative-supplement/{research,data-model,quickstart}.md` and `contracts/`
+- **Stack**: uv, EDGAR ingest (`SEC_EDGAR_USER_AGENT`), Docling, docling-graph, LangGraph (+ intent router), Qwen/LM Studio, MLflow, Gemini judge, **Rich console trace**
+- **Layers**: `src/ingestion/`, `src/parsing/`, `src/graph/`, `src/retrieval/`, `src/tracing/console_trace/`, `src/evaluation/`, `src/cli/`
+- **CLI**: `uv run agent-query ask --ticker AAPL --trace normal --query "..."` (trace on stderr; answer on stdout)
+- **Storage**: `data/raw/sec_downloads/`, `data/parsed/`, `data/graphs/{issuer}/`
+- **Phases**: P1 trace models/registry → P2 node wrappers + LLM trace → P3 JSONL + contract tests
+- **Design artifacts**: `specs/007-ask-console-trace/{research,data-model,quickstart}.md` and `contracts/`
 <!-- SPECKIT END -->

@@ -34,4 +34,5 @@
 - Clarification session 2026-05-22: 5 questions — stderr/stdout split, streaming trace, JSONL `--trace-json`, `AGENT_QUERY_TRACE` default, per-stage summaries only (no consolidated CoT).
 - Trace coupling (FR-014–019): registry + contract gates ensure routing/extraction changes force trace updates.
 - Builds on 002 (ask CLI), 005 (intent router, HTML/XBRL bias, context budget).
-- Ready for `/speckit-plan`.
+- Plan complete: [plan.md](../plan.md), [research.md](../research.md), [data-model.md](../data-model.md), [quickstart.md](../quickstart.md), contracts/.
+- Ready for `/speckit-tasks`.

@@ -1,33 +1,45 @@
 # Contract: Ask Trace Registry & Evolution
 
 **Feature**: 007-ask-console-trace  
-**Authority**: Ask execution graph stage list (must match registry keys)
+**Authority**: `src/retrieval/orchestration/graph.py` → `build_agent_graph()` node names
 
 ## Invariant
 
-Every stage in the ask execution graph has exactly one registry entry with the same identifier. No registry entry exists without a corresponding graph stage.
+```text
+graph_nodes - {__start__, __end__} == registry_keys
+```
+
+## Registered stages (v1)
+
+| `stage_id` | `order` | `state_field_map` | Primary events |
+|------------|---------|-------------------|----------------|
+| `macro_router` | 1 | `macro_plan`, `filing_set` | `routing_decision`, `llm_io` (optional) |
+| `intent_router` | 2 | `intent_trace` | `routing_decision`, `llm_io` |
+| `meso_router` | 3 | `section_candidates`, `graph_traversal` | `routing_decision` |
+| `micro_extractor` | 4 | `evidence_chunks`, `graph_traversal` | `evidence_snapshot`, `routing_decision` |
+| `synthesize` | 5 | `answer`, `status` | `stage_end`, `llm_io` |
 
 ## Trace event types
 
-| Event type | Purpose |
-|------------|---------|
-| `stage_start` | Stage began |
-| `stage_end` | Stage finished with duration and decision summary |
-| `llm_io` | Language-model request and response preview |
-| `routing_decision` | Structured routing outcome for macro, intent, meso, or micro |
-| `evidence_snapshot` | Counts and top evidence previews after extraction |
+| `event_type` | Emitted by |
+|--------------|------------|
+| `stage_start` | Node wrapper |
+| `stage_end` | Node wrapper |
+| `llm_io` | `traced_llm_invoke` |
+| `routing_decision` | Stage payload builder |
+| `evidence_snapshot` | `micro_extractor` |
 
-New event types require registry and contract test updates before use.
+New `event_type` values require registry + `test_ask_trace_registry.py` update.
 
 ## Change protocol
 
-1. Change routing or extraction logic.
-2. Update trace event payload for that stage in the same change.
-3. Register or bump schema version in the ask trace registry.
-4. Update registry contract tests and golden console snapshots when output changes.
+1. Change routing/extraction logic in `orchestration/nodes/`.
+2. Update stage `build_trace_payload(state)` in same PR.
+3. Register or bump `schema_version` in `ASK_TRACE_REGISTRY`.
+4. Run `tests/contract/test_ask_trace_registry.py` and update golden snapshots if stderr text changes.
 
 ## Forbidden
 
-- Duplicating ranking or classification logic inside console formatters.
-- Adding ask-graph stages without registry entries.
-- Embedding trace printing inside router or extractor business modules.
+- Ranking/filtering/intent logic inside formatters.
+- `typer.echo` trace content inside node business logic.
+- Graph nodes without registry entries.
