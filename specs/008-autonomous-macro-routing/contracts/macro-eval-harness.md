@@ -49,7 +49,7 @@ Extends [003 temporal-scope](../003-multi-filing-corpus/contracts/temporal-scope
 |----|-----------|
 | SC-001 | ≥ 80% of slice items have `multi_filing_required=true` |
 | SC-002 | ≥ 70% `macro_binding_accuracy` on slice |
-| SC-003 | 100% runs emit `macro_binding.json` (sample ≥ 50) |
+| SC-003 | 100% runs emit required `macro_binding` fields; verified by T029a batch (n≥50) or eval harness artifact audit |
 
 ## Runner integration
 

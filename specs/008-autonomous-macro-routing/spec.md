@@ -118,6 +118,8 @@ The product owner runs an evaluation pass on a FinAgentBench-style labeled subse
 - **FR-002**: System MUST interpret natural-language temporal intent via an assisted macro planner that **proposes** form types, reporting periods, comparison mode, and candidate accessions. A **deterministic validator** MUST approve the proposed binding against manifest facts and pairing rules (including YoY defaults) before retrieval; if validation fails, the system MUST fail closed with an explicit message (no unvalidated LLM binding).
 - **FR-003**: System MUST filter the active filing set so retrieval and synthesis use only the selected accession(s), excluding unrelated filings in the same snapshot.
 - **FR-004**: System MUST detect fiscal-period misalignment among candidate or selected filings (incompatible anchors, missing comparison partner, or period label mismatch). **Default: fail closed** with an explicit user-visible message. Narrowing is permitted only when a single valid anchor filing remains after removing incompatible candidates; comparison intent MUST be dropped or downgraded and the adjustment MUST be documented in the trajectory rationale.
+
+  > **Implementation note**: Fail-closed and narrow-scope rules are implemented once in the deterministic validator (Phase 2); User Story 3 covers user-visible surfacing and integration tests only.
 - **FR-005**: System MUST persist for every query a durable trajectory record containing: selected accession list, comparison mode, temporal anchor summary, and a rationale explaining the binding decision (including pre-bound and fallback paths).
 - **FR-006**: System MUST honor explicit user-provided temporal scope (period labels, anchors, compare lists, accessions) when supplied, with defined precedence over natural-language inference; irreconcilable conflicts MUST fail before retrieval.
 - **FR-007**: System MUST support multi-filing selection when the query or comparison mode requires it, with at least two distinct accessions when a comparison is requested and the corpus provides them. For **year-over-year** intent: if the query implies a **quarterly metric**, bind the latest 10-Q and the 10-Q for the **same fiscal quarter one year earlier** (fail closed if missing); if **annual or unspecified**, bind the **latest two 10-Ks** (fail closed if fewer than two). For **quarter-over-quarter** intent: bind the **latest 10-Q and the immediately prior 10-Q** by period end (fail closed if fewer than two quarterly filings exist).
@@ -140,9 +142,11 @@ The product owner runs an evaluation pass on a FinAgentBench-style labeled subse
 
 - **SC-001**: On the designated FinAgentBench-style labeled subset, at least **80%** of items are categorized as requiring multi-filing selection per rubric metadata (harness verification, not model self-report).
 - **SC-002**: On the same subset, autonomous macro routing selects the same accession set as the benchmark rubric in at least **70%** of items (exact set match, order not significant).
-- **SC-003**: **100%** of ask runs in the evaluation pass include trajectory fields for selected filings, comparison mode, and rationale (audited sample of at least 50 runs).
+- **SC-003**: **100%** of ask runs in the macro evaluation pass include trajectory fields for selected filings, comparison mode, and rationale. Verified by an **audited batch of at least 50 runs** (benchmark harness or `test_macro_trajectory_batch.py`), not a single integration case.
 - **SC-004**: For injected misalignment test cases (minimum 10 scenarios), **100%** produce either fail-closed messages or documented narrow-scope adjustments with no silent use of incompatible filings.
 - **SC-005**: Analysts can identify why a filing set was chosen for a query in under **30 seconds** using trajectory or trace output alone (timed usability check on 5 representative queries).
+
+  > **Verification**: Release/manual gate (not CI). Satisfied by `docs/macro-trace-usability-checklist.md` and recorded results in `specs/008-autonomous-macro-routing/checklists/usability-sc005.md` (task T045).
 
 ## Assumptions
 
