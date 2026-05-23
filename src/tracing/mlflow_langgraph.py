@@ -147,6 +147,16 @@ def log_trajectory(run_id: str, trajectory: TrajectoryRecord) -> str:
     return f"{uri}/runs/{run_id}/artifacts/{path}"
 
 
+def log_macro_binding(run_id: str, record: Any) -> str:
+    setup_mlflow()
+    client = mlflow.tracking.MlflowClient()
+    payload = record.to_trajectory_dict() if hasattr(record, "to_trajectory_dict") else record
+    path = "macro_binding.json"
+    client.log_dict(run_id, payload, path)
+    uri = mlflow.get_tracking_uri()
+    return f"{uri}/runs/{run_id}/artifacts/{path}"
+
+
 def build_trajectory_from_state(state: dict[str, Any]) -> TrajectoryRecord:
     from models.enums import QueryStatus
     from models.query import GraphVisit
@@ -161,8 +171,13 @@ def build_trajectory_from_state(state: dict[str, Any]) -> TrajectoryRecord:
         for v in state.get("graph_traversal", [])
         if isinstance(v, dict)
     ]
+    macro_binding = None
+    record = state.get("macro_binding_record")
+    if record is not None and hasattr(record, "to_trajectory_dict"):
+        macro_binding = record.to_trajectory_dict()
     return TrajectoryRecord(
         plan=state.get("macro_plan"),
+        macro_binding=macro_binding,
         intent_router=state.get("intent_trace"),
         document_route=state.get("filing_set") or [],
         graph_traversal=visits,

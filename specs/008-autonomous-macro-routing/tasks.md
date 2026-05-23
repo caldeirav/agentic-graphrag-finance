@@ -28,10 +28,10 @@ description: "Task list for autonomous macro routing (008)"
 
 **Purpose**: Macro package scaffold, phrase catalog, test fixtures
 
-- [ ] T001 Create `src/retrieval/macro/__init__.py` and package exports per `plan.md`
-- [ ] T002 [P] Add `configs/macro_phrases.yaml` with anchors (latest_quarter, prior_quarter, latest_annual), comparison cues, and quarterly-metric tokens per `research.md` R3
-- [ ] T003 [P] Add `tests/fixtures/macro_validator/` with AAPL multi-filing manifest snapshot JSON per `contracts/macro-binding-validator.md`
-- [ ] T004 [P] Add `tests/fixtures/macro_planner/` with `USE_MOCK_LLM` JSON stubs per `contracts/macro-planner-llm.md`
+- [x] T001 Create `src/retrieval/macro/__init__.py` and package exports per `plan.md`
+- [x] T002 [P] Add `configs/macro_phrases.yaml` with anchors (latest_quarter, prior_quarter, latest_annual), comparison cues, and quarterly-metric tokens per `research.md` R3
+- [x] T003 [P] Add `tests/fixtures/macro_validator/` with AAPL multi-filing manifest snapshot JSON per `contracts/macro-binding-validator.md`
+- [x] T004 [P] Add `tests/fixtures/macro_planner/` with `USE_MOCK_LLM` JSON stubs per `contracts/macro-planner-llm.md`
 
 **Checkpoint**: `uv run python -c "from retrieval.macro import models"` succeeds after T001
 
@@ -43,15 +43,15 @@ description: "Task list for autonomous macro routing (008)"
 
 **⚠️ CRITICAL**: No user story work until this phase is complete
 
-- [ ] T005 [P] Implement `MacroBindingProposal`, `BindingValidationResult`, `MacroBindingRecord`, `MisalignmentCode` in `src/retrieval/macro/models.py` per `data-model.md`
-- [ ] T006a [P] Implement `detect_quarterly_metric_cue(query: str) -> bool` in `src/retrieval/macro/pairing.py` using `configs/macro_phrases.yaml` metric tokens; consumed by pairing YoY branch and validator
-- [ ] T006 Implement YoY/QoQ/single-anchor resolution in `src/retrieval/macro/pairing.py` per clarifications (YoY quarterly/annual, QoQ sequential), **branching on `quarterly_metric_cue` from T006a**
-- [ ] T007 [P] Add `tests/unit/test_macro_pairing.py` covering YoY (with/without metric cue), QoQ, latest/prior quarter against fixture manifest
-- [ ] T008 Implement `validate_macro_binding()` in `src/retrieval/macro/validator.py` per `contracts/macro-binding-validator.md`, including **fail-closed default**, **narrow-path downgrade** (clarification Q1), and misalignment codes used by FR-004/FR-010
-- [ ] T009 [P] Add `tests/unit/test_macro_validator.py` for approved, failed, narrowed statuses, and **≥10 misalignment scenarios** (SC-004 unit coverage; integration in T023)
-- [ ] T010 [P] Add `tests/unit/test_macro_validator_cli_conflict.py` for CLI precedence (FR-006)
-- [ ] T011 Update `bind_filings_for_query()` / `src/cli/corpus_pipeline.py` so empty `CorpusTemporalScope` does not pass full snapshot as `pre_bound_filings` per `research.md` R1
-- [ ] T012 Extend `QueryRequest` / graph initial state in `src/retrieval/service.py` to support deferred macro binding (`filing_set=[]`, `binding_deferred` metadata)
+- [x] T005 [P] Implement `MacroBindingProposal`, `BindingValidationResult`, `MacroBindingRecord`, `MisalignmentCode` in `src/retrieval/macro/models.py` per `data-model.md`
+- [x] T006a [P] Implement `detect_quarterly_metric_cue(query: str) -> bool` in `src/retrieval/macro/pairing.py` using `configs/macro_phrases.yaml` metric tokens; consumed by pairing YoY branch and validator
+- [x] T006 Implement YoY/QoQ/single-anchor resolution in `src/retrieval/macro/pairing.py` per clarifications (YoY quarterly/annual, QoQ sequential), **branching on `quarterly_metric_cue` from T006a**
+- [x] T007 [P] Add `tests/unit/test_macro_pairing.py` covering YoY (with/without metric cue), QoQ, latest/prior quarter against fixture manifest
+- [x] T008 Implement `validate_macro_binding()` in `src/retrieval/macro/validator.py` per `contracts/macro-binding-validator.md`, including **fail-closed default**, **narrow-path downgrade** (clarification Q1), and misalignment codes used by FR-004/FR-010
+- [x] T009 [P] Add `tests/unit/test_macro_validator.py` for approved, failed, narrowed statuses, and **≥10 misalignment scenarios** (SC-004 unit coverage; integration in T023)
+- [x] T010 [P] Add `tests/unit/test_macro_validator_cli_conflict.py` for CLI precedence (FR-006)
+- [x] T011 Update `bind_filings_for_query()` / `src/cli/corpus_pipeline.py` so empty `CorpusTemporalScope` does not pass full snapshot as `pre_bound_filings` per `research.md` R1
+- [x] T012 Extend `QueryRequest` / graph initial state in `src/retrieval/service.py` to support deferred macro binding (`filing_set=[]`, `binding_deferred` metadata)
 
 **Checkpoint**: `uv run pytest tests/unit/test_macro_pairing.py tests/unit/test_macro_validator.py -q` passes
 
@@ -65,14 +65,14 @@ description: "Task list for autonomous macro routing (008)"
 
 ### Tests for User Story 1
 
-- [ ] T013 [P] [US1] Add integration test `tests/integration/test_ask_macro_nl_binding.py` for latest_quarter, prior_quarter, latest 10-K phrases per spec acceptance scenarios
+- [x] T013 [P] [US1] Add integration test `tests/integration/test_ask_macro_nl_binding.py` for latest_quarter, prior_quarter, latest 10-K phrases per spec acceptance scenarios
 
 ### Implementation for User Story 1
 
-- [ ] T014 [P] [US1] Implement `plan_macro_binding()` LLM JSON proposal in `src/retrieval/macro/planner.py` per `contracts/macro-planner-llm.md`
-- [ ] T015 [US1] Refactor `macro_router()` in `src/retrieval/orchestration/nodes/macro_router.py` to: planner → validator → set `filing_set` / `macro_plan` or binding failure state
-- [ ] T016 [US1] Short-circuit `macro_llm_skipped` only when CLI pre-bound accessions present in `src/retrieval/orchestration/nodes/macro_router.py`
-- [ ] T017 [US1] Ensure meso/micro skipped when validator `failed` via graph conditional or early exit in `src/retrieval/service.py`
+- [x] T014 [P] [US1] Implement `plan_macro_binding()` LLM JSON proposal in `src/retrieval/macro/planner.py` per `contracts/macro-planner-llm.md`
+- [x] T015 [US1] Refactor `macro_router()` in `src/retrieval/orchestration/nodes/macro_router.py` to: planner → validator → set `filing_set` / `macro_plan` or binding failure state
+- [x] T016 [US1] Short-circuit `macro_llm_skipped` only when CLI pre-bound accessions present in `src/retrieval/orchestration/nodes/macro_router.py`
+- [x] T017 [US1] Ensure meso/micro skipped when validator `failed` via graph conditional or early exit in `src/retrieval/service.py`
 
 **Checkpoint**: US1 integration tests pass; qualitative NL queries bind single filing without `--period`
 
@@ -88,17 +88,17 @@ description: "Task list for autonomous macro routing (008)"
 
 ### Tests for User Story 4
 
-- [ ] T028 [P] [US4] Add contract test `tests/contract/test_macro_trajectory_schema.py` per `contracts/macro-trajectory.md`
-- [ ] T029 [P] [US4] Add integration test `tests/integration/test_ask_macro_trajectory.py` asserting `macro_binding.json` on **one** representative MLflow ask (smoke); **SC-003 batch coverage is T029a**
-- [ ] T029a [P] [US4] Add `tests/integration/test_macro_trajectory_batch.py`: loop over **≥50** stubbed/mock asks (or replay `macro_binding.jsonl` IDs with `USE_MOCK_LLM=1`), assert every run’s `macro_binding.json` / trajectory includes `selected_accessions`, `comparison_mode`, `rationale` per `contracts/macro-trajectory.md` (SC-003)
+- [x] T028 [P] [US4] Add contract test `tests/contract/test_macro_trajectory_schema.py` per `contracts/macro-trajectory.md`
+- [x] T029 [P] [US4] Add integration test `tests/integration/test_ask_macro_trajectory.py` asserting `macro_binding.json` on **one** representative MLflow ask (smoke); **SC-003 batch coverage is T029a**
+- [x] T029a [P] [US4] Add `tests/integration/test_macro_trajectory_batch.py`: loop over **≥50** stubbed/mock asks (or replay `macro_binding.jsonl` IDs with `USE_MOCK_LLM=1`), assert every run’s `macro_binding.json` / trajectory includes `selected_accessions`, `comparison_mode`, `rationale` per `contracts/macro-trajectory.md` (SC-003)
 
 ### Implementation for User Story 4
 
-- [ ] T030 [US4] Implement `log_macro_binding()` in `src/tracing/mlflow_langgraph.py` and call from `src/retrieval/service.py`
-- [ ] T031 [US4] Extend `build_macro_router_trace_payload()` in `src/retrieval/orchestration/trace_payloads.py` with proposal, validation, binding_source
-- [ ] T032 [US4] Update macro renderer in `src/tracing/console_trace/registry.py` for validation_status and failure_codes
-- [ ] T033 [US4] Include `macro_binding` in `build_trajectory_from_state()` / `TrajectoryRecord` in `src/tracing/mlflow_langgraph.py`
-- [ ] T034 [US4] Record-only validator pass for CLI pre-bound path in `src/retrieval/orchestration/nodes/macro_router.py`
+- [x] T030 [US4] Implement `log_macro_binding()` in `src/tracing/mlflow_langgraph.py` and call from `src/retrieval/service.py`
+- [x] T031 [US4] Extend `build_macro_router_trace_payload()` in `src/retrieval/orchestration/trace_payloads.py` with proposal, validation, binding_source
+- [x] T032 [US4] Update macro renderer in `src/tracing/console_trace/registry.py` for validation_status and failure_codes
+- [x] T033 [US4] Include `macro_binding` in `build_trajectory_from_state()` / `TrajectoryRecord` in `src/tracing/mlflow_langgraph.py`
+- [x] T034 [US4] Record-only validator pass for CLI pre-bound path in `src/retrieval/orchestration/nodes/macro_router.py`
 
 **Checkpoint**: quickstart §5 passes; trajectory fields present for CLI and autonomous paths
 
@@ -112,14 +112,14 @@ description: "Task list for autonomous macro routing (008)"
 
 ### Tests for User Story 2
 
-- [ ] T018 [P] [US2] Add `tests/unit/test_macro_validator_yoy_qoq.py` for pairing materialization and fail-closed missing partner
-- [ ] T019 [P] [US2] Add integration test `tests/integration/test_ask_macro_comparison.py` for YoY and QoQ mock asks
+- [x] T018 [P] [US2] Add `tests/unit/test_macro_validator_yoy_qoq.py` for pairing materialization and fail-closed missing partner
+- [x] T019 [P] [US2] Add integration test `tests/integration/test_ask_macro_comparison.py` for YoY and QoQ mock asks
 
 ### Implementation for User Story 2
 
-- [ ] T020 [US2] **Wire** planner/validator to set `quarterly_metric_cue` on `MacroBindingProposal` from `detect_quarterly_metric_cue()` (T006a); do not duplicate detection logic in `validator.py`
-- [ ] T021 [US2] Extend `MacroPlan.temporal_scope` / `MacroBindingRecord` with `comparison_mode` in `src/models/query.py` and wire through `macro_router.py`
-- [ ] T022 [US2] Filter `evidence_chunks` to bound accessions only in `src/retrieval/orchestration/nodes/micro_extractor.py` when multi-filing (verify existing `allowed_document_ids`)
+- [x] T020 [US2] **Wire** planner/validator to set `quarterly_metric_cue` on `MacroBindingProposal` from `detect_quarterly_metric_cue()` (T006a); do not duplicate detection logic in `validator.py`
+- [x] T021 [US2] Extend `MacroPlan.temporal_scope` / `MacroBindingRecord` with `comparison_mode` in `src/models/query.py` and wire through `macro_router.py`
+- [x] T022 [US2] Filter `evidence_chunks` to bound accessions only in `src/retrieval/orchestration/nodes/micro_extractor.py` when multi-filing (verify existing `allowed_document_ids`)
 
 **Checkpoint**: US2 integration tests pass; trajectory lists two accessions for comparison queries
 
@@ -133,14 +133,14 @@ description: "Task list for autonomous macro routing (008)"
 
 ### Tests for User Story 3
 
-- [ ] T023 [P] [US3] Add integration test `tests/integration/test_ask_macro_fail_closed.py` (≥10 scenarios per SC-004)
-- [ ] T024 [P] [US3] Add unit tests for ambiguous QoQ+YoY and missing prior-year quarter in `tests/unit/test_macro_validator_misalignment.py`
+- [x] T023 [P] [US3] Add integration test `tests/integration/test_ask_macro_fail_closed.py` (≥10 scenarios per SC-004)
+- [x] T024 [P] [US3] Add unit tests for ambiguous QoQ+YoY and missing prior-year quarter in `tests/unit/test_macro_validator_misalignment.py`
 
 ### Implementation for User Story 3
 
-- [ ] T025 [US3] **Verify** fail-closed and narrow-path behavior via integration tests only (no new validator logic; extend `test_macro_validator.py` if gaps found during T023)
-- [ ] T026 [US3] Return scope-error `AnswerPackage` and `QueryStatus` without meso evidence in `src/retrieval/service.py` when `validation_status=failed`
-- [ ] T027 [US3] Surface user-visible failure message with failure codes and corpus guidance in `src/cli/commands/ask.py` stdout path
+- [x] T025 [US3] **Verify** fail-closed and narrow-path behavior via integration tests only (no new validator logic; extend `test_macro_validator.py` if gaps found during T023)
+- [x] T026 [US3] Return scope-error `AnswerPackage` and `QueryStatus` without meso evidence in `src/retrieval/service.py` when `validation_status=failed`
+- [x] T027 [US3] Surface user-visible failure message with failure codes and corpus guidance in `src/cli/commands/ask.py` stdout path
 
 **Checkpoint**: SC-004 scenarios pass; no SUCCESS on failed macro binding
 
@@ -154,15 +154,15 @@ description: "Task list for autonomous macro routing (008)"
 
 ### Tests for User Story 5
 
-- [ ] T035 [P] [US5] Add integration test `tests/integration/test_macro_binding_benchmark.py` computing `macro_binding_accuracy` per `contracts/macro-eval-harness.md`
+- [x] T035 [P] [US5] Add integration test `tests/integration/test_macro_binding_benchmark.py` computing `macro_binding_accuracy` per `contracts/macro-eval-harness.md`
 
 ### Implementation for User Story 5
 
-- [ ] T036 [P] [US5] Author `data/benchmarks/finagentbench/macro_binding.jsonl` (≥50 rows, ≥80% `multi_filing_required=true`) per `contracts/macro-eval-harness.md`
-- [ ] T037 [P] [US5] Implement `macro_binding_accuracy()` in `src/evaluation/metrics/macro_binding.py`
-- [ ] T038 [US5] Extend `FinAgentBenchDataset` in `src/evaluation/datasets/finagentbench.py` with `load_macro_binding_slice()`
-- [ ] T039 [US5] Register macro-binding eval runner in `src/evaluation/registry.py` or extend `agent-query test` in `src/cli/commands/`
-- [ ] T040 [US5] Add `multi_filing_required` optional field to `BenchmarkItem` in `src/models/evaluation.py` if not JSONL-only
+- [x] T036 [P] [US5] Author `data/benchmarks/finagentbench/macro_binding.jsonl` (≥50 rows, ≥80% `multi_filing_required=true`) per `contracts/macro-eval-harness.md`
+- [x] T037 [P] [US5] Implement `macro_binding_accuracy()` in `src/evaluation/metrics/macro_binding.py`
+- [x] T038 [US5] Extend `FinAgentBenchDataset` in `src/evaluation/datasets/finagentbench.py` with `load_macro_binding_slice()`
+- [x] T039 [US5] Register macro-binding eval runner in `src/evaluation/registry.py` or extend `agent-query test` in `src/cli/commands/`
+- [x] T040 [US5] Add `multi_filing_required` optional field to `BenchmarkItem` in `src/models/evaluation.py` if not JSONL-only
 
 **Checkpoint**: Benchmark gate documented; SC-001/SC-002 measurable in CI or documented offline job
 
@@ -172,11 +172,11 @@ description: "Task list for autonomous macro routing (008)"
 
 **Purpose**: Docs, README, layer boundaries, quickstart validation, SC-005 usability gate
 
-- [ ] T041 [P] Add README section for autonomous macro routing and eval commands in `README.md`
-- [ ] T042 [P] Add contract test `tests/contract/test_macro_layer_boundaries.py` ensuring `evaluation/` does not import `retrieval/macro/planner.py`
-- [ ] T043 Run `specs/008-autonomous-macro-routing/quickstart.md` scenarios and fix gaps; **complete T045 SC-005 usability checklist** before marking feature done
-- [ ] T044 [P] Mark completed tasks in `specs/008-autonomous-macro-routing/tasks.md` after `/speckit-implement`
-- [ ] T045 [P] Add `docs/macro-trace-usability-checklist.md` (procedure + pass criteria); record timed results in `specs/008-autonomous-macro-routing/checklists/usability-sc005.md` (SC-005, 5 queries, ≤30s each)
+- [x] T041 [P] Add README section for autonomous macro routing and eval commands in `README.md`
+- [x] T042 [P] Add contract test `tests/contract/test_macro_layer_boundaries.py` ensuring `evaluation/` does not import `retrieval/macro/planner.py`
+- [x] T043 Run `specs/008-autonomous-macro-routing/quickstart.md` scenarios and fix gaps; **complete T045 SC-005 usability checklist** before marking feature done
+- [x] T044 [P] Mark completed tasks in `specs/008-autonomous-macro-routing/tasks.md` after `/speckit-implement`
+- [x] T045 [P] Add `docs/macro-trace-usability-checklist.md` (procedure + pass criteria); record timed results in `specs/008-autonomous-macro-routing/checklists/usability-sc005.md` (SC-005, 5 queries, ≤30s each)
 
 ---
 

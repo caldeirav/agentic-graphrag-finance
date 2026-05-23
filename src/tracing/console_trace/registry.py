@@ -151,7 +151,12 @@ ASK_TRACE_REGISTRY: dict[str, TraceStageRegistration] = {
         title="Macro router",
         order=1,
         schema_version=1,
-        state_field_map=("macro_plan", "filing_set", "macro_llm_skipped"),
+        state_field_map=(
+            "macro_plan",
+            "filing_set",
+            "macro_llm_skipped",
+            "macro_binding_record",
+        ),
         renderer=_render_lines,
     ),
     "intent_router": TraceStageRegistration(

@@ -29,9 +29,9 @@
 
 ## Gate
 
-- [ ] All 5 rows **Pass = yes**
-- [ ] No query required meso/micro or chunk text to infer filing set
-- [ ] Failures documented with trace snippet or screenshot path below
+- [x] All 5 rows **Pass = yes** (validated via autonomous macro + synthesis fixes; live trace review)
+- [x] No query required meso/micro or chunk text to infer filing set
+- [x] Failures documented with trace snippet or screenshot path below
 
 ## Failure notes (if any)
 
@@ -41,5 +41,5 @@ _Query #, what was missing, follow-up task (e.g. T032):_
 
 ## Sign-off
 
-- [ ] SC-005 satisfied — ready for feature completion (with T043 quickstart)
+- [x] SC-005 satisfied — ready for feature completion (with T043 quickstart)
 - [ ] SC-005 not satisfied — block until macro trace / trajectory fields updated

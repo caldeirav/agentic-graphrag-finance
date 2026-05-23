@@ -1,0 +1,10 @@
+{
+  "intent_summary": "Revenue in the prior quarter",
+  "comparison_mode": null,
+  "anchor": "prior_quarter",
+  "period_labels": [],
+  "proposed_accessions": [],
+  "is_comparison": false,
+  "quarterly_metric_cue": true,
+  "proposal_source": "deterministic"
+}

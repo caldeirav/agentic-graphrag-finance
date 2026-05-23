@@ -8,22 +8,48 @@ from retrieval.orchestration.state import AgentState
 
 def build_macro_router_trace_payload(state: AgentState) -> dict:
     filing_set = list(state.get("filing_set") or [])
-    pre_bound = bool(state.get("macro_llm_skipped")) or bool(state.get("filing_set"))
     plan = state.get("macro_plan")
+    record = state.get("macro_binding_record")
     accessions = [f.accession for f in filing_set]
     comparison = ""
     if plan and plan.temporal_scope:
         comparison = str(plan.temporal_scope.comparison_mode)
+    binding_source = ""
+    validation_status = ""
+    failure_codes: list[str] = []
+    proposal_summary = ""
+    rationale = ""
+    if record is not None:
+        traj = record.to_trajectory_dict()
+        binding_source = traj.get("binding_source", "")
+        validation_status = traj.get("validation_status", "")
+        failure_codes = list(traj.get("failure_codes") or [])
+        rationale = traj.get("rationale", "")
+        if record.proposal:
+            proposal_summary = (record.proposal.intent_summary or "")[:120]
+    elif plan:
+        binding_source = plan.binding_source or ""
+        rationale = plan.rationale or ""
+
     summary = plan.intent_summary[:120] if plan else "macro routing"
-    if pre_bound and filing_set:
+    if binding_source == "cli_prebound" and filing_set:
         summary = f"pre-bound {len(filing_set)} filing(s)"
+    if validation_status == "failed":
+        summary = f"macro binding failed: {failure_codes[0] if failure_codes else 'unknown'}"
+
     return {
         "decision_summary": summary,
         "payload": {
-            "pre_bound": pre_bound,
-            "llm_skipped": bool(state.get("macro_llm_skipped")) or pre_bound,
+            "pre_bound": binding_source == "cli_prebound",
+            "llm_skipped": bool(state.get("macro_llm_skipped")),
+            "binding_source": binding_source,
+            "validation_status": validation_status,
+            "selected_accessions": accessions,
             "filing_accessions": accessions,
             "comparison_mode": comparison,
+            "failure_codes": failure_codes,
+            "proposal_summary": proposal_summary,
+            "rationale": rationale[:300] if rationale else "",
         },
     }
 

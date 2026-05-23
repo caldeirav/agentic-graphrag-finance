@@ -93,8 +93,17 @@ def build_agent_graph(graph_api):
     )
     g.add_node("synthesize", _traced_node(synthesize, "synthesize"))
 
+    def _route_after_macro(state: AgentState) -> str:
+        if state.get("macro_binding_failed"):
+            return "scope_error"
+        return "continue"
+
     g.set_entry_point("macro_router")
-    g.add_edge("macro_router", "intent_router")
+    g.add_conditional_edges(
+        "macro_router",
+        _route_after_macro,
+        {"scope_error": "synthesize", "continue": "intent_router"},
+    )
     g.add_edge("intent_router", "meso_router")
     g.add_edge("meso_router", "micro_extractor")
     g.add_edge("micro_extractor", "synthesize")

@@ -1,0 +1,10 @@
+{
+  "intent_summary": "Year over year revenue change",
+  "comparison_mode": "YoY",
+  "anchor": null,
+  "period_labels": [],
+  "proposed_accessions": [],
+  "is_comparison": true,
+  "quarterly_metric_cue": true,
+  "proposal_source": "deterministic"
+}

@@ -1,0 +1,37 @@
+# Phrase catalog for macro planner prompts and deterministic cue detection (008)
+
+anchors:
+  latest_quarter:
+    - latest quarter
+    - this quarter
+    - most recent quarter
+  prior_quarter:
+    - prior quarter
+    - previous quarter
+    - last quarter
+  latest_annual:
+    - annual report
+    - latest 10-k
+    - latest annual
+    - fiscal year
+
+comparison_cues:
+  yoy:
+    - year over year
+    - year-over-year
+    - yoy
+    - same quarter last year
+  qoq:
+    - quarter over quarter
+    - quarter-over-quarter
+    - qoq
+    - sequential quarter
+    - previous quarter compared
+
+quarterly_metric_tokens:
+  - revenue
+  - sales
+  - net income
+  - earnings
+  - gross profit
+  - operating income

@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from graph.builder import build_snapshot
+from graph.legacy_builder import build_snapshot
 from models.corpus import CorpusTemporalScope
 from models.parsing import ParsedDocument
 from retrieval.temporal import bind_filings_for_query
@@ -64,7 +64,7 @@ def test_prior_quarter_binds_second_latest_by_period_end():
     """prior_quarter = latest 10-Q minus one period-of-report (not calendar guess)."""
     from datetime import date
 
-    from graph.builder import build_snapshot
+    from graph.legacy_builder import build_snapshot
     from models.filing import FilingRef
     from models.parsing import ParsedDocument
 

@@ -25,6 +25,12 @@ from retrieval.orchestration.state import AgentState
 
 
 def synthesize(state: AgentState) -> dict:
+    if state.get("macro_binding_failed") and state.get("answer") is not None:
+        return {
+            "answer": state["answer"],
+            "status": state.get("status", QueryStatus.ERROR),
+        }
+
     evidence = list(state.get("evidence_chunks") or [])
     query = state.get("query", "")
     filing_set: list[FilingRef] = list(state.get("filing_set") or [])
@@ -45,7 +51,7 @@ def synthesize(state: AgentState) -> dict:
             "status": QueryStatus.INSUFFICIENT_EVIDENCE,
         }
 
-    temporal_anchor = str(state.get("temporal_anchor") or "")
+    temporal_anchor = _resolve_temporal_anchor(state)
 
     if os.environ.get("USE_MOCK_LLM", "0") == "1":
         return _synthesize_template(
@@ -152,6 +158,23 @@ def _normalize_anchor(anchor: str) -> str:
     return anchor.strip().lower().replace("-", "_")
 
 
+def _resolve_temporal_anchor(state: AgentState) -> str:
+    """CLI anchor, macro proposal anchor, or query phrase inference for synthesis."""
+    anchor = str(state.get("temporal_anchor") or "").strip()
+    if anchor:
+        return anchor
+    record = state.get("macro_binding_record")
+    if record is not None:
+        proposal = getattr(record, "proposal", None)
+        if proposal and getattr(proposal, "anchor", None):
+            return str(proposal.anchor)
+    query = str(state.get("query") or "")
+    from retrieval.macro.pairing import infer_anchor_from_query
+
+    inferred = infer_anchor_from_query(query)
+    return inferred or ""
+
+
 def _temporal_synthesis_guidance(
     temporal_anchor: str,
     filing_set: list[FilingRef],
@@ -186,9 +209,16 @@ def _temporal_synthesis_guidance(
             f"Temporal scope: latest annual report ({label_text}). "
             f"Use facts for period ending {period_ends}."
         )
+    q = ""
+    if len(filing_set) == 1 and filing_set[0].form_type.upper() == "10-Q":
+        q = (
+            f" Single 10-Q bound ({label_text}, period end {period_ends}). "
+            f"If the question names 'prior quarter' or 'latest quarter', that phrase refers to "
+            f"this bound quarter relative to newer filings in the corpus—not a missing period."
+        )
     return (
         f"Bound reporting period end date(s): {period_ends}. "
-        f"Prefer evidence whose 'for period' range ends on that date."
+        f"Prefer evidence whose 'for period' range ends on that date.{q}"
     )
 
 
@@ -292,6 +322,14 @@ Instructions:
             temporal_anchor=temporal_anchor,
             state=state,
         )
+    text = _correct_revenue_denial(
+        text,
+        query=query,
+        evidence=evidence,
+        filing_set=filing_set,
+        temporal_anchor=temporal_anchor,
+        period_ends=period_ends,
+    )
     out = {
         "answer": AnswerPackage(
             text=text,
@@ -303,6 +341,43 @@ Instructions:
     if trace_patch.get("trace_events"):
         out["trace_events"] = trace_patch["trace_events"]
     return out
+
+
+def _correct_revenue_denial(
+    text: str,
+    *,
+    query: str,
+    evidence: list[EvidenceChunk],
+    filing_set: list[FilingRef],
+    temporal_anchor: str,
+    period_ends: str,
+) -> str:
+    """When XBRL revenue for the bound period is in evidence, do not accept LLM refusals."""
+    if "revenue" not in query.lower():
+        return text
+    lower = text.lower()
+    refusal_phrases = (
+        "not reported",
+        "not available",
+        "no revenue",
+        "does not report",
+        "do not report",
+        "only contains data for the current quarter",
+        "cannot determine",
+    )
+    if not any(p in lower for p in refusal_phrases):
+        return text
+    revenue_line = _best_revenue_excerpt(evidence, filing_set)
+    if not revenue_line:
+        return text
+    anchor_note = ""
+    if _normalize_anchor(temporal_anchor) in ("prior_quarter", "previous_quarter"):
+        anchor_note = " (prior fiscal quarter relative to the latest 10-Q in the corpus)"
+    return (
+        f"Revenue for the bound reporting period (period end {period_ends}){anchor_note} "
+        f"was {revenue_line}, per XBRL RevenueFromContractWithCustomerExcludingAssessedTax "
+        f"in the selected filing."
+    )
 
 
 def _best_revenue_excerpt(

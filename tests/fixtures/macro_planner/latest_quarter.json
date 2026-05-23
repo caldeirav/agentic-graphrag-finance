@@ -1,0 +1,10 @@
+{
+  "intent_summary": "Latest quarter metrics",
+  "comparison_mode": null,
+  "anchor": "latest_quarter",
+  "period_labels": [],
+  "proposed_accessions": [],
+  "is_comparison": false,
+  "quarterly_metric_cue": false,
+  "proposal_source": "deterministic"
+}

@@ -1,138 +1,144 @@
-"""Macro routing: temporal scope and filing selection."""
+"""Macro routing: LLM proposal + deterministic validation."""
 
 from __future__ import annotations
 
-import json
-import os
 from datetime import date
 
-from langchain_core.messages import HumanMessage, SystemMessage
-
-from models.enums import ComparisonMode
+from models.enums import ComparisonMode, QueryStatus
 from models.filing import FilingRef
-from models.query import MacroPlan, TemporalScope
-from retrieval.orchestration.llm import create_chat_llm
-from tracing.console_trace.llm import traced_llm_invoke
+from models.query import AnswerPackage, MacroPlan, TemporalScope
+from retrieval.macro.models import (
+    MacroBindingRecord,
+    MacroBindingProposal,
+    ProposalSource,
+    ValidationStatus,
+)
+from retrieval.macro.pairing import infer_anchor_from_query
+from retrieval.macro.planner import plan_macro_binding
+from retrieval.macro.validator import validate_macro_binding
 from retrieval.orchestration.state import AgentState
 
 
-def _extract_json_from_llm(text: str) -> dict:
-    """Parse JSON from LLM output (handles markdown fences and preamble)."""
-    stripped = text.strip()
-    if stripped.startswith("```"):
-        lines = stripped.splitlines()
-        if lines and lines[0].startswith("```"):
-            lines = lines[1:]
-        if lines and lines[-1].strip() == "```":
-            lines = lines[:-1]
-        stripped = "\n".join(lines).strip()
-    try:
-        data = json.loads(stripped)
-        return data if isinstance(data, dict) else {}
-    except json.JSONDecodeError:
-        pass
-    start, end = stripped.find("{"), stripped.rfind("}")
-    if start >= 0 and end > start:
-        try:
-            data = json.loads(stripped[start : end + 1])
-            return data if isinstance(data, dict) else {}
-        except json.JSONDecodeError:
-            pass
-    return {}
+def _refs_for_accessions(snapshot, accessions: list[str]) -> list[FilingRef]:
+    acc_set = set(accessions)
+    return [r for r in snapshot.manifest.filing_refs if r.accession in acc_set]
 
 
-def _parse_comparison_mode(value: object) -> ComparisonMode:
-    if value is None:
-        return ComparisonMode.YOY
-    raw = str(value).strip()
-    if not raw:
-        return ComparisonMode.YOY
-    normalized = raw.lower().replace("-", "").replace("_", "")
-    if normalized in ("yoy", "yearoveryear", "yearonyear"):
-        return ComparisonMode.YOY
-    if normalized in ("qoq", "quarteroverquarter"):
-        return ComparisonMode.QOQ
-    if normalized in ("sequential", "seq", "periodoverperiod"):
-        return ComparisonMode.SEQUENTIAL
-    try:
-        return ComparisonMode(raw)
-    except ValueError:
-        return ComparisonMode.YOY
+def _scope_error_message(validation) -> str:
+    codes = ", ".join(validation.failure_codes) or "macro_binding_failed"
+    return f"Macro binding failed ({codes}): {validation.rationale}"
 
 
 def macro_router(state: AgentState, *, graph_api=None) -> dict:
     query = state["query"]
     snapshot_id = state["snapshot_id"]
     pre_bound = list(state.get("filing_set") or [])
-    filings: list[FilingRef] = pre_bound
-    if graph_api is not None and not filings:
-        snap = graph_api.get_snapshot(snapshot_id)
-        filings = list(snap.manifest.filing_refs)
+    cli_prebound = bool(state.get("cli_prebound"))
 
-    if pre_bound:
-        plan = MacroPlan(
-            intent_summary=query[:200],
-            temporal_scope=TemporalScope(
-                anchor_periods=[pre_bound[0].period_end] if pre_bound else [],
-                comparison_mode=ComparisonMode.YOY,
-            ),
-            rationale="pre-bound filing set from corpus temporal resolver",
-        )
+    if graph_api is None:
         return {
-            "macro_plan": plan,
+            "macro_plan": MacroPlan(
+                intent_summary=query[:200],
+                temporal_scope=TemporalScope(
+                    anchor_periods=[date.today()],
+                    comparison_mode=ComparisonMode.YOY,
+                ),
+                rationale="graph_api unavailable",
+            ),
             "filing_set": pre_bound,
             "macro_llm_skipped": True,
             "graph_traversal": [{"node_id": "macro", "stage": "macro"}],
         }
 
-    if os.environ.get("USE_MOCK_LLM", "0") == "1" or not filings:
-        plan = MacroPlan(
+    snap = graph_api.get_snapshot(snapshot_id)
+    binding_source = "cli_prebound" if cli_prebound and pre_bound else "autonomous"
+    trace_patch: dict = {}
+
+    if cli_prebound and pre_bound:
+        proposal = MacroBindingProposal(
             intent_summary=query[:200],
-            temporal_scope=TemporalScope(
-                anchor_periods=[date.today()],
-                comparison_mode=ComparisonMode.YOY,
-            ),
-            rationale="mock macro routing",
+            proposed_accessions=[r.accession for r in pre_bound],
+            proposal_source=ProposalSource.CLI,
+            is_comparison=len(pre_bound) >= 2,
         )
-        return {
-            "macro_plan": plan,
-            "filing_set": filings or [],
-            "macro_llm_skipped": True,
+        validation = validate_macro_binding(
+            proposal,
+            snap,
+            cli_bound=pre_bound,
+            query=query,
+        )
+        macro_llm_skipped = True
+    else:
+        proposal, trace_patch = plan_macro_binding(query, snap)
+        if not proposal.anchor:
+            inferred = infer_anchor_from_query(query)
+            if inferred:
+                proposal = proposal.model_copy(update={"anchor": inferred})
+        validation = validate_macro_binding(proposal, snap, query=query)
+        macro_llm_skipped = False
+
+    record = MacroBindingRecord(
+        binding_source=binding_source,
+        proposal=proposal,
+        validation=validation,
+        scope_manifest_id=snapshot_id,
+    )
+
+    if validation.status == ValidationStatus.FAILED:
+        out = {
+            "macro_plan": MacroPlan(
+                intent_summary=proposal.intent_summary,
+                temporal_scope=TemporalScope(
+                    anchor_periods=[],
+                    comparison_mode=validation.comparison_mode,
+                ),
+                rationale=validation.rationale,
+                binding_source=binding_source,
+            ),
+            "filing_set": [],
+            "macro_binding_record": record,
+            "macro_binding_failed": True,
+            "macro_llm_skipped": macro_llm_skipped,
+            "answer": AnswerPackage(text=_scope_error_message(validation), citations=[]),
+            "status": QueryStatus.ERROR,
             "graph_traversal": [{"node_id": "macro", "stage": "macro"}],
         }
+        if trace_patch.get("trace_events"):
+            out["trace_events"] = trace_patch["trace_events"]
+        return out
 
-    llm = create_chat_llm()
-    filings_json = json.dumps([f.model_dump(mode="json") for f in filings], default=str)[:800]
-    prompt = (
-        f"Question: {query}\n"
-        f"Available filings: {filings_json}\n"
-        "Return JSON with intent_summary, comparison_mode (YoY|QoQ|sequential), "
-        "and accession numbers to use."
-    )
-    messages = [
-        SystemMessage(content="You are a financial disclosure routing agent."),
-        HumanMessage(content=prompt),
-    ]
-    resp, trace_patch = traced_llm_invoke("macro_router", llm, messages)
-    text = resp.content if isinstance(resp.content, str) else str(resp.content)
-    data = _extract_json_from_llm(text)
-    if not data:
-        data = {"intent_summary": query, "comparison_mode": "YoY"}
+    filing_refs = _refs_for_accessions(snap, validation.approved_accessions)
+    record = record.model_copy(update={"filing_refs": filing_refs})
 
-    selected = filings
+    anchor_periods = [f.period_end for f in filing_refs]
     plan = MacroPlan(
-        intent_summary=str(data.get("intent_summary") or query),
+        intent_summary=proposal.intent_summary,
         temporal_scope=TemporalScope(
-            anchor_periods=[filings[-1].period_end] if filings else [date.today()],
-            comparison_mode=_parse_comparison_mode(data.get("comparison_mode")),
+            anchor_periods=anchor_periods or [date.today()],
+            comparison_mode=validation.comparison_mode,
         ),
-        rationale=text[:500],
+        rationale=validation.rationale,
+        binding_source=binding_source,
     )
+
+    temporal_anchor = (proposal.anchor or infer_anchor_from_query(query) or "").strip()
+
     out = {
         "macro_plan": plan,
-        "filing_set": selected,
+        "filing_set": filing_refs,
+        "macro_binding_record": record,
+        "macro_binding_failed": False,
+        "macro_llm_skipped": macro_llm_skipped,
+        "temporal_anchor": temporal_anchor,
         "graph_traversal": [{"node_id": "macro", "stage": "macro"}],
     }
     if trace_patch.get("trace_events"):
         out["trace_events"] = trace_patch["trace_events"]
     return out
+
+
+# Re-export for tests that imported private helpers from this module
+from retrieval.macro.llm_json import extract_json_from_llm as _extract_json_from_llm
+from retrieval.macro.llm_json import parse_comparison_mode as _parse_comparison_mode
+
+__all__ = ["macro_router", "_extract_json_from_llm", "_parse_comparison_mode"]

@@ -50,4 +50,8 @@ class AgentState(TypedDict, total=False):
     meso_section_trace: list[dict]
     micro_rank_trace: list[dict]
     macro_llm_skipped: bool | None
+    macro_binding_record: Any | None
+    macro_binding_failed: bool | None
+    cli_prebound: bool | None
+    binding_deferred: bool | None
     synthesis_retry_budget: bool | None

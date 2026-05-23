@@ -193,7 +193,13 @@ Config: `configs/html_narrative.yaml`, `configs/intent_router.yaml`. Details: [0
 # Full snapshot (all materialized filings)
 uv run agent-query ask --ticker AAPL --query "What was net sales?"
 
-# Fiscal scope: second-latest 10-Q vs latest (issuer fiscal calendar)
+# Autonomous macro (008): empty temporal flags → LLM proposes, validator binds filings
+uv run agent-query ask \
+  --ticker AAPL \
+  --trace normal \
+  --query "What was revenue in the prior quarter?"
+
+# Fiscal scope: explicit CLI anchor (pre-bound; macro validates and records)
 uv run agent-query ask \
   --ticker AAPL \
   --anchor prior-quarter \
@@ -254,6 +260,18 @@ Snapshot version: c6e2eb96-63f9-4c92-b3a0-2695fa6d6026
 Bound:
   - FY2026-Q1 (10-Q) accession 0000320193-26-000006
 ```
+
+#### Macro binding evaluation (008)
+
+Autonomous filing-set accuracy on the in-repo slice (`data/benchmarks/finagentbench/macro_binding.jsonl`):
+
+```bash
+USE_MOCK_LLM=1 uv run agent-query test --macro-binding --ticker AAPL
+# or
+USE_MOCK_LLM=1 uv run pytest tests/integration/test_macro_binding_benchmark.py -q
+```
+
+Gates: ≥80% items require multi-filing, ≥70% exact accession-set match vs rubric. Trajectory artifact: MLflow `macro_binding.json` on every ask.
 
 #### Test (offline / CI)
 

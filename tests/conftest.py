@@ -85,7 +85,81 @@ def sample_parsed_document(sample_filing: FilingRef) -> ParsedDocument:
 
 @pytest.fixture
 def sample_graph_snapshot(sample_parsed_document: ParsedDocument):
-    return build_snapshot("0000320193", [sample_parsed_document], snapshot_id="test-snapshot-001")
+    from graph.legacy_builder import build_snapshot as legacy_build_snapshot
+
+    return legacy_build_snapshot(
+        "0000320193", [sample_parsed_document], snapshot_id="test-snapshot-001"
+    )
+
+
+@pytest.fixture
+def aapl_macro_snapshot():
+    """Multi-filing snapshot for macro routing tests (008)."""
+    refs = [
+        FilingRef(
+            cik="0000320193",
+            accession="0000320193-26-000013",
+            form_type="10-Q",
+            filed_at=date(2026, 5, 1),
+            period_end=date(2026, 3, 28),
+            source_uri="u1",
+        ),
+        FilingRef(
+            cik="0000320193",
+            accession="0000320193-26-000006",
+            form_type="10-Q",
+            filed_at=date(2026, 1, 30),
+            period_end=date(2025, 12, 27),
+            source_uri="u2",
+        ),
+        FilingRef(
+            cik="0000320193",
+            accession="0000320193-25-000057",
+            form_type="10-Q",
+            filed_at=date(2025, 5, 2),
+            period_end=date(2025, 6, 28),
+            source_uri="u3",
+        ),
+        FilingRef(
+            cik="0000320193",
+            accession="0000320193-25-000073",
+            form_type="10-Q",
+            filed_at=date(2025, 2, 1),
+            period_end=date(2025, 3, 29),
+            source_uri="u3b",
+        ),
+        FilingRef(
+            cik="0000320193",
+            accession="0000320193-25-000079",
+            form_type="10-K",
+            filed_at=date(2025, 10, 31),
+            period_end=date(2025, 9, 27),
+            source_uri="u4",
+        ),
+        FilingRef(
+            cik="0000320193",
+            accession="0000320193-24-000123",
+            form_type="10-K",
+            filed_at=date(2024, 11, 1),
+            period_end=date(2024, 9, 28),
+            source_uri="u5",
+        ),
+    ]
+    docs = [
+        ParsedDocument(
+            filing=r,
+            sections=[],
+            tables=[],
+            footnotes=[],
+            parse_confidence=1.0,
+            parser_version="test",
+            content_hash=r.accession,
+        )
+        for r in refs
+    ]
+    from graph.legacy_builder import build_snapshot as legacy_build_snapshot
+
+    return legacy_build_snapshot("AAPL", docs, snapshot_id="macro-test")
 
 
 @pytest.fixture

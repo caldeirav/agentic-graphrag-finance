@@ -18,10 +18,31 @@ def test_cmd(
     min_sections: int = typer.Option(1, "--min-sections"),
     min_chunk_tables: int = typer.Option(0, "--min-chunk-tables"),
     check_registry: bool = typer.Option(False, "--check-registry"),
+    macro_binding: bool = typer.Option(
+        False,
+        "--macro-binding",
+        help="Run FinAgentBench macro_binding.jsonl slice (008); requires materialized snapshot",
+    ),
     as_json: bool = typer.Option(False, "--json"),
 ) -> None:
     if not ticker and not cik and not accession:
         raise typer.BadParameter("Provide --ticker, --cik, or --accession")
+
+    if macro_binding:
+        from cli.macro_binding_eval import run_macro_binding_eval
+
+        report = run_macro_binding_eval(ticker=ticker or "AAPL")
+        if as_json:
+            typer.echo(json.dumps(report, indent=2))
+        else:
+            typer.echo(
+                f"macro_binding_accuracy={report['macro_binding_accuracy']:.1%} "
+                f"({report['hits']}/{report['total']})"
+            )
+            typer.echo(f"multi_filing_rate={report['multi_filing_rate']:.1%}")
+        if not report.get("passed"):
+            raise typer.Exit(code=1)
+        return
 
     result = run_test_pipeline(
         ticker=ticker,

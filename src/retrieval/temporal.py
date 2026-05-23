@@ -148,18 +148,12 @@ def bind_filings_for_query(
         and not scope.compare_periods
         and not scope.accessions
     ):
-        bound = list(snapshot.manifest.filing_refs)
-        narrative = _narrative_query_filings(query, bound) if query else None
-        if narrative:
-            bound = narrative
-            assumptions.append(
-                "no explicit temporal scope; bound latest 10-K for narrative/qualitative query"
-            )
-        elif query:
-            assumptions.append("no explicit temporal scope; using full snapshot filing set")
+        assumptions.append(
+            "no explicit temporal scope; macro autonomous binding deferred to LangGraph macro_router"
+        )
         return FilingBinding(
             snapshot_id=snapshot.snapshot_id,
-            bound_filings=bound,
+            bound_filings=[],
             resolution_notes=notes,
             assumptions=assumptions,
         )

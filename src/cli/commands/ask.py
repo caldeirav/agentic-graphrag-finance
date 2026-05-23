@@ -107,7 +107,11 @@ def ask(
         typer.echo(json.dumps(result.model_dump(), indent=2, default=str))
         return
 
-    typer.echo(result.answer_text)
+    if result.status == "ERROR" and "Macro binding failed" in result.answer_text:
+        typer.echo("\n--- Macro binding (scope error) ---", err=True)
+        typer.echo(result.answer_text, err=True)
+    else:
+        typer.echo(result.answer_text)
     typer.echo(f"\nStatus: {result.status}")
     typer.echo(f"Snapshot: {result.snapshot_id}")
     typer.echo(f"MLflow run: {result.mlflow_run_id}")

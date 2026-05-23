@@ -209,6 +209,7 @@ def run_ask_pipeline(request: CLIAskRequest) -> CLIAskResult:
     t3 = time.perf_counter()
     setup_mlflow()
     svc = QueryService(graph_base_dir=graphs_root, issuer_id=issuer)
+    cli_prebound = bool(binding.bound_filings)
     resp = svc.answer(
         QueryRequest(
             query=request.query,
@@ -222,6 +223,8 @@ def run_ask_pipeline(request: CLIAskRequest) -> CLIAskResult:
                 "temporal_anchor": (scope.anchor if scope else "") or "",
                 "trace_level": request.trace_level or "",
                 "trace_json": "true" if request.trace_json else "",
+                "cli_prebound": "true" if cli_prebound else "",
+                "binding_deferred": "true" if not cli_prebound else "",
             },
         )
     )

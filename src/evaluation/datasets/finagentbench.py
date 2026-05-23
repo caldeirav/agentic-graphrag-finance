@@ -1,7 +1,17 @@
+import json
 from pathlib import Path
 
 from evaluation.datasets._base import load_jsonl_dataset
-from models.evaluation import BenchmarkItem
+from models.corpus import CorpusTemporalScope
+from models.enums import OperationClass
+from models.evaluation import BenchmarkItem, ExpectedBindings, GroundTruth
+
+
+def _parse_operation_class(raw: object) -> OperationClass:
+    key = str(raw or "qualitative").lower()
+    if key in ("numeric", "add"):
+        return OperationClass.ADD
+    return OperationClass.QUALITATIVE
 
 
 class FinAgentBenchDataset:
@@ -15,3 +25,35 @@ class FinAgentBenchDataset:
 
     def load_split(self, split: str) -> list[BenchmarkItem]:
         return load_jsonl_dataset(self.name, self._dir / f"{split}.jsonl")
+
+    def load_macro_binding_slice(self) -> list[BenchmarkItem]:
+        path = self._dir / "macro_binding.jsonl"
+        if not path.exists():
+            return []
+        items: list[BenchmarkItem] = []
+        for line in path.read_text().splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            ts = row.get("temporal_scope") or {}
+            items.append(
+                BenchmarkItem(
+                    item_id=str(row["item_id"]),
+                    dataset=row.get("dataset", self.name),
+                    question=row["question"],
+                    operation_class=_parse_operation_class(row.get("operation_class")),
+                    temporal_scope=CorpusTemporalScope(
+                        anchor=ts.get("anchor"),
+                        periods=list(ts.get("periods") or []),
+                        compare_periods=list(ts.get("compare_periods") or []),
+                        accessions=list(ts.get("accessions") or []),
+                    ),
+                    expected_bindings=ExpectedBindings.model_validate(
+                        row["expected_bindings"]
+                    ),
+                    multi_filing_required=bool(row.get("multi_filing_required", False)),
+                    expect_binding_failure=bool(row.get("expect_binding_failure", False)),
+                    ground_truth=GroundTruth(answer=row.get("answer")),
+                )
+            )
+        return items

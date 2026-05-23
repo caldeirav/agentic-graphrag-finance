@@ -24,6 +24,7 @@ class MacroPlan(BaseModel):
     intent_summary: str
     temporal_scope: TemporalScope
     rationale: str = ""
+    binding_source: str = ""
 
 
 class SectionCandidate(BaseModel):
@@ -69,6 +70,7 @@ class GraphVisit(BaseModel):
 
 class TrajectoryRecord(BaseModel):
     plan: MacroPlan | None = None
+    macro_binding: dict | None = None
     intent_router: IntentRouterTrace | None = None
     document_route: list[FilingRef] = Field(default_factory=list)
     graph_traversal: list[GraphVisit] = Field(default_factory=list)

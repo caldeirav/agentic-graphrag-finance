@@ -1,0 +1,10 @@
+{
+  "intent_summary": "Risk factors in latest annual report",
+  "comparison_mode": null,
+  "anchor": "latest_annual",
+  "period_labels": [],
+  "proposed_accessions": [],
+  "is_comparison": false,
+  "quarterly_metric_cue": false,
+  "proposal_source": "deterministic"
+}

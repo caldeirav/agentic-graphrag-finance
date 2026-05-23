@@ -53,6 +53,10 @@ class QueryService:
             "snapshot_id": request.snapshot_id,
             "temporal_anchor": request.metadata.get("temporal_anchor", ""),
             "filing_set": list(request.pre_bound_filings),
+            "cli_prebound": request.metadata.get("cli_prebound", "").lower()
+            in ("1", "true", "yes"),
+            "binding_deferred": request.metadata.get("binding_deferred", "").lower()
+            in ("1", "true", "yes"),
             "section_candidates": [],
             "evidence_chunks": [],
             "graph_traversal": [],
@@ -77,6 +81,10 @@ class QueryService:
             set_trace_reporter(None)
 
         trajectory = build_trajectory_from_state(result)
+        if run_id and result.get("macro_binding_record") is not None:
+            from tracing.mlflow_langgraph import log_macro_binding
+
+            log_macro_binding(run_id, result["macro_binding_record"])
         if run_id and result.get("intent_trace") is not None:
             log_intent_router(run_id, result["intent_trace"])
         traj_uri = log_trajectory(run_id, trajectory) if run_id else ""

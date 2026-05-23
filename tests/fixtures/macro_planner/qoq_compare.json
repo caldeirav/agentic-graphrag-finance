@@ -1,0 +1,10 @@
+{
+  "intent_summary": "Quarter over quarter comparison",
+  "comparison_mode": "QoQ",
+  "anchor": null,
+  "period_labels": [],
+  "proposed_accessions": [],
+  "is_comparison": true,
+  "quarterly_metric_cue": false,
+  "proposal_source": "deterministic"
+}
