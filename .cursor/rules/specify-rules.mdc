@@ -6,13 +6,13 @@ alwaysApply: true
 For additional context about technologies, project structure, shell commands, and
 pipeline segments, read the current implementation plan:
 
-**Plan**: `specs/008-autonomous-macro-routing/plan.md` (active) | Prior: `specs/007-ask-console-trace/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
+**Plan**: `specs/009-graph-native-meso-micro/plan.md` (active) | Prior: `specs/008-autonomous-macro-routing/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
 
 Quick reference:
 - **Stack**: uv, EDGAR ingest, Docling, docling-graph, LangGraph, Qwen/LM Studio, MLflow, Gemini judge, Rich console trace
-- **Layers**: `src/ingestion/`, `src/parsing/`, `src/graph/`, `src/retrieval/macro/`, `src/retrieval/orchestration/`, `src/tracing/`, `src/evaluation/`, `src/cli/`
-- **CLI**: `uv run agent-query ask --ticker AAPL --trace normal --query "..."` (NL macro binding when no `--period`/`--anchor`)
-- **Storage**: `data/raw/sec_downloads/`, `data/parsed/`, `data/graphs/{issuer}/`, `data/benchmarks/finagentbench/macro_binding.jsonl`
-- **Phases**: P1 pairing+models → P2 validator+CLI handoff → P3 planner+macro_router → P4 trajectory → P5 eval slice
-- **Design artifacts**: `specs/008-autonomous-macro-routing/{research,data-model,quickstart}.md` and `contracts/`
+- **Layers**: `src/ingestion/`, `src/parsing/`, `src/graph/`, `src/retrieval/macro/`, `src/retrieval/navigation/`, `src/retrieval/orchestration/`, `src/tracing/`, `src/evaluation/`, `src/cli/`
+- **CLI**: `uv run agent-query ask --ticker AAPL --trace verbose --query "..."` | eval: `agent-query test --gold-path`
+- **Storage**: `data/graphs/{issuer}/`, `tests/fixtures/gold_path/gold_path.jsonl`, `configs/graph_navigation.yaml`
+- **Phases**: P1 policy+graph API → P2 validator+walker → P3 planner+meso/micro nodes → P4 trajectory → P5 gold-path eval
+- **Design artifacts**: `specs/009-graph-native-meso-micro/{research,data-model,quickstart}.md` and `contracts/`
 <!-- SPECKIT END -->

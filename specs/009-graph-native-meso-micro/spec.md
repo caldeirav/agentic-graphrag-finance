@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: Replace heuristic-only meso and micro routing with graph-native agentic navigation: the agent must traverse structural and temporal edges from the macro-selected filing set to rank sections, then follow containment, footnote, cross-reference, and table-row edges to extract evidence chunks. Meso and micro stages must emit node and edge identifiers visited (not only flat lists). The agent must support multi-hop paths (e.g., section → table → footnote → related paragraph). Answers must remain grounded only in retrieved chunks. Success: trajectory records and console trace include edge types traversed and allow users to identify the content considered by the agent, and its decisions; on an internal gold-path test set, at least 75% of required evidence chunks are reached without scanning the entire graph.
+**Input**: Replace heuristic-only meso and micro routing with graph-native agentic navigation: the agent must traverse **structural** edges (containment, order, footnote, cross-reference) from the macro-selected filing set to rank sections, then follow table-row and linked narrative paths to extract evidence chunks. Meso and micro stages must emit node and edge identifiers visited (not only flat lists). The agent must support multi-hop paths (e.g., section → table → footnote → related paragraph). Answers must remain grounded only in retrieved chunks. Success: trajectory records and console trace include edge types traversed and allow users to identify the content considered by the agent, and its decisions; on an internal gold-path test set, at least 75% of required evidence chunks are reached without scanning the entire graph.
 
 ## Clarifications
 

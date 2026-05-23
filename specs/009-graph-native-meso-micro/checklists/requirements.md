@@ -31,5 +31,6 @@
 
 ## Notes
 
-- Validation pass (2026-05-23): All checklist items satisfied. User-provided thresholds encoded as SC-003 (75% gold-path reach without full-graph scan) and SC-002 (five-query trace usability). Edge catalog and hop budgets deferred to planning. Ready for `/speckit-clarify` or `/speckit-plan`.
+- Validation pass (2026-05-23): All checklist items satisfied. Ready for `/speckit-implement`.
+- Analyze remediation (2026-05-23): spec Input aligned to structural-only; tasks planner-before-walker, US1 test scoped to AgentState, T005a/T022a added.
 - Depends on macro binding (008), graph materialization (004), and ask trace (007); meso/micro heuristic replacement is explicit in FR-013.
