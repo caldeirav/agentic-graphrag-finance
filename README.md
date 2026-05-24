@@ -4,6 +4,8 @@ An **Agentic GraphRAG** system for answering natural-language questions over SEC
 
 This repository implements the research direction in *Graph-Grounded Agentic Retrieval: Enhancing Multi-Stage Reasoning over XBRL Financial Disclosures*.
 
+**New to XBRL or Docling?** Read the step-by-step guide: **[End-to-end walkthrough](docs/end-to-end-walkthrough.md)** (materialize → ask → trajectory → judge, with concrete Apple examples).
+
 ---
 
 ## Quick start
@@ -28,13 +30,14 @@ USE_MOCK_LLM=0 uv run agent-query ask --ticker AAPL --trace normal \
 | Latest 10-K narrative | `ask --anchor latest-annual --query "…"` |
 | Offline / CI (no LM Studio) | `USE_MOCK_LLM=1 USE_MOCK_JUDGE=1 uv run agent-query test --ticker AAPL` |
 
-Details: [setup](#prerequisites-and-setup) · [all CLI flags](#cli-reference-agent-query) · [more examples](#live-usage-examples)
+Details: [setup](#prerequisites-and-setup) · [all CLI flags](#cli-reference-agent-query) · [end-to-end walkthrough](docs/end-to-end-walkthrough.md) · [more examples](#live-usage-examples)
 
 ---
 
 ## Table of contents
 
 - [Quick start](#quick-start)
+- [End-to-end walkthrough](docs/end-to-end-walkthrough.md)
 - [How the agent works](#how-the-agent-works)
 - [Docling and docling-graph](#docling-and-docling-graph)
 - [Architecture](#architecture)
@@ -69,6 +72,13 @@ Nothing answers from model memory alone: the agent only sees evidence extracted 
 
 These two libraries split **parsing** from **graph materialization**. Both are required; neither is optional for the live pipeline.
 
+| Resource | Link |
+|----------|------|
+| Docling XBRL tutorial | [XBRL Document Conversion](https://docling-project.github.io/docling/examples/xbrl_conversion/) |
+| Docling source | [github.com/docling-project/docling](https://github.com/docling-project/docling) |
+| docling-graph | [github.com/docling-project/docling-graph](https://github.com/docling-project/docling-graph) |
+| **End-to-end tour (this repo)** | [docs/end-to-end-walkthrough.md](docs/end-to-end-walkthrough.md) — includes best practices for both libraries |
+
 ### Docling — XBRL parsing (`src/parsing/`)
 
 **Role:** Convert each cached EDGAR XBRL **instance document** into a `ParsedDocument` (sections, tables, footnotes, consolidated facts).
@@ -76,14 +86,14 @@ These two libraries split **parsing** from **graph materialization**. Both are r
 | Aspect | Detail |
 |--------|--------|
 | **Input** | XBRL instance XML (e.g. `*_htm.xml`) plus taxonomy linkbases in the filing package |
-| **API** | `DocumentConverter` with `InputFormat.XML_XBRL` (Arelle-backed; requires `docling[xbrl]`) |
+| **API** | `DocumentConverter` with `InputFormat.XML_XBRL` (Arelle-backed; requires `docling[xbrl]`; see [official XBRL example](https://docling-project.github.io/docling/examples/xbrl_conversion/)) |
 | **Output** | `ParsedDocument` JSON under `data/parsed/{ticker}/{accession}.json` |
 | **XBRL facts** | Docling emits key–value fact rows; `xbrl_facts.py` consolidates them into one record per **concept + period** |
 | **HTML supplement** | Optional inline iXBRL HTML (MD&A, risk factors) merged at materialize; see `configs/html_narrative.yaml` |
 
 Docling preserves **structure** (sections, reading order, tables) that flat text extraction would lose. Numeric questions depend on facts like `RevenueFromContractWithCustomerExcludingAssessedTax` with explicit **period** and **decimals** metadata.
 
-Config: `configs/docling_xbrl.yaml` · Implementation: `src/parsing/docling_xbrl.py` · Design: [research-xbrl-retrieval.md](specs/002-live-disclosure-cli/research-xbrl-retrieval.md)
+Config: `configs/docling_xbrl.yaml` · Implementation: `src/parsing/docling_xbrl.py` · Design: [research-xbrl-retrieval.md](specs/002-live-disclosure-cli/research-xbrl-retrieval.md) · Walkthrough: [end-to-end guide](docs/end-to-end-walkthrough.md#what-docling-does-here)
 
 ### docling-graph — Knowledge graph materialization (`src/graph/`)
 
@@ -99,11 +109,11 @@ Config: `configs/docling_xbrl.yaml` · Implementation: `src/parsing/docling_xbrl
 | **Section ontology** | `narrative_kind` / `item_number` on SECTION nodes (e.g. `md_and_a`, `risk_factors`, `xbrl_bucket`) for TOC planner |
 | **Fail-closed** | Filings with zero structure are excluded from the snapshot with a recorded reason |
 
-The Python package `docling-graph` defines the target schema; this repo’s mapper bridges **Docling parse output** into internal `GraphNode` / `GraphEdge` models (see `DOCLING_GRAPH_MAPPER_VERSION` in `src/graph/docling_graph_mapper.py`). Default builder: `src/graph/builder.py` (`GRAPH_BUILDER=docling-graph`; `legacy` escape hatch only).
+The [docling-graph](https://github.com/docling-project/docling-graph) package defines the target schema (explicit entities and edges for high-precision domains like finance). This repo’s mapper bridges **Docling parse output** into internal `GraphNode` / `GraphEdge` models (see `DOCLING_GRAPH_MAPPER_VERSION` in `src/graph/docling_graph_mapper.py`) rather than using the upstream LLM `run_pipeline` on every filing—XBRL is already structured. Default builder: `src/graph/builder.py` (`GRAPH_BUILDER=docling-graph`; `legacy` escape hatch only).
 
 After materialize, a **reachability audit** samples XBRL/table facts and verifies ≥95% are reachable from the document root in ≤6 structural hops (`graph-audit`, `configs/graph_audit.yaml`).
 
-Design: [004 quickstart](specs/004-docling-graph-materialization/quickstart.md) · Edge catalog: [contracts/edge-catalog.md](specs/004-docling-graph-materialization/contracts/edge-catalog.md)
+Design: [004 spec](specs/004-docling-graph-materialization/spec.md) · Edge catalog: [contracts/edge-catalog.md](specs/004-docling-graph-materialization/contracts/edge-catalog.md) · Walkthrough: [end-to-end guide](docs/end-to-end-walkthrough.md#what-docling-graph-means-in-this-repo)
 
 ### Parse → graph flow
 
@@ -588,7 +598,7 @@ USE_FIXTURE_INGESTION=1 USE_MOCK_LLM=1 USE_MOCK_JUDGE=1 \
 
 Contract tests enforce layer import boundaries. Navigation gold-path and macro-binding suites live under `tests/` and `agent-query test`.
 
-Manual checklist: [docs/navigation-trace-usability-checklist.md](docs/navigation-trace-usability-checklist.md)
+Manual checklist: [docs/navigation-trace-usability-checklist.md](docs/navigation-trace-usability-checklist.md) · Full pipeline tour: [docs/end-to-end-walkthrough.md](docs/end-to-end-walkthrough.md)
 
 ---
 
