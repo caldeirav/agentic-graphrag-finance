@@ -1,97 +1,211 @@
 # Graph-Grounded Agentic Retrieval over XBRL Financial Disclosures
 
-An **Agentic GraphRAG** system for answering natural-language questions over SEC regulatory filings (10-K, 10-Q). It ingests real **XBRL** packages from EDGAR, builds **hierarchical knowledge graphs** with [Docling](https://github.com/docling-project/docling) and [docling-graph](https://github.com/docling-project/docling-graph), and runs a **multi-stage LangGraph agent** that reasons over document scope, graph structure, and granular evidence before synthesizing a grounded answer.
+An **Agentic GraphRAG** system for answering natural-language questions over SEC **10-K** and **10-Q** filings. It downloads real **XBRL** packages from EDGAR, turns them into structured documents with **[Docling](https://github.com/docling-project/docling)**, materializes issuer-level **knowledge graphs** aligned with the **[docling-graph](https://github.com/docling-project/docling-graph)** entity–relationship model, and runs a **LangGraph** agent that binds filings, navigates the graph, extracts evidence, and synthesizes a grounded answer—with full trajectories in **MLflow**.
 
-This repository implements the research direction described in *Graph-Grounded Agentic Retrieval: Enhancing Multi-Stage Reasoning over XBRL Financial Disclosures* — transforming dense, structured financial disclosures into navigable graphs and measuring agent decision paths with MLflow trajectories and modular benchmarks.
+This repository implements the research direction in *Graph-Grounded Agentic Retrieval: Enhancing Multi-Stage Reasoning over XBRL Financial Disclosures*.
 
 ---
 
-## What it does
+## Quick start
 
-| Stage | What happens |
-|-------|----------------|
-| **Ingest** | Resolve ticker/CIK/accession via SEC EDGAR; download full XBRL instance + taxonomy linkbases (no third-party filing APIs). |
-| **Parse** | Mandatory [Docling XBRL conversion](https://docling-project.github.io/docling/examples/xbrl_conversion/) (`InputFormat.XML_XBRL`) — sections, tables, and consolidated numeric facts. No HTML fallback. |
-| **Graph** | Map `ParsedDocument` → `GraphSnapshot`: documents → sections → chunks; XBRL facts indexed as first-class paragraph chunks with human-readable excerpts. |
-| **Corpus** | Materialize issuer snapshots: latest **10-K** + trailing **10-Qs** (default 4); versioned under `data/graphs/{ticker}/`. |
-| **Retrieve** | CLI **temporal binding** (e.g. `prior-quarter`) → LangGraph: **macro** → **meso** → **micro** → **synthesize**, scoped to bound filing(s) and period-of-report. |
-| **Observe** | MLflow runs, LangGraph trajectories, and optional Gemini judge for benchmark suites. |
-
-Recommended workflow for multi-period questions:
+**Prerequisites:** Python 3.12+, [uv](https://docs.astral.sh/uv/), [LM Studio](https://lmstudio.ai/) with a loaded chat model (context length ≈ `16384` per `configs/lm_studio.yaml`), and `SEC_EDGAR_USER_AGENT` in `.env`.
 
 ```bash
-# 1. Build (or refresh) the issuer corpus graph
+uv sync --locked && cp .env.example .env   # edit .env, then start LM Studio server
+
+# Build issuer graph (Docling parse → docling-graph snapshot; ~minutes first run)
 uv run agent-query materialize --ticker AAPL
 
-# 2. Ask with optional fiscal anchor
-uv run agent-query ask --ticker AAPL --anchor prior-quarter --query "What was revenue in the prior quarter?"
+# Ask with live LLM (answer on stdout, trace on stderr)
+USE_MOCK_LLM=0 uv run agent-query ask --ticker AAPL --trace normal \
+  --query "How did total net sales change year over year?"
 ```
 
-Single-filing queries still work without an explicit `materialize` if a snapshot already exists.
+| Goal | Command |
+|------|---------|
+| YoY / multi-period (autonomous filing pick) | `ask` with no `--anchor` |
+| Specific quarter | `ask --anchor prior-quarter --query "…"` |
+| Latest 10-K narrative | `ask --anchor latest-annual --query "…"` |
+| Offline / CI (no LM Studio) | `USE_MOCK_LLM=1 uv run agent-query test --ticker AAPL` |
+
+Details: [setup](#prerequisites-and-setup) · [all CLI flags](#cli-reference-agent-query) · [more examples](#live-usage-examples)
+
+---
+
+## Table of contents
+
+- [Quick start](#quick-start)
+- [How the agent works](#how-the-agent-works)
+- [Docling and docling-graph](#docling-and-docling-graph)
+- [Architecture](#architecture)
+- [Prerequisites and setup](#prerequisites-and-setup)
+- [CLI reference (`agent-query`)](#cli-reference-agent-query)
+- [Live usage examples](#live-usage-examples)
+- [Staged pipeline (debugging)](#staged-pipeline-debugging)
+- [Data layout](#data-layout)
+- [Testing](#testing)
+- [Specifications](#specifications)
+
+---
+
+## How the agent works
+
+At a high level, every **`ask`** run does the following:
+
+1. **Corpus** — Ensure an issuer **graph snapshot** exists (multi-filing: trailing **two fiscal years** of 10-K and 10-Q by default). If not, fetch/parse/materialize automatically or via **`materialize`**.
+2. **Macro** — Decide *which filings* answer the question (e.g. latest annual + prior annual for YoY, or latest quarter). The LLM proposes accessions; a **deterministic validator** approves or fails closed.
+3. **Intent** — Classify the question as **numeric** (XBRL-first), **qualitative** (HTML narrative-first), or **hybrid**.
+4. **Meso** — Within each bound filing, pick **sections** to search (default: **TOC planner** — one LLM call per filing over a table of contents with `narrative_kind` tags).
+5. **Micro** — Collect **evidence chunks** under those sections (XBRL fact nodes, table rows, HTML paragraphs), score and rank them, apply source bias.
+6. **Synthesize** — Send top evidence to the **local LLM** (LM Studio) with strict grounding instructions; produce prose + citations.
+
+Nothing answers from model memory alone: the agent only sees evidence extracted from the graph for the **bound** accessions and periods.
+
+---
+
+## Docling and docling-graph
+
+These two libraries split **parsing** from **graph materialization**. Both are required; neither is optional for the live pipeline.
+
+### Docling — XBRL parsing (`src/parsing/`)
+
+**Role:** Convert each cached EDGAR XBRL **instance document** into a `ParsedDocument` (sections, tables, footnotes, consolidated facts).
+
+| Aspect | Detail |
+|--------|--------|
+| **Input** | XBRL instance XML (e.g. `*_htm.xml`) plus taxonomy linkbases in the filing package |
+| **API** | `DocumentConverter` with `InputFormat.XML_XBRL` (Arelle-backed; requires `docling[xbrl]`) |
+| **Output** | `ParsedDocument` JSON under `data/parsed/{ticker}/{accession}.json` |
+| **XBRL facts** | Docling emits key–value fact rows; `xbrl_facts.py` consolidates them into one record per **concept + period** |
+| **HTML supplement** | Optional inline iXBRL HTML (MD&A, risk factors) merged at materialize; see `configs/html_narrative.yaml` |
+
+Docling preserves **structure** (sections, reading order, tables) that flat text extraction would lose. Numeric questions depend on facts like `RevenueFromContractWithCustomerExcludingAssessedTax` with explicit **period** and **decimals** metadata.
+
+Config: `configs/docling_xbrl.yaml` · Implementation: `src/parsing/docling_xbrl.py` · Design: [research-xbrl-retrieval.md](specs/002-live-disclosure-cli/research-xbrl-retrieval.md)
+
+### docling-graph — Knowledge graph materialization (`src/graph/`)
+
+**Role:** Turn each `ParsedDocument` into typed **nodes** and **edges** in a `GraphSnapshot` stored as GraphML + manifest.
+
+| Aspect | Detail |
+|--------|--------|
+| **Mapper** | `docling_graph_mapper.map_filing()` — implements the docling-graph **ER schema contract** (document → section → chunk; XBRL facts as first-class nodes) |
+| **Node types** | `DOCUMENT`, `SECTION`, `CHUNK_TABLE`, `CHUNK_ROW`, `CHUNK_PARAGRAPH`, `CHUNK_XBRL_FACT` |
+| **Structural edges** | `CONTAINS`, `NEXT`, `FOOTNOTE_OF`, `REFERENCES` (agent navigation + reachability audit) |
+| **Cross-filing edges** | `TEMPORAL_TRANSITION` between documents; optional `SEMANTIC_SIMILARITY` for same concept across periods |
+| **XBRL in graph** | Every consolidated fact instance → `CHUNK_XBRL_FACT` with readable excerpt (`XBRL {concept}: $… for period …`) |
+| **Section ontology** | `narrative_kind` / `item_number` on SECTION nodes (e.g. `md_and_a`, `risk_factors`, `xbrl_bucket`) for TOC planner |
+| **Fail-closed** | Filings with zero structure are excluded from the snapshot with a recorded reason |
+
+The Python package `docling-graph` defines the target schema; this repo’s mapper bridges **Docling parse output** into internal `GraphNode` / `GraphEdge` models (see `DOCLING_GRAPH_MAPPER_VERSION` in `src/graph/docling_graph_mapper.py`). Default builder: `src/graph/builder.py` (`GRAPH_BUILDER=docling-graph`; `legacy` escape hatch only).
+
+After materialize, a **reachability audit** samples XBRL/table facts and verifies ≥95% are reachable from the document root in ≤6 structural hops (`graph-audit`, `configs/graph_audit.yaml`).
+
+Design: [004 quickstart](specs/004-docling-graph-materialization/quickstart.md) · Edge catalog: [contracts/edge-catalog.md](specs/004-docling-graph-materialization/contracts/edge-catalog.md)
+
+### Parse → graph flow
+
+```mermaid
+flowchart LR
+    subgraph edgar ["EDGAR package"]
+        XML["XBRL instance<br/>+ linkbases"]
+        HTML["iXBRL HTML<br/>optional"]
+    end
+
+    subgraph docling ["Docling"]
+        DC["DocumentConverter<br/>InputFormat.XML_XBRL"]
+        PD["ParsedDocument<br/>sections · tables · facts"]
+        XML --> DC --> PD
+        HTML -.-> PD
+    end
+
+    subgraph mapper ["docling-graph mapper"]
+        SEC["SECTION nodes<br/>narrative_kind"]
+        XBRL["CHUNK_XBRL_FACT<br/>per concept+period"]
+        EDGES["CONTAINS · NEXT · …"]
+        PD --> SEC
+        PD --> XBRL
+        SEC --> EDGES
+        XBRL --> EDGES
+    end
+
+    subgraph store ["Snapshot"]
+        GML["{snapshot_id}.graphml"]
+        MAN[".manifest.json"]
+        EDGES --> GML
+        EDGES --> MAN
+    end
+```
 
 ---
 
 ## Architecture
 
+### End-to-end pipeline
+
 ```mermaid
 flowchart TB
-    subgraph ingest ["Ingestion (src/ingestion/)"]
+    subgraph ingest ["Ingestion · src/ingestion/"]
         EDGAR["SEC EDGAR<br/>ticker · CIK · accession"]
-        XBRL["XBRL package<br/>instance + linkbases"]
-        EDGAR --> XBRL
+        CACHE["data/raw/sec_downloads/"]
+        EDGAR --> CACHE
     end
 
-    subgraph parse ["Parsing (src/parsing/)"]
-        Docling["Docling XML_XBRL<br/>+ xbrl_facts"]
-        XBRL --> Docling
+    subgraph parse ["Parsing · src/parsing/"]
+        DL["Docling XML_XBRL"]
+        PARSED["data/parsed/*.json"]
+        CACHE --> DL --> PARSED
     end
 
-    subgraph graph ["Graph (src/graph/)"]
-        Snap["GraphSnapshot<br/>GraphML + manifest"]
-        Docling --> Snap
+    subgraph graph ["Graph · src/graph/"]
+        MAP["docling_graph_mapper"]
+        SNAP["GraphSnapshot<br/>GraphML + manifest"]
+        PARSED --> MAP --> SNAP
     end
 
-    subgraph agent ["Agent (src/retrieval/orchestration/)"]
-        M["macro_router<br/>filing · temporal scope"]
-        Me["meso_router<br/>section candidates"]
-        Mi["micro_extractor<br/>chunks · XBRL facts"]
-        S["synthesize<br/>grounded answer"]
-        M --> Me --> Mi --> S
+    subgraph corpus ["Corpus · configs/corpus.yaml"]
+        MAT["materialize<br/>2×10-K + 8×10-Q default"]
+        SNAP --> MAT
     end
 
-    Snap --> M
-    S --> Out["Answer + citations<br/>MLflow trajectory"]
-
-    subgraph eval ["Evaluation (src/evaluation/)"]
-        Bench["FinDER · FinAgentBench<br/>FinanceBench"]
+    subgraph agent ["Agent · src/retrieval/"]
+        ASK["ask"]
+        MAT --> ASK
+        ASK --> OUT["Answer + citations<br/>MLflow trajectory"]
     end
 
-    Snap -.-> Bench
+    subgraph observe ["Observability"]
+        MLF["MLflow + console trace"]
+        OUT --> MLF
+    end
 ```
 
-**Layer boundaries** (enforced by contract tests): ingestion does not import graph/retrieval; the CLI talks to retrieval only through `QueryService`.
+**Layer boundaries** (contract tests): `ingestion` does not import `graph` or `retrieval`; the CLI calls retrieval only through `QueryService`.
 
-### Multi-stage agent
-
-The agent is a compiled **LangGraph** `StateGraph` with four nodes:
+### LangGraph agent (current)
 
 ```mermaid
 stateDiagram-v2
     [*] --> macro_router
-    macro_router --> meso_router: MacroPlan · filing set
-    meso_router --> micro_extractor: Section candidates (scored)
-    micro_extractor --> synthesize: Evidence chunks (top-K)
-    synthesize --> [*]: AnswerPackage · status
+    macro_router --> synthesize: binding failed
+    macro_router --> intent_router: approved
+    intent_router --> meso_router
+    meso_router --> micro_extractor
+    micro_extractor --> synthesize
+    synthesize --> [*]
 ```
 
-| Node | Role | Implementation notes |
-|------|------|----------------------|
-| **macro_router** | Filing set for retrieval | When the CLI pre-binds filings (`--anchor`, `--period`), passes them through unchanged. Otherwise uses the LLM to pick accessions from the snapshot manifest. |
-| **meso_router** | Structural navigation | Ranks **sections** only within the bound filing(s); boosts MD&A, revenue-related labels, and **XBRL Financial Facts**. |
-| **micro_extractor** | Granular evidence | Extracts chunks/XBRL only from bound `doc-{accession}` nodes; boosts facts whose duration period contains the filing `period_end`. |
-| **synthesize** | Grounded generation | Filters evidence to bound filings and aligned periods before LLM synthesis; template fallback if the model returns empty content. |
+| Stage | Node | What it decides | LLM? |
+|-------|------|-----------------|------|
+| **Macro** | `macro_router` | Which filing accessions (10-K / 10-Q) and comparison mode (YoY, QoQ, single anchor) | Yes (unless CLI pre-binds via `--anchor` / `--period`) |
+| **Intent** | `intent_router` | `numeric` → XBRL-primary scoring; `qualitative` → HTML-primary | Yes (+ keyword fallback) |
+| **Meso** | `meso_router` | Top sections per filing (`xbrl_bucket`, `md_and_a`, `risk_factors`, …) | Yes — **TOC planner** (default) or `graph_walk` |
+| **Micro** | `micro_extractor` | Evidence chunks in section subtrees; concept-aware XBRL narrowing | Heuristic scoring (+ structural scope) |
+| **Synthesize** | `synthesize` | Grounded natural-language answer | Yes (template / deterministic YoY fallback if empty) |
 
-**Temporal scope (CLI, before the agent):** flags like `--anchor prior-quarter` resolve to concrete accessions via `src/retrieval/temporal.py` (fiscal labels inferred from the 10-K year-end month). EDGAR `reportDate` is preserved on fetch; each XBRL concept can appear with **multiple period contexts** in the graph.
+**Meso default (`configs/graph_navigation.yaml`):** `meso.discovery_mode: toc_planner` — LLM reads a compact TOC (Item 1 / 1A / 7 / XBRL bucket) and returns ranked `section_node_id`s. **Micro** walks only `CONTAINS` descendants of those sections.
+
+**Temporal binding (CLI):** Flags like `--anchor prior-quarter` resolve to concrete accessions *before* the agent via `src/retrieval/temporal.py` (fiscal labels use the issuer’s 10-K year-end month). Autonomous macro (no flags) lets the LLM propose filings; the validator enforces corpus rules.
 
 ### Technical stack
 
@@ -99,27 +213,23 @@ stateDiagram-v2
 |-----------|------------|
 | Runtime | Python 3.12+, [uv](https://docs.astral.sh/uv/) |
 | Filings | SEC EDGAR (`SEC_EDGAR_USER_AGENT`, rate-limited) |
-| Parsing | Docling `docling[xbrl]>=2.94.0` (Arelle-backed) |
-| Graph | NetworkX / GraphML, docling-graph mapper |
+| Parsing | Docling `docling[xbrl]>=2.94.0` |
+| Graph | docling-graph schema + `docling_graph_mapper`, NetworkX / GraphML |
 | Orchestration | LangGraph, LangChain OpenAI-compatible client |
 | LLM (local) | [LM Studio](https://lmstudio.ai/) — default Qwen via OpenAI API |
 | Judge (benchmarks) | Google Gemini |
-| Observability | MLflow (SQLite backend recommended) |
+| Observability | MLflow (SQLite recommended), Rich console trace |
 
-Governed by [.specify/memory/constitution.md](.specify/memory/constitution.md). Deeper design notes: [research-xbrl-retrieval.md](specs/002-live-disclosure-cli/research-xbrl-retrieval.md).
+Governed by [.specify/memory/constitution.md](.specify/memory/constitution.md).
 
 ---
 
-## Prerequisites
+## Prerequisites and setup
 
 - **Python 3.12+** and [uv](https://docs.astral.sh/uv/)
-- **LM Studio** (or any OpenAI-compatible server) with a chat model loaded and the local server enabled — required for live `ask` when `USE_MOCK_LLM=0`
-- **`SEC_EDGAR_USER_AGENT`** — your name and email per [SEC fair access](https://www.sec.gov/os/webmaster-faq#code-support)
-- **`GOOGLE_API_KEY`** — for benchmark judging (`USE_MOCK_JUDGE=1` skips this in CI)
-
----
-
-## Setup
+- **LM Studio** with a chat model loaded, local server enabled, **context length** matching `configs/lm_studio.yaml` (e.g. `16384`)
+- **`SEC_EDGAR_USER_AGENT`** — `Your Name you@example.com` per [SEC fair access](https://www.sec.gov/os/webmaster-faq#code-support)
+- **`GOOGLE_API_KEY`** — only for benchmark judging (`USE_MOCK_JUDGE=1` in CI)
 
 ```bash
 git clone <repo-url> && cd agentic-graphrag-finance
@@ -127,209 +237,143 @@ uv sync --locked
 cp .env.example .env
 ```
 
-Edit `.env`:
-
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `SEC_EDGAR_USER_AGENT` | Yes (live ingest) | `Your Name you@example.com` for EDGAR |
-| `LM_STUDIO_BASE_URL` | Yes (live ask) | Default `http://localhost:1234/v1` |
-| `LM_STUDIO_MODEL` | Yes (live ask) | Model id exposed by LM Studio |
-| `MLFLOW_TRACKING_URI` | Recommended | `sqlite:///mlflow.db` (project default) |
+| `SEC_EDGAR_USER_AGENT` | Live ingest | EDGAR identity string |
+| `LM_STUDIO_BASE_URL` | Live `ask` | Default `http://localhost:1234/v1` |
+| `LM_STUDIO_MODEL` | Live `ask` | Model id from LM Studio |
+| `MLFLOW_TRACKING_URI` | Recommended | `sqlite:///mlflow.db` |
 | `GOOGLE_API_KEY` | Benchmarks | Gemini judge |
-| `USE_MOCK_LLM` | Optional | `1` = template answers, no LM Studio |
+| `USE_MOCK_LLM` | Optional | `1` = no LM Studio; template / deterministic answers |
 | `USE_MOCK_JUDGE` | Optional | `1` = skip Gemini in benchmarks |
 | `USE_FIXTURE_INGESTION` | Optional | `1` = bundled XBRL under `tests/fixtures/` |
 
-Prompt sizing for live `ask` is in `configs/lm_studio.yaml` (`context_tokens`, `max_tokens`). Set `context_tokens` to match LM Studio **Context Length** (e.g. `16384`) **after you reload the model** in LM Studio. The app probes `/v1/models` and clamps budgets to the server’s reported limit when it is smaller than your config.
-
-If you see `n_ctx: 4096` in a 400 error while `context_tokens` is `16384`, LM Studio is still serving a 4096 context — reload the model with 16384, or set `LLM_CONTEXT_TOKENS=4096` until you do. On overflow, synthesis retries once with a tighter budget.
-
-> **Note:** If your shell exports `MLFLOW_TRACKING_URI=./mlruns`, the app maps that to SQLite from `configs/mlflow.yaml`. Prefer `sqlite:///mlflow.db` in `.env`. Do not use bash placeholders like `${VAR:-default}` in config files.
-
-Start LM Studio, load your model (set context length to match `context_tokens` in `configs/lm_studio.yaml`), and enable the local server before running live queries.
+Set `context_tokens` in `configs/lm_studio.yaml` to match LM Studio after **reloading** the model. If you see `n_ctx: 4096` errors while config says `16384`, reload the model or set `LLM_CONTEXT_TOKENS=4096` until you do.
 
 ---
 
-## CLI usage
+## CLI reference (`agent-query`)
 
-### `agent-query` — unified live pipeline
+All commands: `uv run agent-query <command> [options]`
 
-| Command | Description |
-|---------|-------------|
-| `ask` | Materialize multi-filing corpus (if needed) → bind temporal scope → run agent |
-| `materialize` | Build versioned multi-filing graph snapshot (10-K + trailing 10-Qs) + reachability audit |
-| `graph-audit` | Re-run structural reachability audit on an existing snapshot |
-| `test` | Structural smoke test (fetch, parse, graph node counts; no LLM) |
-| `mlflow-clean` | Reset SQLite tracking DB and remove legacy `mlruns/` dirs |
+| Command | Purpose |
+|---------|---------|
+| **`materialize`** | Fetch (if needed), Docling-parse, build multi-filing graph snapshot + reachability audit |
+| **`ask`** | Resolve snapshot → temporal/macro binding → run LangGraph agent → print answer |
+| **`graph-audit`** | Re-run structural reachability audit on an existing snapshot |
+| **`test`** | Offline structural checks, macro-binding eval, or gold-path navigation eval |
+| **`mlflow-clean`** | Reset SQLite tracking DB and remove legacy `mlruns/` dirs |
 
-#### Materialize (multi-filing corpus)
+### `materialize`
+
+Builds a versioned issuer snapshot under `data/graphs/{TICKER}/`:
+
+- `index.json` — latest `snapshot_id`
+- `{snapshot_id}.graphml` — full graph
+- `{snapshot_id}.manifest.json` — filing list, audit metadata
+- `{snapshot_id}.reachability.json` — audit report
+
+**Default corpus** (`configs/corpus.yaml`): **2× 10-K** + **8× 10-Q** (~two fiscal years), max 12 filings.
 
 ```bash
 uv run agent-query materialize --ticker AAPL
+
+# Re-download XBRL and rebuild after parser/graph changes
+uv run agent-query materialize --ticker AAPL --force-refresh
+
+# XBRL-only (skip HTML MD&A / risk narrative supplement)
+uv run agent-query materialize --ticker AAPL --skip-html-narrative
+
+# Cap corpus size
+uv run agent-query materialize --ticker AAPL --max-filings 6
 ```
 
-Builds a versioned issuer snapshot under `data/graphs/AAPL/` (`index.json` + `{snapshot_id}.graphml` + `.manifest.json`) from the trailing **two fiscal years** of 10-K and 10-Q filings (default: 2× 10-K + 8× 10-Q; see `configs/corpus.yaml`).
+| Flag | Description |
+|------|-------------|
+| `--ticker` / `-t` | Issuer ticker |
+| `--cik` | CIK (alternative to ticker) |
+| `--force-refresh` | Re-fetch filings even if cached |
+| `--skip-html-narrative` | Skip HTML narrative merge at parse |
+| `--max-filings` | Override corpus cap (default 12) |
+| `--json` | Machine-readable job summary |
+
+**Re-materialize** after upgrading graph code so SECTION nodes include `narrative_kind` / `item_number` (needed for TOC planner).
+
+### `ask`
+
+Runs the full agent. Uses latest snapshot for the issuer unless `--snapshot-id` is set.
 
 ```bash
-# Re-download XBRL and rebuild graphs after parser or graph-builder changes
-uv run agent-query materialize --ticker AAPL --force-refresh
+# Requires LM Studio (or set USE_MOCK_LLM=1 for offline template mode)
+USE_MOCK_LLM=0 uv run agent-query ask --ticker AAPL --query "Your question"
 ```
 
-Materialize runs a **structural reachability audit** (≥100 stratified XBRL/table facts, hop budget 6, 95% pass gate) and writes `data/graphs/{issuer}/{snapshot_id}.reachability.json`. Snapshot manifests record `audit_ready` and `audit_pass_rate`. Re-run the audit alone:
+| Flag | Description |
+|------|-------------|
+| `--query` / `-q` | **Required.** Natural-language question |
+| `--ticker` / `-t` | Issuer ticker |
+| `--cik` | CIK |
+| `--accession` / `-a` | Single-filing mode (no multi-filing corpus flags) |
+| `--form` / `-f` | `10-K` (default) or `10-Q` when using `--accession` |
+| `--force-refresh` | Refresh cached XBRL before ask |
+| `--snapshot-id` | Pin a specific graph version |
+| `--anchor` | Pre-bind: `latest-annual`, `prior-quarter`, `latest-quarter` |
+| `--period` | Explicit fiscal label(s), e.g. `FY2025`, `FY2024-Q3` (repeatable) |
+| `--compare` | Comma-separated periods for comparison binding |
+| `--trace` | `quiet` \| `normal` \| `verbose` — stage panels on **stderr** |
+| `--trace-json` | JSONL trace events on stderr |
+| `--json` | Full `CLIAskResult` JSON on **stdout** |
+
+`AGENT_QUERY_TRACE=normal|verbose|quiet` overrides non-TTY defaults. Answer text goes to **stdout**; trace to **stderr**.
+
+**Trace levels**
+
+- **`normal`** — Per-stage summary, macro binding, meso section ranks, micro top chunks with scores
+- **`verbose`** — Above plus LLM prompt/response previews, structural paths (`CONTAINS → …`)
+
+Configs: `configs/trace.yaml`, `configs/lm_studio.yaml`, `configs/graph_navigation.yaml`, `configs/intent_router.yaml`
+
+### `graph-audit`
 
 ```bash
 uv run agent-query graph-audit --ticker AAPL --snapshot-id <uuid>
 ```
 
-Config: `configs/graph_audit.yaml`, `configs/graph_similarity.yaml`. Details: [004 quickstart](specs/004-docling-graph-materialization/quickstart.md).
+Recomputes reachability from document roots to stratified XBRL/table facts. Gate: 95% within 6 hops (`configs/graph_audit.yaml`).
 
-**HTML narrative supplement (005)** — `materialize` includes supplementary MD&A / risk-factor prose from inline iXBRL HTML in the cached XBRL package (merged into `data/parsed/{ticker}/{accession}.json`). Opt out with `--skip-html-narrative`. Each `ask` run logs an **intent router trace** (`query_intent`, `intent_source`, `source_bias_applied`) on MLflow as `intent_router.json` plus `trajectory.json`. Citations include `source_type` (`XBRL` | `HTML`).
+### `test`
 
-Config: `configs/html_narrative.yaml`, `configs/intent_router.yaml`. Details: [005 quickstart](specs/005-html-narrative-supplement/quickstart.md).
-
-#### Ask
-
-```bash
-# Full snapshot (all materialized filings)
-uv run agent-query ask --ticker AAPL --query "What was net sales?"
-
-# Autonomous macro (008): empty temporal flags → LLM proposes, validator binds filings
-uv run agent-query ask \
-  --ticker AAPL \
-  --trace normal \
-  --query "What was revenue in the prior quarter?"
-
-# Fiscal scope: explicit CLI anchor (pre-bound; macro validates and records)
-uv run agent-query ask \
-  --ticker AAPL \
-  --anchor prior-quarter \
-  --query "What was revenue in the prior quarter?"
-
-# Other anchors: latest-annual, latest-quarter; explicit --period FY2026-Q1
-uv run agent-query ask --ticker AAPL --period FY2026-Q1 --query "Revenue for that quarter?"
-
-# Machine-readable output (includes snapshot_scope.bound_filings)
-uv run agent-query ask --ticker AAPL --query "Summarize revenue drivers." --json
-
-# Reuse a specific snapshot version
-uv run agent-query ask --ticker AAPL --snapshot-id <uuid> --query "..."
-```
-
-**Identifiers** (provide at least one):
-
-| Flag | Description |
-|------|-------------|
-| `--ticker` / `-t` | Resolve CIK and latest filing for form type |
-| `--cik` | Direct CIK (validated against ticker if both given) |
-| `--accession` / `-a` | Specific filing accession number |
-| `--form` / `-f` | `10-K` (default) or `10-Q` |
-| `--force-refresh` | Bypass cached XBRL under `data/raw/` |
-| `--snapshot-id` | Reuse a published graph snapshot version |
-| `--anchor` | Temporal scope: `latest-annual`, `prior-quarter`, `latest-quarter` |
-| `--period` | Explicit fiscal label (repeatable), e.g. `FY2024-Q3` |
-| `--compare` | Comma-separated fiscal periods for comparison |
-| `--json` | Emit full `CLIAskResult` JSON on **stdout** (includes `snapshot_scope`) |
-| `--trace` | Console trajectory on **stderr**: `quiet` (default non-TTY), `normal`, `verbose` |
-| `--trace-json` | JSONL trace events on stderr (one object per line per stage) |
-
-Set `AGENT_QUERY_TRACE=normal|verbose|quiet` to override the non-TTY default. Trace does not change routing or answers. See [specs/007-ask-console-trace/quickstart.md](specs/007-ask-console-trace/quickstart.md).
-
-**Meso/micro explainability** (`--trace normal`): section and chunk **score breakdowns** (keyword match, XBRL boost, period alignment, bias multiplier, etc.). **`--trace verbose`** additionally prints **structural path edge types** (`CONTAINS → …`) from document root to the top evidence chunks. Tune preview depth in `configs/trace.yaml` (`top_evidence_preview`, `top_section_candidates`).
-
-```bash
-# Stream stage panels on stderr; answer on stdout
-uv run agent-query ask --ticker AAPL --trace normal --query "What are the principal risk factors?"
-
-# Pipe JSON without trace noise on stdout
-uv run agent-query ask --ticker AAPL --json --trace quiet 2>/dev/null | jq .status
-```
-
-**Example output:**
-
-```text
-Revenue for the prior quarter (period ended December 27, 2025) was $124.30 billion ...
-
-Status: SUCCESS
-Snapshot: c6e2eb96-63f9-4c92-b3a0-2695fa6d6026
-MLflow run: fab0ed2eef0145e4ba6c6972421d91b7
-Citations: 15
-Timings (ms): materialize=74, query=29941
-
---- Snapshot scope ---
-Snapshot version: c6e2eb96-63f9-4c92-b3a0-2695fa6d6026
-Bound:
-  - FY2026-Q1 (10-Q) accession 0000320193-26-000006
-```
-
-#### Macro binding evaluation (008)
-
-Autonomous filing-set accuracy on the in-repo slice (`data/benchmarks/finagentbench/macro_binding.jsonl`):
-
-```bash
-USE_MOCK_LLM=1 uv run agent-query test --macro-binding --ticker AAPL
-# or
-USE_MOCK_LLM=1 uv run pytest tests/integration/test_macro_binding_benchmark.py -q
-```
-
-Gates: ≥80% items require multi-filing, ≥70% exact accession-set match vs rubric. Trajectory artifact: MLflow `macro_binding.json` on every ask.
-
-#### Graph-native meso/micro navigation (009)
-
-Meso section discovery defaults to **TOC planner** (`configs/graph_navigation.yaml` → `meso.discovery_mode: toc_planner`): one LLM call per filing with a section table-of-contents (Item 1 / 1A / 7 / XBRL bucket tags from materialize). Micro walks only inside planner-selected sections and excludes kinds such as Item 1A when the question targets MD&A. Set `meso.discovery_mode: graph_walk` to restore hop-by-hop meso + heuristic section ranking.
-
-**Re-materialize** after upgrading so SECTION nodes carry `narrative_kind` / `item_number` (`graph/section_ontology.py`).
-
-```bash
-uv run agent-query materialize --ticker AAPL --force-refresh
-USE_MOCK_LLM=1 uv run agent-query ask --ticker AAPL --trace verbose --query "What are the principal risk factors discussed in MD&A?"
-USE_MOCK_LLM=1 uv run agent-query test --gold-path
-```
-
-Trajectory artifact: MLflow `navigation_trace.json` (includes `toc_plans`, `section_discovery_mode`). Gold-path fixture: `tests/fixtures/gold_path/gold_path.jsonl`.
-
-#### Test (offline / CI)
+**Structural smoke** (no LLM) — fetch/parse/graph counts:
 
 ```bash
 USE_FIXTURE_INGESTION=1 uv run agent-query test --ticker AAPL --form 10-K
-USE_FIXTURE_INGESTION=1 uv run agent-query test --ticker AAPL --check-registry --json
 ```
 
-#### MLflow cleanup
+**Macro binding benchmark** (mock LLM fixtures):
+
+```bash
+USE_MOCK_LLM=1 uv run agent-query test --macro-binding --ticker AAPL
+```
+
+**Gold-path navigation** (mock LLM; needs materialized AAPL graph):
+
+```bash
+USE_MOCK_LLM=1 uv run agent-query test --gold-path
+```
+
+| Flag | Description |
+|------|-------------|
+| `--macro-binding` | 008 accession-set accuracy slice |
+| `--gold-path` | 009 navigation reachability on `tests/fixtures/gold_path/` |
+| `--check-registry` | Validate snapshot registry |
+| `--min-sections` | Structural threshold |
+| `--json` | JSON report |
+
+### `mlflow-clean`
 
 ```bash
 uv run agent-query mlflow-clean
 ```
-
-### Staged pipeline — research and debugging
-
-Use these when you want to inspect intermediate artifacts without re-running the agent:
-
-```bash
-# 1. Ingest + parse → data/parsed/
-USE_FIXTURE_INGESTION=1 uv run sec-ingest --ticker AAPL --form 10-K
-
-# 2. Build graph → data/graphs/{issuer}/
-uv run sec-graph-build --ticker AAPL
-
-# 3. Query existing snapshot
-USE_MOCK_LLM=1 uv run sec-query \
-  --snapshot-id <uuid> \
-  --issuer-id AAPL \
-  --question "What are total assets?"
-
-# 4. Benchmark retrieval paths (pilot suite)
-USE_MOCK_LLM=1 USE_MOCK_JUDGE=1 uv run sec-benchmark \
-  --snapshot-id <uuid> \
-  --issuer-id AAPL \
-  --max-items 5
-```
-
-| Script | Module | Purpose |
-|--------|--------|---------|
-| `sec-ingest` | `parsing.cli` | Fetch/parse XBRL to `ParsedDocument` JSON |
-| `sec-graph-build` | `graph.cli` | Build `GraphSnapshot` from parsed docs |
-| `sec-query` | `retrieval.cli` | Run LangGraph agent on a snapshot |
-| `sec-benchmark` | `evaluation.cli` | FinDER / FinAgentBench / FinanceBench pilot |
 
 ### MLflow UI
 
@@ -337,7 +381,119 @@ USE_MOCK_LLM=1 USE_MOCK_JUDGE=1 uv run sec-benchmark \
 uv run mlflow ui --backend-store-uri sqlite:///mlflow.db
 ```
 
-Open the printed URL to inspect runs, tags (`ticker`, `accession`, `cik`), and exported agent trajectories.
+Inspect runs, `trajectory.json`, `macro_binding.json`, `navigation_trace.json`, `intent_router.json`.
+
+---
+
+## Live usage examples
+
+These examples assume **LM Studio is running**, `USE_MOCK_LLM` is **unset or `0`**, and you have run **`materialize`** for AAPL at least once.
+
+### 1. Year-over-year net sales (multi-filing, autonomous macro)
+
+The macro router selects two annual 10-Ks; meso targets **XBRL Financial Facts**; micro pulls `RevenueFromContractWithCustomer…` facts; synthesis compares FY totals.
+
+```bash
+uv run agent-query materialize --ticker AAPL
+
+USE_MOCK_LLM=0 uv run agent-query ask --ticker AAPL --trace verbose \
+  --query "How did total net sales change year over year?"
+```
+
+Expect: macro **YoY** with two accessions; meso `toc_planner (xbrl_bucket)`; answer with dollar amounts and % change grounded in XBRL citations.
+
+### 2. Prior-quarter revenue (CLI anchor + numeric intent)
+
+```bash
+USE_MOCK_LLM=0 uv run agent-query ask --ticker AAPL --trace normal \
+  --anchor prior-quarter \
+  --query "What was revenue in the prior quarter?"
+```
+
+Macro uses your anchor instead of autonomous proposal; intent router biases toward **XBRL** facts aligned to that quarter’s `period_end`.
+
+### 3. MD&A and risk factors (qualitative, HTML-primary)
+
+Requires HTML narrative in the snapshot (default materialize includes it).
+
+```bash
+USE_MOCK_LLM=0 uv run agent-query ask --ticker AAPL --trace verbose \
+  --query "What are the principal risk factors discussed in management's discussion and analysis?"
+```
+
+Expect: intent **qualitative**; meso selects `md_and_a` / related sections (TOC planner excludes irrelevant kinds); micro favors **HTML** chunks; synthesis summarizes narrative, not raw taxonomy lines.
+
+### 4. Latest annual risk factors (Item 1A)
+
+```bash
+USE_MOCK_LLM=0 uv run agent-query ask --ticker AAPL --trace normal \
+  --anchor latest-annual \
+  --query "Summarize the principal risk factors in the latest annual report."
+```
+
+### 5. Explicit fiscal period
+
+```bash
+USE_MOCK_LLM=0 uv run agent-query ask --ticker AAPL \
+  --period FY2025-Q1 \
+  --query "What did the filing report for that quarter?"
+```
+
+### 6. Machine-readable output
+
+```bash
+USE_MOCK_LLM=0 uv run agent-query ask --ticker AAPL --json --trace quiet 2>/dev/null \
+  --query "What was total net sales?" | jq '{status, text: .answer.text, bound: .snapshot_scope.bound_filings}'
+```
+
+### Example terminal output (abbreviated)
+
+```text
+Total net sales increased year over year, from $391.04 billion in FY2024
+to $416.16 billion in FY2025 (+$25.12 billion, +6.4%), per
+RevenueFromContractWithCustomerExcludingAssessedTax in the bound 10-K filings.
+
+Status: SUCCESS
+Snapshot: e84614ad-5d73-4243-9eb7-d1b237714e0d
+MLflow run: …
+Citations: 8
+
+--- Snapshot scope ---
+Bound:
+  - FY2025 (10-K) accession 0000320193-25-000079
+  - FY2024 (10-K) accession 0000320193-24-000123
+```
+
+---
+
+## Staged pipeline (debugging)
+
+Inspect layers without running the full agent:
+
+```bash
+# 1. Ingest + Docling parse → data/parsed/
+USE_FIXTURE_INGESTION=1 uv run sec-ingest --ticker AAPL --form 10-K
+
+# 2. docling-graph mapper → data/graphs/{issuer}/
+uv run sec-graph-build --ticker AAPL
+
+# 3. LangGraph query on a snapshot
+USE_MOCK_LLM=0 uv run sec-query \
+  --snapshot-id <uuid> \
+  --issuer-id AAPL \
+  --question "What are total assets?"
+
+# 4. Benchmark pilot (optional)
+USE_MOCK_LLM=1 USE_MOCK_JUDGE=1 uv run sec-benchmark \
+  --snapshot-id <uuid> --issuer-id AAPL --max-items 5
+```
+
+| Script | Module | Purpose |
+|--------|--------|---------|
+| `sec-ingest` | `parsing.cli` | Fetch/parse → `ParsedDocument` JSON |
+| `sec-graph-build` | `graph.cli` | `ParsedDocument` → `GraphSnapshot` |
+| `sec-query` | `retrieval.cli` | LangGraph on one snapshot |
+| `sec-benchmark` | `evaluation.cli` | FinDER / FinAgentBench / FinanceBench pilot |
 
 ---
 
@@ -347,11 +503,11 @@ Open the printed URL to inspect runs, tags (`ticker`, `accession`, `cik`), and e
 |------|----------|
 | `data/raw/sec_downloads/{ticker}/{accession}/` | EDGAR XBRL package + `manifest.json` |
 | `data/cache/edgar/` | Cached `company_tickers.json` |
-| `data/parsed/{ticker}/{accession}.json` | `ParsedDocument` JSON per filing |
-| `data/graphs/{issuer}/` | `{snapshot_id}.graphml` + `.manifest.json` + `index.json` (multi-filing registry) |
+| `data/parsed/{ticker}/{accession}.json` | Docling `ParsedDocument` |
+| `data/graphs/{issuer}/` | GraphML, manifests, `index.json`, reachability reports |
 | `data/benchmarks/` | Benchmark JSONL inputs |
-| `tests/fixtures/sec_downloads/` | Offline XBRL for CI (`USE_FIXTURE_INGESTION=1`) |
-| `mlflow.db` | SQLite tracking store (gitignored) |
+| `tests/fixtures/sec_downloads/` | Offline XBRL for CI |
+| `mlflow.db` | SQLite tracking (gitignored) |
 
 ---
 
@@ -365,7 +521,9 @@ USE_FIXTURE_INGESTION=1 USE_MOCK_LLM=1 USE_MOCK_JUDGE=1 \
   uv run pytest -q
 ```
 
-Contract tests verify import boundaries between layers. Integration tests may require LM Studio or mocks.
+Contract tests enforce layer import boundaries. Navigation gold-path and macro-binding suites live under `tests/` and `agent-query test`.
+
+Manual checklist: [docs/navigation-trace-usability-checklist.md](docs/navigation-trace-usability-checklist.md)
 
 ---
 
@@ -374,14 +532,15 @@ Contract tests verify import boundaries between layers. Integration tests may re
 ```text
 src/
   ingestion/     EDGAR client, corpus materialize, XBRL downloader
-  parsing/       Docling XBRL pipeline, multi-context XBRL facts
-  graph/         Snapshot builder, issuer registry, GraphML store
-  retrieval/     Temporal binding, evidence_scope, LangGraph, synthesis
-  evaluation/    Benchmark registry and Gemini judge
-  tracing/       MLflow setup, trajectories, cleanup
-  cli/           agent-query (ask · test · mlflow-clean)
-  models/        Pydantic domain types and enums
+  parsing/       Docling XBRL pipeline, xbrl_facts, HTML narrative
+  graph/         docling_graph_mapper, builder, registry, reachability audit
+  retrieval/     LangGraph agent, navigation (TOC planner, walker), synthesis
+  evaluation/    Benchmarks, gold-path metrics, Gemini judge
+  tracing/       MLflow, console trace, trajectories
+  cli/           agent-query commands
+  models/        Pydantic types
   contracts/     Service interfaces
+configs/         corpus, docling_xbrl, graph_navigation, lm_studio, trace, …
 ```
 
 ---
@@ -391,6 +550,11 @@ src/
 | Document | Scope |
 |----------|-------|
 | [001 plan](specs/001-sec-disclosure-rag/plan.md) | Core GraphRAG pipeline and benchmarks |
-| [002 quickstart](specs/002-live-disclosure-cli/quickstart.md) | Live EDGAR ingestion and CLI contracts |
-| [003 quickstart](specs/003-multi-filing-corpus/quickstart.md) | Multi-filing corpus, materialize, temporal `ask` |
+| [002 quickstart](specs/002-live-disclosure-cli/quickstart.md) | Live EDGAR ingestion and CLI |
+| [003 quickstart](specs/003-multi-filing-corpus/quickstart.md) | Multi-filing corpus and temporal `ask` |
+| [004 quickstart](specs/004-docling-graph-materialization/quickstart.md) | docling-graph materialization and audit |
+| [005 quickstart](specs/005-html-narrative-supplement/quickstart.md) | HTML narrative supplement |
+| [007 quickstart](specs/007-ask-console-trace/quickstart.md) | Console trace |
+| [008 quickstart](specs/008-autonomous-macro-routing/quickstart.md) | Autonomous macro binding |
+| [009 quickstart](specs/009-graph-native-meso-micro/quickstart.md) | Graph-native meso/micro navigation |
 | [XBRL research](specs/002-live-disclosure-cli/research-xbrl-retrieval.md) | XBRL-first retrieval design |
