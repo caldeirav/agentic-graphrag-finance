@@ -26,9 +26,19 @@ class FinAgentBenchDataset:
     def load_split(self, split: str) -> list[BenchmarkItem]:
         return load_jsonl_dataset(self.name, self._dir / f"{split}.jsonl")
 
+    def _macro_binding_path(self) -> Path | None:
+        candidates = [
+            self._dir / "macro_binding.jsonl",
+            Path("tests/fixtures/finagentbench/macro_binding.jsonl"),
+        ]
+        for path in candidates:
+            if path.exists():
+                return path
+        return None
+
     def load_macro_binding_slice(self) -> list[BenchmarkItem]:
-        path = self._dir / "macro_binding.jsonl"
-        if not path.exists():
+        path = self._macro_binding_path()
+        if path is None:
             return []
         items: list[BenchmarkItem] = []
         for line in path.read_text().splitlines():

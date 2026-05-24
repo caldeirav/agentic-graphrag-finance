@@ -90,7 +90,12 @@ def run_macro_binding_eval(
     os.environ["USE_MOCK_LLM"] = "1"
     items = FinAgentBenchDataset().load_macro_binding_slice()
     if not items:
-        return {"passed": False, "total": 0, "hits": 0, "error": "macro_binding.jsonl missing"}
+        return {
+            "passed": False,
+            "total": 0,
+            "hits": 0,
+            "error": "macro_binding.jsonl missing (data/ or tests/fixtures/finagentbench/)",
+        }
 
     snap = build_aapl_macro_eval_snapshot()
     api = MagicMock()

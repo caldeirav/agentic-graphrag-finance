@@ -570,7 +570,7 @@ USE_MOCK_LLM=1 USE_MOCK_JUDGE=1 uv run sec-benchmark \
 | `data/cache/edgar/` | Cached `company_tickers.json` |
 | `data/parsed/{ticker}/{accession}.json` | Docling `ParsedDocument` |
 | `data/graphs/{issuer}/` | GraphML, manifests, `index.json`, reachability reports |
-| `data/benchmarks/` | Benchmark JSONL inputs |
+| `data/benchmarks/` | Benchmark JSONL inputs (local); CI uses `tests/fixtures/finagentbench/` |
 | `tests/fixtures/sec_downloads/` | Offline XBRL for CI |
 | `mlflow.db` | SQLite tracking (gitignored) |
 
