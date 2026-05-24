@@ -13,6 +13,7 @@ Versioned derived snapshot for validator, judge, and CI. **Secondary** to MLflow
 ```json
 {
   "schema_version": "1.0.0",
+  "query_id": "550e8400-e29b-41d4-a716-446655440000",
   "query_text": "...",
   "issuer_id": "AAPL",
   "snapshot_id": "...",

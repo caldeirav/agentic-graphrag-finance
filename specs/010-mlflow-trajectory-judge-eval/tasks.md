@@ -20,7 +20,7 @@ description: "Task list for auditable MLflow trajectories and LLM-as-judge evalu
 ## Path Conventions
 
 - New: `src/models/trajectory.py`, `src/tracing/trajectory_export.py`, `src/evaluation/validator/`, `src/evaluation/ask_judge.py`, `configs/trajectory_judge.yaml`, `tests/fixtures/trajectory_validation/`
-- Extend: `src/tracing/mlflow_langgraph.py`, `src/retrieval/service.py`, `src/evaluation/judges/gemini_panel.py`, `src/evaluation/runner.py`, `src/tracing/console_trace/`, `configs/judges/gemini_2_5_pro.yaml`, `contracts/query.py` (QueryResponse fields)
+- Extend: `src/tracing/mlflow_langgraph.py`, `src/retrieval/service.py`, `src/evaluation/judges/gemini_panel.py`, `src/evaluation/runner.py`, `src/tracing/console_trace/`, `configs/judges/gemini_2_5_pro.yaml`, `src/contracts/query.py` (QueryResponse fields)
 
 ---
 
@@ -28,7 +28,7 @@ description: "Task list for auditable MLflow trajectories and LLM-as-judge evalu
 
 **Purpose**: Config stubs, validator package scaffold, trajectory-validation fixtures
 
-- [ ] T001 Add `configs/trajectory_judge.yaml` with `min_score: 0.6`, `max_retries: 3`, `backoff_seconds: [1, 2, 4]`, and criterion ids per `contracts/gemini-judge-config.md`
+- [ ] T001 Add `configs/trajectory_judge.yaml` with `min_score: 0.6`, `max_retries: 3`, `backoff_seconds: [1, 2, 4]`, criterion ids, and `mock_reduced_criteria: true` (when `USE_MOCK_LLM=1`) per `contracts/gemini-judge-config.md`
 - [ ] T002 [P] Create `src/evaluation/validator/__init__.py` exporting `validate_trajectory` stub
 - [ ] T003 [P] Create `tests/fixtures/trajectory_validation/` with `valid_complete.json`, `missing_hashes.json`, `orphan_hop.json`, `macro_failed_with_reason.json` per `contracts/trajectory-validator.md`
 - [ ] T004 [P] Add `tests/fixtures/trajectory_validation/manifest.json` listing fixture files and expected validation status
@@ -44,7 +44,7 @@ description: "Task list for auditable MLflow trajectories and LLM-as-judge evalu
 
 **⚠️ CRITICAL**: No user story work until this phase is complete
 
-- [ ] T006 [P] Add `AgentTrajectorySnapshot`, `TrajectoryPlan`, `GraphHop`, `EvidenceEntry`, `FilingRouteEntry` in `src/models/trajectory.py` per `data-model.md` and `contracts/trajectory-schema.md`
+- [ ] T006 [P] Add `AgentTrajectorySnapshot` (required `query_id`), `TrajectoryPlan`, `GraphHop`, `EvidenceEntry`, `FilingRouteEntry` in `src/models/trajectory.py` per `data-model.md` and `contracts/trajectory-schema.md`
 - [ ] T007 [P] Add `TrajectoryValidationResult`, `ValidationReason`, `ValidationStatus` enum in `src/models/evaluation.py` per `data-model.md`
 - [ ] T008 [P] Add `JudgeCriterionResult`, `JudgeRunSummary`, `JudgeStatus` enum in `src/models/evaluation.py` per `data-model.md`
 - [ ] T009 [P] Extend `JudgeVerdict` in `src/models/evaluation.py` to support four criterion ids (deprecate legacy keys via property shim documented in `contracts/gemini-judge-config.md`)
@@ -68,10 +68,11 @@ description: "Task list for auditable MLflow trajectories and LLM-as-judge evalu
 - [ ] T014 [P] [US1] Add contract test `tests/contract/test_trajectory_schema.py` validating golden `tests/fixtures/trajectory_validation/valid_complete.json` against Pydantic models
 - [ ] T015 [P] [US1] Extend `tests/contract/test_trajectory_artifact.py` to assert `agent_trajectory.json` keys and `schema_version` on mock ask run
 - [ ] T016 [P] [US1] Add integration test `tests/integration/test_ask_agent_trajectory.py` for successful ask + macro-failure trajectory shape (US1 acceptance scenario 3)
+- [ ] T016a [P] [US1] Add required integration test `tests/integration/test_mlflow_trace_spans.py` asserting MLflow Trace exists with ≥1 span on mock `ask` (FR-001 / `contracts/trace-export.md`)
 
 ### Implementation for User Story 1
 
-- [ ] T017 [US1] Implement full `build_agent_trajectory_snapshot()` in `src/tracing/trajectory_export.py` mapping LangGraph state + `macro_binding` / `navigation_trace` / `intent_router` per `contracts/trajectory-schema.md`
+- [ ] T017 [US1] Implement full `build_agent_trajectory_snapshot()` in `src/tracing/trajectory_export.py` mapping LangGraph state + `macro_binding` / `navigation_trace` / `intent_router` per `contracts/trajectory-schema.md`; assign `query_id` (UUID) at export if not already on state
 - [ ] T018 [US1] Populate `plan` (intent summary, steps considered, rationale) from `macro_plan`, `macro_binding_record`, and `intent_trace` in `src/tracing/trajectory_export.py`
 - [ ] T019 [US1] Map `document_route` from `filing_set` with form type, period end, fiscal labels in `src/tracing/trajectory_export.py`
 - [ ] T020 [US1] Map `graph_traversal` to `GraphHop` list with `node_type`, `edge_type`, `edge_id`, `stage`, `accession_prefix` from state `graph_traversal` and `navigation_trace` in `src/tracing/trajectory_export.py`
@@ -79,10 +80,10 @@ description: "Task list for auditable MLflow trajectories and LLM-as-judge evalu
 - [ ] T022 [US1] Record `synthesis_path` (`live_llm` | `deterministic_fallback` | `template`) from synthesis node state in `src/retrieval/orchestration/nodes/` (or export helper reading state flag set by `src/retrieval/synthesis.py`)
 - [ ] T023 [US1] Implement `log_agent_trajectory()` in `src/tracing/mlflow_langgraph.py`; invoke from `src/retrieval/service.py` after graph invoke (keep legacy `trajectory.json` one release)
 - [ ] T024 [US1] Set `mlflow_trace_id` on snapshot when `mlflow.get_last_active_trace_id()` available in `src/tracing/trajectory_export.py`
-- [ ] T025 [P] [US1] Add optional `@mlflow.trace` span wrappers or stage tags on `macro_router`, `intent_router`, `meso_router`, `micro_extractor`, `synthesize` nodes in `src/retrieval/orchestration/nodes/` where autolog gaps exist per `research.md` R2
+- [ ] T025 [US1] Add `@mlflow.trace` span wrappers or stage tags on `macro_router`, `intent_router`, `meso_router`, `micro_extractor`, `synthesize` nodes in `src/retrieval/orchestration/nodes/` where autolog gaps exist per `research.md` R2 (**required** for US1 checkpoint; T016a depends on this)
 - [ ] T026 [US1] Ensure `build_trajectory_from_state()` in `src/tracing/mlflow_langgraph.py` delegates to `build_agent_trajectory_snapshot()` for backward compatibility
 
-**Checkpoint**: US1 contract + integration tests pass; `agent_trajectory.json` on every mock ask
+**Checkpoint**: US1 contract + integration tests pass (including T016a trace spans); `agent_trajectory.json` with `query_id` on every mock ask
 
 ---
 
@@ -130,7 +131,7 @@ description: "Task list for auditable MLflow trajectories and LLM-as-judge evalu
 - [ ] T041 [US3] Implement `run_post_query_audit(snapshot, answer, question, mlflow_run_id)` in `src/evaluation/ask_judge.py` orchestrating validate → judge (skip judge when not `complete`) per `contracts/ask-pipeline-judge.md`
 - [ ] T042 [US3] Implement `log_judge_verdict()` and judge MLflow tags (`judge_weakest_criterion`, `judge_weakest_stage`, per-score tags) in `src/tracing/mlflow_langgraph.py`
 - [ ] T043 [US3] Extend `src/evaluation/runner.py` to call `run_post_query_audit()` after each benchmark item (same path as production ask)
-- [ ] T044 [US3] Update benchmark aggregates in `src/evaluation/runner.py` to exclude non-`complete` and `judge_status=degraded` from headline means per FR-008
+- [ ] T044 [US3] Update benchmark aggregates in `src/evaluation/runner.py` to exclude non-`complete` trajectories and runs with `judge_status` in (`degraded`, `not_evaluable`) from headline judge means per FR-008
 
 **Checkpoint**: Mock judge integration test passes; import boundary test passes
 
@@ -151,12 +152,13 @@ description: "Task list for auditable MLflow trajectories and LLM-as-judge evalu
 ### Implementation for User Story 4
 
 - [ ] T048 [US4] Wire `run_post_query_audit()` into `QueryService.answer()` in `src/retrieval/service.py` after snapshot export (blocking before return) per `contracts/ask-pipeline-judge.md`
-- [ ] T049 [US4] Extend `QueryResponse` in `src/contracts/query.py` with `validation_status`, `judge_status`, `judge_scores` fields
+- [ ] T049 [US4] Extend `QueryResponse` in `src/contracts/query.py` with `query_id`, `validation_status`, `judge_status` (`ok` \| `degraded` \| `not_evaluable`), `judge_scores` fields
 - [ ] T050 [US4] Add `build_trajectory_audit_trace_payload()` in `src/tracing/console_trace/trace_payloads.py` per FR-013 (weakest criterion/stage when score &lt; min_score)
 - [ ] T051 [US4] Register `trajectory_audit` footer event in `src/tracing/console_trace/reporter.py` and emit from `QueryService` after audit
 - [ ] T052 [US4] Cap audit block to ≤15 lines at `TraceLevel.NORMAL` in `src/tracing/console_trace/reporter.py` (SC-006)
-- [ ] T053 [US4] Create combined reference suite config `configs/benchmarks/reference_trajectory_gate.yaml` (≥50 items: gold-path + macro-binding + trajectory-validation) per `contracts/benchmark-gate.md`
-- [ ] T054 [US4] Implement gate reporter in `src/evaluation/runner.py` or `src/evaluation/gate.py` printing pass rate and `gate: PASS|FAIL`
+- [ ] T053 [US4] Create combined reference suite config `configs/benchmarks/reference_trajectory_gate.yaml` (pinned AAPL `snapshot_id`, gate threshold 0.9) per `contracts/benchmark-gate.md`
+- [ ] T053a [US4] Add `scripts/build_reference_trajectory_gate.py` and generate `tests/fixtures/reference_trajectory_gate/items.jsonl` with **≥50** rows from gold-path (42) + macro-binding (≥6) + trajectory-validation (≥4) per `contracts/benchmark-gate.md`; fail build if count &lt; 50
+- [ ] T054 [US4] Implement gate reporter in `src/evaluation/runner.py` or `src/evaluation/gate.py` loading `items.jsonl`, printing pass rate and `gate: PASS|FAIL`
 - [ ] T055 [US4] Wire CI job step in `.github/workflows/ci.yml` running reference gate with `USE_MOCK_JUDGE=1` and `USE_FIXTURE_INGESTION=1` where applicable
 
 **Checkpoint**: Live ask with `--trace normal` shows audit footer; CI gate fails when pass rate &lt; 90%
@@ -244,8 +246,9 @@ T018 plan, T019 document_route, T020 graph_traversal, T021 evidence
 
 ## Notes
 
-- Total tasks: **60** (T001–T060)
-- Per story: Setup 5 | Foundational 8 | US1 13 | US2 7 | US3 11 | US4 11 | Polish 5
+- Total tasks: **62** (T001–T060, T016a, T053a)
+- Per story: Setup 5 | Foundational 8 | US1 14 | US2 7 | US3 11 | US4 12 | Polish 5
+- Remediation (analyze): G1→T053a, C1→constitution v1.2.1, I2→`ok`/`degraded`/`not_evaluable`, I3→`query_id`, G3→T016a+T025 required
 - All tasks use checklist format with file paths
 - Live Gemini tests optional (`@pytest.mark.live`); CI uses `USE_MOCK_JUDGE=1`
 - Gap vs current code: `GeminiJudgePanel` placeholder scores, `trajectory.json`-only path, no blocking ask judge — addressed in US1/US3/US4

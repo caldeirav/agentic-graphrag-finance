@@ -85,7 +85,7 @@ Parse with `json.loads` + Pydantic validation; on parse failure, retry (FR-009b)
 
 ## R6 — Blocking judge on `ask` with retry-then-degrade
 
-**Decision**: In `QueryService.answer`, after graph invoke and snapshot export: **(1)** run validator → **(2)** if `complete`, run judge with up to **3 retries** (exponential backoff from `configs/trajectory_judge.yaml`) → **(3)** on exhaustion set `judge_status=degraded`, log error artifact, exclude from aggregates, print console warning; **do not change** successful `QueryStatus` from retrieval.
+**Decision**: In `QueryService.answer`, after graph invoke and snapshot export: **(1)** run validator → **(2)** if `complete`, run judge with up to **3 retries** (exponential backoff from `configs/trajectory_judge.yaml`) → **(3)** on exhaustion set `judge_status=degraded`, log error artifact, exclude from aggregates, print console warning; **do not change** successful `QueryStatus` from retrieval. If validation ≠ `complete`, set `judge_status=not_evaluable` (canonical enum: `ok` \| `degraded` \| `not_evaluable` only).
 
 **Rationale**: Spec FR-009a/FR-009b; constitution hot-path exception documented in plan.
 

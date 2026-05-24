@@ -17,7 +17,7 @@
 - Q: Which runs require a full trajectory? → A: **Every production `ask` and every benchmark item** that executes the agent graph, including runs that end in scope errors or insufficient evidence; failed macro binding still produces a trajectory with explicit failure status and empty downstream sections where applicable.
 - Q: When should LLM-as-judge evaluation run? → A: **Every production `ask` and every benchmark item** — judge runs automatically and **blocks** completion until scores and justifications are persisted (answer and console summary follow validation + judge).
 - Q: How should the canonical trajectory be stored in MLflow? → A: **MLflow Trace spans primary** — native LangGraph/MLflow [agent tracing](https://mlflow.org/llm-tracing/#agent-tracing) is the authoritative drill-down surface; explicit JSON trajectory export is **secondary** (derived snapshot for validator, judge, and offline benchmarks).
-- Q: What should happen when blocking judge evaluation fails? → A: **Retry then degrade** — up to **3** automatic retries with backoff; if all fail, still emit answer + trajectory, mark judge `failed`/`skipped`, exclude from judge aggregates, and surface a console warning (non-fatal).
+- Q: What should happen when blocking judge evaluation fails? → A: **Retry then degrade** — up to **3** automatic retries with backoff; if all fail, still emit answer + trajectory, set `judge_status=degraded`, exclude from judge aggregates, and surface a console warning (non-fatal). Trajectories that fail validation use `judge_status=not_evaluable` (judge not invoked).
 - Q: What scoring scale should judges use per criterion? → A: **0.0–1.0** continuous per criterion with written justification; console highlights weakest stage when any criterion is below **0.6** (configurable threshold).
 - Q: Which benchmark suite defines the 90% trajectory-validation pass gate? → A: **Combined in-repo slice** — gold-path + macro-binding + new trajectory-validation fixtures (minimum **50** items) on a fixed issuer corpus (e.g. AAPL materialized snapshot).
 
@@ -29,12 +29,12 @@ An engineer or analyst runs a production question or a benchmark item and receiv
 
 **Why this priority**: Constitution principle III (Traceability) and all downstream evaluation depend on a complete, stable trajectory schema.
 
-**Independent Test**: Run ten diverse `ask` queries (numeric, qualitative, multi-filing YoY); verify each MLflow run contains a validated trajectory artifact with all mandatory sections populated or explicitly marked not applicable with reason codes.
+**Independent Test**: Run ten diverse `ask` queries (numeric, qualitative, multi-filing YoY); verify each MLflow run contains `agent_trajectory.json` with all mandatory sections populated or explicitly marked not applicable with reason codes. Structural validation (`complete` \| `incomplete` \| `non_reproducible`) is verified in User Story 2.
 
 **Acceptance Scenarios**:
 
 1. **Given** a successful ask against a materialized issuer snapshot, **When** the run completes, **Then** the trajectory includes plan (intent summary, steps considered, chosen path rationale), document route (each bound filing’s identifier, form type, period-of-report end), graph traversal (every recorded hop with node id, node type, edge id when present, edge type), and evidence (each cited chunk with stable content hash and citation label).
-2. **Given** a benchmark batch over a fixed item set, **When** each item finishes, **Then** every item’s MLflow run references the same trajectory schema version and correlates to query id, snapshot version, and issuer identity.
+2. **Given** a benchmark batch over a fixed item set, **When** each item finishes, **Then** every item’s MLflow run references the same trajectory schema version and correlates via required `query_id`, snapshot version, and issuer identity in `agent_trajectory.json`.
 3. **Given** macro binding fails before meso navigation, **When** the run ends, **Then** the trajectory still records plan attempt, failure rationale, document route context available, and marks graph traversal and evidence as absent with standardized reason codes—not silent omission.
 
 ---
@@ -111,7 +111,7 @@ An operator debugging a live ask wants evaluation outcomes visible in the **term
 - **FR-008**: Benchmark and fidelity aggregations MUST **exclude** runs not marked `complete` and MUST report counts of excluded runs separately from headline metrics.
 - **FR-009**: System MUST provide an **evaluation module** that runs **LLM-as-judge** assessment on serialized trajectories (and final answer text) without importing retrieval, ingestion, or graph builder modules.
 - **FR-009a**: LLM-as-judge MUST run on **every** production `ask` and **every** benchmark item after trajectory validation and **before** the run is considered complete (blocking); mock-judge bypass (`USE_MOCK_JUDGE`) is permitted only in CI with documented reduced criteria.
-- **FR-009b**: On judge failure after **up to 3** retries, the system MUST **degrade gracefully**: persist answer and trajectory, set judge status to `failed` or `skipped`, log the error on the MLflow run, exclude the run from judge aggregates, and print a console warning—without changing `QueryStatus` from a successful retrieval outcome.
+- **FR-009b**: On judge failure after **up to 3** retries, the system MUST **degrade gracefully**: persist answer and trajectory, set `judge_status` to **`degraded`**, log the error on the MLflow run, exclude the run from judge aggregates, and print a console warning—without changing `QueryStatus` from a successful retrieval outcome. When validation status is not `complete`, set `judge_status` to **`not_evaluable`** and do not invoke the judge.
 - **FR-010**: Judge evaluation MUST produce per-criterion scores on a **0.0–1.0** scale and natural-language justifications suitable for human audit (aligned with MLflow [LLM-as-a-judge](https://mlflow.org/llm-as-a-judge) patterns).
 - **FR-011**: Judge evaluation MUST log results to the same observability run as the trajectory (separate artifact(s), linked by run id).
 - **FR-012**: System MUST define and apply at minimum these judge criteria, each scored and justified independently:

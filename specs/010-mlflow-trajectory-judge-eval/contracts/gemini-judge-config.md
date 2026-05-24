@@ -51,6 +51,18 @@ On parse error: raise retriable `JudgeParseError` for `ask_judge` retry loop.
 
 Shim for one release in benchmark report reader only.
 
+## Judge status vocabulary (I2)
+
+Canonical `judge_status` values on `JudgeRunSummary` and MLflow tags:
+
+| Value | When |
+|-------|------|
+| `ok` | Judge completed successfully |
+| `degraded` | Judge invoked but failed after max retries |
+| `not_evaluable` | Trajectory validation not `complete`; judge not called |
+
+Legacy `failed` / `skipped` MUST NOT appear in new artifacts.
+
 ## Mock judge (CI)
 
 When `USE_MOCK_JUDGE=1`:

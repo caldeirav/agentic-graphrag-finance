@@ -67,3 +67,4 @@ Attributes SHOULD include `snapshot_id`, `issuer_id`, and stage-specific ids (e.
 
 - `tests/integration/test_ask_judge_mlflow.py` — run produces Trace + three artifacts
 - `tests/unit/test_trajectory_export.py` — snapshot from fixture state matches schema
+- **`tests/integration/test_mlflow_trace_spans.py`** (required) — mock `ask` asserts an MLflow Trace exists for the run and at least one span is present (FR-001 smoke); fails if autolog disabled

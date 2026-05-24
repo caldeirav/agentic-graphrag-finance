@@ -14,6 +14,23 @@
 **Minimum items**: 50  
 **Fixed corpus**: AAPL materialized snapshot (pin `snapshot_id` in suite config)
 
+## Suite manifest (required for CI)
+
+Combined runnable items live in:
+
+- **`configs/benchmarks/reference_trajectory_gate.yaml`** — suite metadata, pinned `snapshot_id`, gate threshold
+- **`tests/fixtures/reference_trajectory_gate/items.jsonl`** — ≥50 rows, each with `item_id`, `source` (`gold_path` \| `macro_binding` \| `trajectory_validation`), and runner inputs
+
+**Composition target** (minimum 50 total):
+
+| Source | Fixture path | Target count |
+|--------|--------------|--------------|
+| Gold-path | `tests/fixtures/gold_path/gold_path.jsonl` (42 rows) | 42 |
+| Macro-binding | `tests/fixtures/macro_validator/` + macro planner stubs | ≥6 |
+| Trajectory-validation | `tests/fixtures/trajectory_validation/*.json` (structural; may be validator-only rows) | ≥4 |
+
+Build script: `scripts/build_reference_trajectory_gate.py` (or task T053a) regenerates `items.jsonl` from sources and fails if `count < 50`.
+
 ## Gate definition
 
 ```python

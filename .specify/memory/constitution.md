@@ -1,6 +1,8 @@
 <!--
 Sync Impact Report
-- Version change: 1.1.0 → 1.2.0
+- Version change: 1.2.0 → 1.2.1
+- Modified: System Architecture Constraints — production audit hook exception for blocking trajectory judge (feature 010)
+- Version change (prior): 1.1.0 → 1.2.0
 - Modified principles: II. Structural Semantics Preservation — XBRL-first ingestion mandate
 - Version change (prior): 1.0.0 → 1.1.0
 - Modified principles:
@@ -153,8 +155,20 @@ retrieval orchestration. Agent modules live **inside** `retrieval/` behind a cle
 internal boundary (e.g., `retrieval/orchestration/`).
 
 The evaluation layer consumes retrieval outputs and MLflow runs via stable contracts only.
-It MUST NOT be invoked on the hot path of user-facing queries unless explicitly scoped
-as an offline or CI benchmark job.
+By default it MUST NOT be invoked on the hot path of user-facing queries unless explicitly
+scoped as an offline or CI benchmark job.
+
+**Production audit hook (feature-scoped exception)**: A feature specification and
+implementation plan MAY authorize a **blocking** post-query audit on production `ask`
+(trajectory validation plus external judge persistence) when all of the following hold:
+
+1. The plan’s Complexity Tracking table documents the exception and rejected alternatives.
+2. Retrieval invokes evaluation only through a published façade (e.g. `run_post_query_audit`)
+   that accepts serialized trajectory payloads and answer text.
+3. Judge and validator modules under `evaluation/` do not import retrieval, ingestion, or
+   graph builder internals (Principle IV separation preserved).
+
+Feature **010-mlflow-trajectory-judge-eval** is the initial authorized scope for this exception.
 
 Performance optimizations MUST NOT violate Principles I–V. Caching is allowed only
 when cache keys include source version, parser version, and content hashes.
@@ -200,4 +214,4 @@ violations as CRITICAL.
 Runtime feature guidance lives in feature `plan.md` files and `.cursor/rules/specify-rules.mdc`
 (synchronized from the active plan).
 
-**Version**: 1.2.0 | **Ratified**: 2026-05-18 | **Last Amended**: 2026-05-19
+**Version**: 1.2.1 | **Ratified**: 2026-05-18 | **Last Amended**: 2026-05-24

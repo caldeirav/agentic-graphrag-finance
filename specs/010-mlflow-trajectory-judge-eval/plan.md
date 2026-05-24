@@ -104,7 +104,7 @@ tests/
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
-| Blocking judge on production `ask` hot path (Constitution IV default) | Spec FR-009a / SC-007 require judge artifacts before CLI completion | Offline-only judge misses operator debugging and violates clarified acceptance scenarios |
+| Blocking judge on production `ask` hot path (Constitution IV default) | Spec FR-009a / SC-007 require judge artifacts before CLI completion; **authorized** under constitution v1.2.1 production audit hook exception | Offline-only judge misses operator debugging and violates clarified acceptance scenarios |
 | Dual storage (MLflow Trace + JSON snapshot) | Trace UI for humans; JSON for import-boundary-safe eval | Trace-only blocks deterministic validator in CI without MLflow server coupling |
 | Retry-then-degrade on judge failure | Spec FR-009b — availability vs audit completeness | Hard-fail judge would block answers on transient Gemini outages |
 

@@ -24,7 +24,7 @@ EvaluationRun → aggregates over complete trajectories only
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `schema_version` | `str` | yes | e.g. `"1.0.0"`; bump on breaking change (FR-016) |
-| `query_id` | `str` | no | UUID if available |
+| `query_id` | `str` | yes | Stable id per run (UUID v4 generated at ask/benchmark start); correlates benchmark items and MLflow runs (US1 scenario 2) |
 | `query_text` | `str` | yes | Truncated in logs if needed |
 | `issuer_id` | `str` | yes | |
 | `snapshot_id` | `str` | yes | |
@@ -138,7 +138,7 @@ Use standardized `absent_reason` on empty `graph_traversal` / `evidence`:
 |-------|------|----------|
 | `judge_model` | `str` | yes |
 | `judge_config_id` | `str` | yes | e.g. `gemini_2_5_pro` |
-| `judge_status` | `JudgeStatus` | yes | `ok` \| `degraded` \| `skipped` \| `not_evaluable` |
+| `judge_status` | `JudgeStatus` | yes | `ok` \| `degraded` \| `not_evaluable` (canonical; see transitions) |
 | `criteria` | `list[JudgeCriterionResult]` | yes |
 | `overall_summary` | `str` | no |
 | `weakest_criterion_id` | `str` | no |
@@ -146,12 +146,22 @@ Use standardized `absent_reason` on empty `graph_traversal` / `evidence`:
 | `retry_count` | `int` | yes |
 | `error` | `str` | no | When degraded |
 
+### JudgeStatus enum (canonical)
+
+| Value | Meaning |
+|-------|---------|
+| `ok` | Judge completed; scores and justifications persisted |
+| `degraded` | Judge invoked but API/parse failed after max retries (FR-009b) |
+| `not_evaluable` | Validation not `complete`; judge not invoked |
+
+Do **not** use legacy values `failed` or `skipped` in new artifacts.
+
 ### JudgeStatus transitions
 
 ```text
 validation=complete → judge invoked → ok | degraded (retries exhausted)
-validation≠complete → skipped (not_evaluable)
-USE_MOCK_JUDGE=1 → ok with mock-judge model id
+validation=incomplete|non_reproducible → not_evaluable (judge skipped)
+USE_MOCK_JUDGE=1 → ok with judge_model=mock-judge when validation=complete
 ```
 
 ## BenchmarkFidelityAggregate
@@ -174,6 +184,7 @@ Emitted in CLI `--json` and MLflow tags:
 
 | Field | Type |
 |-------|------|
+| `query_id` | `str` |
 | `mlflow_run_id` | `str` |
 | `trajectory_uri` | `str` |
 | `validation_status` | `str` |

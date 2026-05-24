@@ -11,8 +11,8 @@
 3. build_agent_trajectory_snapshot(state)
 4. log agent_trajectory.json + legacy artifacts (transition)
 5. validate_trajectory(snapshot) → log trajectory_validation.json
-6. if complete: judge_with_retries(snapshot, answer) → log judge_verdict.json
-   else: judge_status=not_evaluable
+6. if validation=complete: judge_with_retries(snapshot, answer) → log judge_verdict.json
+   else: judge_status=not_evaluable (no judge call)
 7. set MLflow tags
 8. console trace footer (trajectory_audit)
 9. return QueryResponse (includes validation + judge summary fields)
@@ -29,8 +29,8 @@ backoff_seconds: [1, 2, 4]
 min_score: 0.6
 ```
 
-On judge failure after retries:
-- `judge_status: degraded`
+On judge failure after retries (FR-009b):
+- `judge_status: degraded` (canonical; do not emit `failed` or `skipped`)
 - Log `judge_error.txt` or error field in `judge_verdict.json`
 - **Do not** change `QueryStatus` from successful retrieval
 - stderr warning one line
