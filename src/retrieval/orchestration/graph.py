@@ -45,7 +45,7 @@ def _traced_node(
     *,
     graph_api: Any = None,
 ) -> Callable[[AgentState], dict]:
-    def wrapped(state: AgentState) -> dict:
+    def _run(state: AgentState) -> dict:
         reporter = get_trace_reporter()
         timer = StageTimer(stage_id)
         start_patch = trace_stage_start(stage_id)
@@ -71,6 +71,15 @@ def _traced_node(
         if reporter is not None:
             reporter.flush_stage(stage_id, {**state, **merged})
         return merged
+
+    def wrapped(state: AgentState) -> dict:
+        try:
+            import mlflow
+
+            traced = mlflow.trace(name=f"stage.{stage_id}")(_run)
+            return traced(state)
+        except Exception:
+            return _run(state)
 
     return wrapped
 

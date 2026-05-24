@@ -1,0 +1,8 @@
+{
+  "fixtures": [
+    {"file": "valid_complete.json", "expected_status": "complete"},
+    {"file": "missing_hashes.json", "expected_status": "incomplete"},
+    {"file": "orphan_hop.json", "expected_status": "non_reproducible"},
+    {"file": "macro_failed_with_reason.json", "expected_status": "complete"}
+  ]
+}

@@ -245,7 +245,7 @@ cp .env.example .env
 | `MLFLOW_TRACKING_URI` | Recommended | `sqlite:///mlflow.db` |
 | `GOOGLE_API_KEY` | Benchmarks | Gemini judge |
 | `USE_MOCK_LLM` | Optional | `1` = no LM Studio; template / deterministic answers |
-| `USE_MOCK_JUDGE` | Optional | `1` = skip Gemini in benchmarks |
+| `USE_MOCK_JUDGE` | Optional | `1` = mock judge (CI); `0` = live Gemini judge on every `ask` |
 | `USE_FIXTURE_INGESTION` | Optional | `1` = bundled XBRL under `tests/fixtures/` |
 
 Set `context_tokens` in `configs/lm_studio.yaml` to match LM Studio after **reloading** the model. If you see `n_ctx: 4096` errors while config says `16384`, reload the model or set `LLM_CONTEXT_TOKENS=4096` until you do.
@@ -381,7 +381,9 @@ uv run agent-query mlflow-clean
 uv run mlflow ui --backend-store-uri sqlite:///mlflow.db
 ```
 
-Inspect runs, `trajectory.json`, `macro_binding.json`, `navigation_trace.json`, `intent_router.json`.
+Inspect runs, **Traces** (LangGraph spans), **Metrics** (`judge.trajectory_coherence`, etc.), `evaluation/judge_verdict.json`, `evaluation/trajectory_validation.json`, `agent_trajectory.json`, plus legacy `trajectory.json`, `macro_binding.json`, `navigation_trace.json`, `intent_router.json`.
+
+Every production `ask` runs a **blocking trajectory validator** and **Gemini judge** (`GOOGLE_API_KEY`, `USE_MOCK_JUDGE=0`) before the CLI finishes; stderr shows a compact audit footer when `--trace normal` or `verbose`. See [specs/010-mlflow-trajectory-judge-eval/quickstart.md](specs/010-mlflow-trajectory-judge-eval/quickstart.md).
 
 ---
 

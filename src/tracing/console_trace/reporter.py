@@ -44,6 +44,11 @@ class ConsoleTraceReporter:
         lines = reg.renderer(stage_id, state, stage_events, self.config)
         self._write_panel(reg.title, lines)
 
+    def write_audit_panel(self, lines: list[str]) -> None:
+        if not self.config.show_human or not lines:
+            return
+        self._write_panel("Trajectory audit", lines)
+
     def write_summary(
         self,
         *,

@@ -1,8 +1,56 @@
-from pydantic import BaseModel, Field
+from datetime import UTC, datetime
+from enum import StrEnum
+
+from pydantic import BaseModel, Field, computed_field
 
 from models.corpus import CorpusTemporalScope
 from models.enums import OperationClass
 from models.query import AnswerPackage
+
+
+class ValidationStatus(StrEnum):
+    COMPLETE = "complete"
+    INCOMPLETE = "incomplete"
+    NON_REPRODUCIBLE = "non_reproducible"
+
+
+class JudgeStatus(StrEnum):
+    OK = "ok"
+    DEGRADED = "degraded"
+    NOT_EVALUABLE = "not_evaluable"
+
+
+class ValidationReason(BaseModel):
+    code: str
+    field: str = ""
+    message: str = ""
+
+
+class TrajectoryValidationResult(BaseModel):
+    schema_version: str = "1.0.0"
+    status: ValidationStatus
+    reason_codes: list[ValidationReason] = Field(default_factory=list)
+    validated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    snapshot_schema_version: str = ""
+
+
+class JudgeCriterionResult(BaseModel):
+    criterion_id: str
+    score: float
+    justification: str
+    stage: str | None = None
+
+
+class JudgeRunSummary(BaseModel):
+    judge_model: str
+    judge_config_id: str
+    judge_status: JudgeStatus
+    criteria: list[JudgeCriterionResult] = Field(default_factory=list)
+    overall_summary: str = ""
+    weakest_criterion_id: str | None = None
+    weakest_stage: str | None = None
+    retry_count: int = 0
+    error: str | None = None
 
 
 class GroundTruth(BaseModel):
@@ -40,12 +88,29 @@ class JudgeVerdict(BaseModel):
     judge_version: str
     rationale: str = ""
     scores: dict[str, float] = Field(default_factory=dict)
+    criteria: list[JudgeCriterionResult] = Field(default_factory=list)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def legacy_scores(self) -> dict[str, float]:
+        """Map FR-012 criterion ids to legacy benchmark keys."""
+        mapping = {
+            "synthesis_grounding": "value_alignment",
+            "trajectory_coherence": "trajectory_fidelity",
+        }
+        out = dict(self.scores)
+        for new_id, legacy in mapping.items():
+            if new_id in self.scores and legacy not in out:
+                out[legacy] = self.scores[new_id]
+        return out
 
 
 class BenchmarkResult(BaseModel):
     item_id: str
     answer: AnswerPackage | None = None
     mlflow_run_id: str = ""
+    validation_status: str = ""
+    judge_status: str = ""
     outcome_score: float = 0.0
     alignment_score: float = 0.0
     trajectory_fidelity: float = 0.0

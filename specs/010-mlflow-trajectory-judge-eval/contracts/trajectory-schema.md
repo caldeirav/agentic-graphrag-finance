@@ -108,7 +108,7 @@ MUST list all chunks shortlisted for synthesis, not only `in_prompt: true`.
 
 | Legacy file | Mapping |
 |-------------|---------|
-| `trajectory.json` | Deprecated after migration; snapshot supersedes |
+| `trajectory.json` | **Deprecated** (one release): still logged for compatibility; use `agent_trajectory.json` for validator/judge/CI |
 | `macro_binding.json` | Copied to `macro_binding` field |
 | `navigation_trace.json` | Copied to `navigation_trace` |
 | `intent_router.json` | Copied to `intent_router` |

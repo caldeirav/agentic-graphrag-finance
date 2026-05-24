@@ -1,0 +1,11 @@
+min_score: 0.6
+max_retries: 3
+backoff_seconds: [1, 2, 4]
+mock_reduced_criteria: true
+criterion_ids:
+  - trajectory_coherence
+  - routing_decisions
+  - retrieval_fidelity
+  - synthesis_grounding
+gate_threshold: 0.9
+reference_suite_min_items: 50

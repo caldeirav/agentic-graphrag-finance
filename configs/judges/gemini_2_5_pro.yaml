@@ -1,11 +1,26 @@
 model: gemini-2.5-pro
 temperature: 0.0
+judge_config_id: gemini_2_5_pro
 rubrics:
+  trajectory_coherence: |
+    Score 0.0-1.0 whether the plan, document route, graph hops, and evidence tell a
+    consistent auditable story for the question. Use evaluation_as_of and filed_at on
+    document_route: filings are real SEC EDGAR accessions from the bound corpus snapshot.
+    Do NOT penalize Apple-style FY labels (e.g. FY2025) as "hypothetical" or "future"
+    when filed_at is on or before evaluation_as_of. Penalize only internal contradictions
+    (route vs hops vs evidence accession mismatch, missing stages, incoherent plan).
+  routing_decisions: |
+    Score 0.0-1.0 whether filing bindings, intent classification, and section choices
+    were reasonable for the question. Attribute stage when weak (macro, intent, meso, micro).
+  retrieval_fidelity: |
+    Score 0.0-1.0 whether evidence supports the question; periods and form types align
+    with the document route.
+  synthesis_grounding: |
+    Score 0.0-1.0 whether the final answer stays within cited evidence without unsupported claims.
   value_alignment: |
     Score 0-1 whether numeric claims in the answer exactly match ground truth
-    within stated tolerance. Penalize fabricated numbers.
+    within stated tolerance. Penalize fabricated numbers. (legacy benchmark key)
   claim_presence: |
-    Score 0-1 whether required factual claims from the rubric appear in the answer.
+    Score 0-1 whether required factual claims from the rubric appear in the answer. (legacy)
   trajectory_fidelity: |
-    Score 0-1 whether the agent trajectory (sections visited, evidence chunks)
-    aligns with expected navigation for this benchmark item.
+    Score 0-1 whether the agent trajectory aligns with expected navigation. (legacy)

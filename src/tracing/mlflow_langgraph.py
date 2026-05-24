@@ -12,7 +12,10 @@ import mlflow
 import yaml
 
 from models.corpus import SnapshotScopeManifest
+from models.evaluation import JudgeRunSummary, TrajectoryValidationResult
 from models.query import IntentRouterTrace, TrajectoryRecord
+from models.trajectory import AgentTrajectorySnapshot
+from tracing.trajectory_export import build_agent_trajectory_snapshot
 
 _DEFAULT_TRACKING_URI = "sqlite:///mlflow.db"
 _CONFIGURED = False
@@ -138,6 +141,80 @@ def log_intent_router(run_id: str, trace: IntentRouterTrace) -> str:
     return f"{uri}/runs/{run_id}/artifacts/intent_router.json"
 
 
+def set_audit_run_tags(
+    run_id: str,
+    *,
+    trajectory_schema_version: str | None = None,
+    validation_status: str | None = None,
+    judge_status: str | None = None,
+    judge_weakest_criterion: str | None = None,
+    judge_weakest_stage: str | None = None,
+    judge_scores: dict[str, float] | None = None,
+) -> None:
+    setup_mlflow()
+    tags: dict[str, str] = {}
+    if trajectory_schema_version:
+        tags["trajectory_schema_version"] = trajectory_schema_version
+    if validation_status:
+        tags["validation_status"] = validation_status
+    if judge_status:
+        tags["judge_status"] = judge_status
+    if judge_weakest_criterion:
+        tags["judge_weakest_criterion"] = judge_weakest_criterion
+    if judge_weakest_stage:
+        tags["judge_weakest_stage"] = judge_weakest_stage
+    if judge_scores:
+        for cid, score in judge_scores.items():
+            tags[f"judge_score_{cid}"] = f"{score:.3f}"
+    if tags and run_id:
+        client = mlflow.tracking.MlflowClient()
+        for k, v in tags.items():
+            client.set_tag(run_id, k, v[:500])
+
+
+def log_agent_trajectory(run_id: str, snapshot: AgentTrajectorySnapshot) -> str:
+    setup_mlflow()
+    client = mlflow.tracking.MlflowClient()
+    path = "agent_trajectory.json"
+    client.log_dict(run_id, snapshot.model_dump(mode="json"), path)
+    set_audit_run_tags(run_id, trajectory_schema_version=snapshot.schema_version)
+    uri = mlflow.get_tracking_uri()
+    return f"{uri}/runs/{run_id}/artifacts/{path}"
+
+
+def log_trajectory_validation(run_id: str, result: TrajectoryValidationResult) -> str:
+    setup_mlflow()
+    client = mlflow.tracking.MlflowClient()
+    path = "evaluation/trajectory_validation.json"
+    client.log_dict(run_id, result.model_dump(mode="json"), path)
+    set_audit_run_tags(run_id, validation_status=result.status.value)
+    uri = mlflow.get_tracking_uri()
+    return f"{uri}/runs/{run_id}/artifacts/{path}"
+
+
+def log_judge_verdict(run_id: str, summary: JudgeRunSummary) -> str:
+    setup_mlflow()
+    client = mlflow.tracking.MlflowClient()
+    path = "evaluation/judge_verdict.json"
+    client.log_dict(run_id, summary.model_dump(mode="json"), path)
+    scores = {c.criterion_id: c.score for c in summary.criteria}
+    set_audit_run_tags(
+        run_id,
+        judge_status=summary.judge_status.value,
+        judge_weakest_criterion=summary.weakest_criterion_id,
+        judge_weakest_stage=summary.weakest_stage,
+        judge_scores=scores,
+    )
+    for cid, score in scores.items():
+        client.log_metric(run_id, f"judge.{cid}", float(score))
+    client.log_param(run_id, "judge_model", summary.judge_model[:250])
+    client.log_param(run_id, "judge_status", summary.judge_status.value)
+    if summary.weakest_criterion_id:
+        client.log_param(run_id, "judge_weakest_criterion", summary.weakest_criterion_id[:250])
+    uri = mlflow.get_tracking_uri()
+    return f"{uri}/runs/{run_id}/artifacts/{path}"
+
+
 def log_trajectory(run_id: str, trajectory: TrajectoryRecord) -> str:
     setup_mlflow()
     client = mlflow.tracking.MlflowClient()
@@ -168,39 +245,48 @@ def log_macro_binding(run_id: str, record: Any) -> str:
 
 
 def build_trajectory_from_state(state: dict[str, Any]) -> TrajectoryRecord:
-    from models.enums import QueryStatus
+    snapshot = build_agent_trajectory_snapshot(state)
     from models.query import GraphVisit
 
-    visits = []
-    for v in state.get("graph_traversal", []):
-        if not isinstance(v, dict):
-            continue
-        edge_types = list(v.get("path_edge_types") or [])
-        if v.get("edge_type") and not edge_types:
-            edge_types = [str(v.get("edge_type"))]
-        visits.append(
-            GraphVisit(
-                node_id=v.get("node_id", ""),
-                stage=v.get("stage", "meso"),
-                path_edge_types=edge_types,
-                path_node_ids=list(v.get("path_node_ids") or []),
+    visits = [
+        GraphVisit(
+            node_id=h.node_id,
+            edge_id=h.edge_id,
+            stage=h.stage,
+            path_edge_types=[h.edge_type] if h.edge_type else [],
+            path_node_ids=[],
+        )
+        for h in snapshot.graph_traversal
+    ]
+    from models.query import EvidenceChunk
+    from models.enums import EvidenceSourceType
+
+    evidence: list[EvidenceChunk] = []
+    for e in snapshot.evidence:
+        try:
+            st = EvidenceSourceType(e.source_type.upper())
+        except ValueError:
+            st = EvidenceSourceType.NARRATIVE
+        evidence.append(
+            EvidenceChunk(
+                chunk_node_id=e.chunk_node_id,
+                excerpt="",
+                content_hash=e.content_hash,
+                citation_label=e.citation_label,
+                source_type=st,
+                accession=e.accession,
+                section_id=e.section_id or "",
             )
         )
-    macro_binding = None
-    record = state.get("macro_binding_record")
-    if record is not None and hasattr(record, "to_trajectory_dict"):
-        macro_binding = record.to_trajectory_dict()
-    nav_trace = None
-    nt = state.get("navigation_trace")
-    if nt is not None:
-        nav_trace = nt.to_trajectory_dict() if hasattr(nt, "to_trajectory_dict") else nt
+    macro_plan = state.get("macro_plan")
+    filing_refs = list(state.get("filing_set") or [])
     return TrajectoryRecord(
-        plan=state.get("macro_plan"),
-        macro_binding=macro_binding,
-        navigation_trace=nav_trace,
-        intent_router=state.get("intent_trace"),
-        document_route=state.get("filing_set") or [],
+        plan=macro_plan,
+        macro_binding=snapshot.macro_binding,
+        navigation_trace=snapshot.navigation_trace,
+        intent_router=snapshot.intent_router,
+        document_route=filing_refs,
         graph_traversal=visits,
-        evidence=state.get("evidence_chunks") or [],
-        status=state.get("status", QueryStatus.SUCCESS),
+        evidence=evidence or list(state.get("evidence_chunks") or []),
+        status=snapshot.status,
     )

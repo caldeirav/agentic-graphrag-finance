@@ -1,0 +1,6 @@
+suite_name: reference_trajectory_gate
+gate_threshold: 0.9
+reference_suite_min_items: 50
+snapshot_id: ""  # pin at runtime or via env REFERENCE_GATE_SNAPSHOT_ID
+items_path: tests/fixtures/reference_trajectory_gate/items.jsonl
+issuer_id: AAPL

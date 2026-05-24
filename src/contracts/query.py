@@ -17,3 +17,7 @@ class QueryResponse(BaseModel):
     status: QueryStatus
     mlflow_run_id: str
     trajectory_uri: str = ""
+    query_id: str = ""
+    validation_status: str = ""
+    judge_status: str = ""
+    judge_scores: dict[str, float] = Field(default_factory=dict)

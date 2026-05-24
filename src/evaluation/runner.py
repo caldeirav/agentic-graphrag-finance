@@ -96,16 +96,46 @@ class EvaluationRunner:
                             from mlflow.tracking import MlflowClient
 
                             client = MlflowClient()
-                            traj_data = client.load_dict(resp.mlflow_run_id, "trajectory.json")
-                            from models.query import TrajectoryRecord
+                            traj_data = client.load_dict(
+                                resp.mlflow_run_id, "agent_trajectory.json"
+                            )
+                            from models.trajectory import AgentTrajectorySnapshot
 
-                            trajectory = TrajectoryRecord.model_validate(traj_data)
+                            snap = AgentTrajectorySnapshot.model_validate(traj_data)
+                            trajectory = build_trajectory_from_state(
+                                {
+                                    "query": item.question,
+                                    "query_id": snap.query_id,
+                                    "filing_set": [],
+                                    "evidence_chunks": resp.answer.citations
+                                    if resp.answer
+                                    else [],
+                                    "status": snap.status,
+                                }
+                            )
                         except Exception:
                             trajectory = build_trajectory_from_state(
                                 {"evidence_chunks": resp.answer.citations if resp.answer else []}
                             )
 
-                    verdict = self._judge.judge(item, resp.answer, trajectory)
+                    if resp.judge_status and resp.judge_scores:
+                        from models.evaluation import JudgeCriterionResult, JudgeVerdict
+
+                        criteria = [
+                            JudgeCriterionResult(
+                                criterion_id=k, score=v, justification="from ask audit"
+                            )
+                            for k, v in resp.judge_scores.items()
+                        ]
+                        verdict = JudgeVerdict(
+                            judge_model=resp.judge_status,
+                            judge_version="ask-audit",
+                            rationale=resp.validation_status,
+                            scores=resp.judge_scores,
+                            criteria=criteria,
+                        )
+                    else:
+                        verdict = self._judge.judge(item, resp.answer, trajectory)
                     traj_score = trajectory_fidelity_score(
                         trajectory or build_trajectory_from_state({}),
                         judge_score=verdict.scores.get("trajectory_fidelity"),
@@ -115,7 +145,12 @@ class EvaluationRunner:
                             item_id=item.item_id,
                             answer=resp.answer,
                             mlflow_run_id=resp.mlflow_run_id,
-                            outcome_score=verdict.scores.get("value_alignment", 0),
+                            validation_status=resp.validation_status,
+                            judge_status=resp.judge_status,
+                            outcome_score=verdict.scores.get(
+                                "synthesis_grounding",
+                                verdict.scores.get("value_alignment", 0),
+                            ),
                             alignment_score=verdict.scores.get("claim_presence", 0),
                             trajectory_fidelity=traj_score,
                             ranking_metrics=ranking,
@@ -136,6 +171,26 @@ class EvaluationRunner:
         out = report_dir or Path("reports")
         out.mkdir(parents=True, exist_ok=True)
         _write_reports(eval_run, out / f"benchmark-{run_id[:8]}")
+        from evaluation.gate import compute_gate_report, load_gate_config
+        from models.evaluation import ValidationStatus
+
+        val_statuses = []
+        degraded = 0
+        for r in results:
+            if r.validation_status:
+                val_statuses.append(ValidationStatus(r.validation_status))
+            else:
+                val_statuses.append(ValidationStatus.INCOMPLETE)
+            if r.judge_status == "degraded":
+                degraded += 1
+        cfg = load_gate_config()
+        gate = compute_gate_report(
+            val_statuses,
+            threshold=float(cfg.get("gate_threshold", 0.9)),
+            judge_degraded=degraded,
+        )
+        gate_path = out / f"benchmark-{run_id[:8]}" / "trajectory_gate.txt"
+        gate_path.write_text(gate.format_summary())
         if parent_id:
             mlflow.log_artifacts(str(out / f"benchmark-{run_id[:8]}"))
         return eval_run

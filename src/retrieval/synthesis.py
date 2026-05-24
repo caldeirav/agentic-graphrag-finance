@@ -27,6 +27,14 @@ from tracing.console_trace.llm import traced_llm_invoke
 from retrieval.orchestration.state import AgentState
 
 
+def _tag_synthesis_path(result: dict, path: str) -> dict:
+    out = dict(result)
+    out["synthesis_path"] = path
+    if path == "deterministic_fallback":
+        out["synthesis_yoy_fallback"] = True
+    return out
+
+
 def synthesize(state: AgentState) -> dict:
     if state.get("macro_binding_failed") and state.get("answer") is not None:
         return {
@@ -57,21 +65,27 @@ def synthesize(state: AgentState) -> dict:
     temporal_anchor = _resolve_temporal_anchor(state)
 
     if os.environ.get("USE_MOCK_LLM", "0") == "1":
-        return _synthesize_template(
-            evidence,
-            query,
-            filing_set,
-            temporal_anchor=temporal_anchor,
-            state=state,
+        return _tag_synthesis_path(
+            _synthesize_template(
+                evidence,
+                query,
+                filing_set,
+                temporal_anchor=temporal_anchor,
+                state=state,
+            ),
+            "template",
         )
 
     try:
-        return _synthesize_with_llm(
-            evidence,
-            query,
-            filing_set,
-            temporal_anchor=temporal_anchor,
-            state=state,
+        return _tag_synthesis_path(
+            _synthesize_with_llm(
+                evidence,
+                query,
+                filing_set,
+                temporal_anchor=temporal_anchor,
+                state=state,
+            ),
+            "live_llm",
         )
     except Exception as exc:
         if not is_context_length_error(exc):
@@ -88,7 +102,7 @@ def synthesize(state: AgentState) -> dict:
             budget=fallback,
         )
         result["synthesis_retry_budget"] = True
-        return result
+        return _tag_synthesis_path(result, "live_llm")
 
 
 def _synthesize_template(

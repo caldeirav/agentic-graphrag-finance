@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0.0",
+  "query_id": "550e8400-e29b-41d4-a716-446655440003",
+  "query_text": "test",
+  "issuer_id": "AAPL",
+  "snapshot_id": "snap-test",
+  "mlflow_run_id": "run-test",
+  "status": "ERROR",
+  "synthesis_path": "template",
+  "absent_reason": "macro_binding_failed",
+  "plan": {
+    "intent_summary": "attempted YoY bind",
+    "steps_considered": [],
+    "chosen_path_rationale": "macro binding failed validation",
+    "rejected_alternatives": []
+  },
+  "document_route": [],
+  "graph_traversal": [],
+  "evidence": []
+}

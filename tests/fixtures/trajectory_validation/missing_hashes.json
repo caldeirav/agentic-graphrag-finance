@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0.0",
+  "query_id": "550e8400-e29b-41d4-a716-446655440001",
+  "query_text": "test",
+  "issuer_id": "AAPL",
+  "snapshot_id": "snap-test",
+  "mlflow_run_id": "run-test",
+  "status": "SUCCESS",
+  "synthesis_path": "template",
+  "plan": {
+    "intent_summary": "test",
+    "steps_considered": [],
+    "chosen_path_rationale": "test",
+    "rejected_alternatives": []
+  },
+  "document_route": [
+    {"accession": "0000320193-24-000123", "form_type": "10-K", "period_end": "2024-09-28"}
+  ],
+  "graph_traversal": [
+    {
+      "hop_index": 0,
+      "stage": "meso",
+      "node_id": "0000320193-24-000123::section:mda",
+      "node_type": "section",
+      "edge_type": "CONTAINS",
+      "accession_prefix": "0000320193-24-000123"
+    }
+  ],
+  "evidence": [
+    {
+      "chunk_node_id": "c1",
+      "content_hash": "",
+      "citation_label": "",
+      "source_type": "numeric",
+      "accession": "0000320193-24-000123",
+      "in_prompt": true
+    }
+  ]
+}
