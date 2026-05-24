@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from models.enums import GraphEdgeType, GraphNodeType
 from models.graph import GraphEdge, GraphManifest, GraphNode, GraphSnapshot
 from models.parsing import ParsedDocument
+from graph.section_ontology import section_node_properties, xbrl_bucket_properties
 from parsing.xbrl_facts import (
     consolidate_xbrl_fact_rows,
     fact_to_excerpt,
@@ -58,7 +59,7 @@ def build_snapshot(
                     node_id=sec_id,
                     node_type=GraphNodeType.SECTION,
                     label=sec.title,
-                    properties={"level": sec.level},
+                    properties=section_node_properties(sec),
                     source_ref=sec.section_id,
                 )
             )
@@ -112,7 +113,7 @@ def build_snapshot(
                             node_id=xbrl_section_id,
                             node_type=GraphNodeType.SECTION,
                             label="XBRL Financial Facts",
-                            properties={"level": 0, "xbrl": True},
+                            properties=xbrl_bucket_properties(),
                             source_ref="xbrl",
                         )
                     )

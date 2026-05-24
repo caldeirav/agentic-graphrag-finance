@@ -37,6 +37,21 @@ def _normalize_comparison_mode(mode: ComparisonMode | None) -> ComparisonMode | 
     return mode
 
 
+def _intra_filing_yoy_xbrl(query: str, materialized: list[FilingRef]) -> bool:
+    """YoY revenue-style questions can compare periods inside one 10-K XBRL fact set."""
+    if len(materialized) != 1 or materialized[0].form_type != "10-K":
+        return False
+    q = query.lower()
+    if not any(
+        k in q
+        for k in ("year over year", "year-over-year", "yoy", "change", "compared", "versus")
+    ):
+        return False
+    return detect_quarterly_metric_cue(query) or any(
+        k in q for k in ("revenue", "sales", "net sales", "income", "earnings")
+    )
+
+
 def _has_yoy_and_qoq_cues(query: str) -> bool:
     q = query.lower()
     yoy = any(k in q for k in ("year over year", "year-over-year", "yoy", "same quarter last year"))
@@ -162,7 +177,8 @@ def validate_macro_binding(
             "Could not resolve filing binding from macro proposal against corpus manifest.",
         )
 
-    if proposal.proposed_accessions:
+    explicit_accessions = bool(proposal.proposed_accessions)
+    if explicit_accessions:
         expected = set(proposal.proposed_accessions)
         got = _accession_set(materialized)
         if got != expected:
@@ -181,6 +197,20 @@ def validate_macro_binding(
     mode = _normalize_comparison_mode(proposal.comparison_mode)
     if mode in (ComparisonMode.YOY, ComparisonMode.QOQ, ComparisonMode.SEQUENTIAL):
         if len(materialized) < 2:
+            if _intra_filing_yoy_xbrl(query, materialized):
+                fy_end = infer_fiscal_year_end_month(materialized)
+                label = fiscal_period_label(materialized[0], fiscal_year_end_month=fy_end).label
+                return BindingValidationResult(
+                    status=ValidationStatus.APPROVED,
+                    approved_accessions=[materialized[0].accession],
+                    comparison_mode=ComparisonMode.YOY,
+                    failure_codes=[],
+                    rationale=(
+                        f"{proposal.intent_summary or 'YoY comparison'} "
+                        f"Using single 10-K {materialized[0].accession} ({label}); "
+                        "compare fiscal periods via in-filing XBRL facts."
+                    ),
+                )
             single_narrow = _try_narrow(
                 materialized,
                 proposal,
@@ -193,17 +223,20 @@ def validate_macro_binding(
                 "Comparison requires at least two filings; corpus is too sparse.",
                 comparison_mode=mode,
             )
-        expected_pair = materialize_proposal_filings(
-            proposal.model_copy(update={"proposed_accessions": []}),
-            snapshot,
-            query=query,
-        )
-        if expected_pair and _accession_set(expected_pair) != _accession_set(materialized):
-            return _failure(
-                [MisalignmentCode.INVALID_PAIRING.value],
-                "Explicit proposal accessions do not match manifest pairing rules.",
-                comparison_mode=mode,
+        # Planner-chosen accessions already validated above; do not re-pair with
+        # quarterly_metric_cue (e.g. "net sales" + YoY may still mean annual 10-K).
+        if not explicit_accessions:
+            expected_pair = materialize_proposal_filings(
+                proposal.model_copy(update={"proposed_accessions": []}),
+                snapshot,
+                query=query,
             )
+            if expected_pair and _accession_set(expected_pair) != _accession_set(materialized):
+                return _failure(
+                    [MisalignmentCode.INVALID_PAIRING.value],
+                    "Resolved filings do not match manifest pairing rules.",
+                    comparison_mode=mode,
+                )
 
     if len(materialized) == 1 and proposal.is_comparison:
         narrowed = _try_narrow(

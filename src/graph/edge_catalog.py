@@ -22,8 +22,7 @@ CROSS_FILING_EDGE_TYPES: frozenset[GraphEdgeType] = frozenset(
     }
 )
 
-AGENT_TRAVERSAL_POLICY: frozenset[GraphEdgeType] = frozenset(
-    STRUCTURAL_EDGE_TYPES | CROSS_FILING_EDGE_TYPES
-)
+# Agent meso/micro hops: structural only (009); cross-filing via macro binding per filing root.
+AGENT_TRAVERSAL_POLICY: frozenset[GraphEdgeType] = STRUCTURAL_EDGE_TYPES
 
 STRUCTURAL_EDGE_TYPE_VALUES: list[str] = [e.value for e in STRUCTURAL_EDGE_TYPES]

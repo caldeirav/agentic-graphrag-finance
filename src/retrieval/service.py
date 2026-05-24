@@ -85,6 +85,10 @@ class QueryService:
             from tracing.mlflow_langgraph import log_macro_binding
 
             log_macro_binding(run_id, result["macro_binding_record"])
+        if run_id and result.get("navigation_trace") is not None:
+            from tracing.mlflow_langgraph import log_navigation_trace
+
+            log_navigation_trace(run_id, result["navigation_trace"])
         if run_id and result.get("intent_trace") is not None:
             log_intent_router(run_id, result["intent_trace"])
         traj_uri = log_trajectory(run_id, trajectory) if run_id else ""

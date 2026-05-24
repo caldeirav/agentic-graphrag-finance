@@ -23,10 +23,30 @@ def test_cmd(
         "--macro-binding",
         help="Run FinAgentBench macro_binding.jsonl slice (008); requires materialized snapshot",
     ),
+    gold_path: bool = typer.Option(
+        False,
+        "--gold-path",
+        help="Run gold-path navigation reachability slice (009)",
+    ),
     as_json: bool = typer.Option(False, "--json"),
 ) -> None:
     if not ticker and not cik and not accession:
         raise typer.BadParameter("Provide --ticker, --cik, or --accession")
+
+    if gold_path:
+        from cli.gold_path_eval import run_gold_path_eval
+
+        report = run_gold_path_eval()
+        if as_json:
+            typer.echo(json.dumps(report, indent=2))
+        else:
+            typer.echo(
+                f"gold_path_reach={report['chunk_reach_rate']:.1%} "
+                f"path_match={report['path_match_rate']:.1%} ({report['hits']}/{report['total']})"
+            )
+        if not report.get("passed"):
+            raise typer.Exit(code=1)
+        return
 
     if macro_binding:
         from cli.macro_binding_eval import run_macro_binding_eval

@@ -18,7 +18,10 @@ from retrieval.context_budget import (
     is_context_length_error,
     trim_prompt_text,
 )
-from retrieval.evidence_scope import filter_evidence_for_filing_set
+from retrieval.evidence_scope import (
+    filter_evidence_for_filing_set,
+    period_matches_anchor,
+)
 from retrieval.orchestration.llm import create_chat_llm
 from tracing.console_trace.llm import traced_llm_invoke
 from retrieval.orchestration.state import AgentState
@@ -136,14 +139,18 @@ def _synthesize_template(
             f"(from SEC XBRL evidence)."
         )
     else:
-        cited_numbers = _extract_numbers_from_evidence(evidence)
-        parts = [f"Based on {len(evidence)} evidence chunk(s) from SEC filings:"]
-        for i, chunk in enumerate(evidence[:5], 1):
-            src = getattr(chunk.source_type, "value", str(chunk.source_type))
-            parts.append(f"[{i}] [{src}] ({chunk.citation_label}): {chunk.excerpt[:300]}")
-        answer_text = "\n".join(parts)
-        if cited_numbers:
-            answer_text += f"\nReferenced values from source: {', '.join(cited_numbers[:10])}"
+        yoy_text = _synthesize_yoy_net_sales(evidence, filing_set, query, state=state)
+        if yoy_text:
+            answer_text = yoy_text
+        else:
+            cited_numbers = _extract_numbers_from_evidence(evidence)
+            parts = [f"Based on {len(evidence)} evidence chunk(s) from SEC filings:"]
+            for i, chunk in enumerate(evidence[:5], 1):
+                src = getattr(chunk.source_type, "value", str(chunk.source_type))
+                parts.append(f"[{i}] [{src}] ({chunk.citation_label}): {chunk.excerpt[:300]}")
+            answer_text = "\n".join(parts)
+            if cited_numbers:
+                answer_text += f"\nReferenced values from source: {', '.join(cited_numbers[:10])}"
     return {
         "answer": AnswerPackage(
             text=answer_text,
@@ -279,11 +286,36 @@ def _synthesize_with_llm(
             "Focus on qualitative disclosures, not taxonomy numbers."
         )
     else:
+        yoy_query = any(
+            k in query.lower()
+            for k in ("year over year", "year-over-year", "yoy", "compared to last year")
+        )
+        macro_plan = state.get("macro_plan") if state else None
+        if macro_plan and getattr(macro_plan.temporal_scope, "comparison_mode", None):
+            from models.enums import ComparisonMode
+
+            yoy_query = yoy_query or macro_plan.temporal_scope.comparison_mode == ComparisonMode.YOY
+        yoy_extra = ""
+        if yoy_query and len(filing_set) >= 2:
+            yoy_extra = (
+                "- This is a year-over-year comparison: use RevenueFromContractWithCustomer "
+                "(or equivalent net sales/revenue) from EACH bound annual filing, one figure per "
+                "fiscal year, then state the change.\n"
+            )
+        ignore_prior = (
+            ""
+            if yoy_query
+            else (
+                "- Ignore prior-year comparative XBRL periods unless the question explicitly "
+                "asks for year-over-year comparison.\n"
+            )
+        )
         instructions = (
             "- Give a direct, definitive answer in the first sentence (include dollar amounts and period when present).\n"
             "- Use XBRL fact lines that match the question (e.g. RevenueFromContractWithCustomer for net sales/revenue).\n"
             f"- {temporal_guidance}\n"
-            "- Ignore prior-year comparative XBRL periods unless the question explicitly asks for year-over-year comparison.\n"
+            f"{yoy_extra}"
+            f"{ignore_prior}"
             "- Do not list raw table IDs; cite fact concepts or filing sections.\n"
             "- If no evidence matches the bound period, say so explicitly."
         )
@@ -313,8 +345,24 @@ Instructions:
         HumanMessage(content=prompt),
     ]
     resp, trace_patch = traced_llm_invoke("synthesize", llm, messages)
-    text = _message_content_to_text(resp.content).strip()
+    text = _response_text(resp).strip()
     if not text:
+        yoy_text = _synthesize_yoy_net_sales(
+            evidence, filing_set, query, state=state
+        )
+        if yoy_text:
+            out = {
+                "answer": AnswerPackage(
+                    text=yoy_text,
+                    citations=evidence[: len(prompt_evidence)],
+                    sufficiency=Sufficiency.COMPLETE,
+                ),
+                "status": QueryStatus.SUCCESS,
+                "synthesis_fallback": "yoy_deterministic",
+            }
+            if trace_patch.get("trace_events"):
+                out["trace_events"] = trace_patch["trace_events"]
+            return out
         return _synthesize_template(
             evidence,
             query,
@@ -329,6 +377,7 @@ Instructions:
         filing_set=filing_set,
         temporal_anchor=temporal_anchor,
         period_ends=period_ends,
+        state=state,
     )
     out = {
         "answer": AnswerPackage(
@@ -351,10 +400,26 @@ def _correct_revenue_denial(
     filing_set: list[FilingRef],
     temporal_anchor: str,
     period_ends: str,
+    state: AgentState | None = None,
 ) -> str:
     """When XBRL revenue for the bound period is in evidence, do not accept LLM refusals."""
-    if "revenue" not in query.lower():
+    if not _is_revenue_metric_query(query):
         return text
+    yoy_text = _synthesize_yoy_net_sales(evidence, filing_set, query, state=state)
+    if yoy_text and _is_yoy_revenue_query(query, state, filing_set):
+        lower = text.lower()
+        if any(
+            p in lower
+            for p in (
+                "not reported",
+                "not available",
+                "no revenue",
+                "cannot",
+                "unable",
+                "insufficient",
+            )
+        ):
+            return yoy_text
     lower = text.lower()
     refusal_phrases = (
         "not reported",
@@ -404,21 +469,160 @@ def _best_revenue_excerpt(
     return best[1] if best else ""
 
 
+_THINK_OPEN = "<" + "think" + ">"
+_THINK_CLOSE = "<" + "/" + "think" + ">"
+
+
+def _strip_model_thinking(text: str) -> str:
+    while _THINK_OPEN in text:
+        start = text.index(_THINK_OPEN)
+        end = text.find(_THINK_CLOSE, start)
+        if end < 0:
+            return text[:start].strip()
+        text = text[:start] + text[end + len(_THINK_CLOSE) :]
+    return text.strip()
+
+
 def _message_content_to_text(content: object) -> str:
+    if content is None:
+        return ""
     if isinstance(content, str):
-        return content
+        return _strip_model_thinking(content)
     if isinstance(content, list):
         parts: list[str] = []
         for block in content:
             if isinstance(block, str):
                 parts.append(block)
             elif isinstance(block, dict):
-                if block.get("type") == "text":
+                if block.get("type") in ("text", "output_text"):
                     parts.append(str(block.get("text", "")))
-                elif "text" in block:
-                    parts.append(str(block["text"]))
-        return "\n".join(p for p in parts if p)
-    return str(content)
+                else:
+                    for key in ("text", "content", "output"):
+                        if block.get(key):
+                            parts.append(str(block[key]))
+                            break
+        return _strip_model_thinking("\n".join(p for p in parts if p))
+    return _strip_model_thinking(str(content))
+
+
+def _response_text(resp: object) -> str:
+    """Normalize LangChain / LM Studio chat responses to plain answer text."""
+    if resp is None:
+        return ""
+    text_attr = getattr(resp, "text", None)
+    if isinstance(text_attr, str) and text_attr.strip():
+        return _strip_model_thinking(text_attr)
+    text = _message_content_to_text(getattr(resp, "content", None))
+    if text.strip():
+        return text
+    extra = getattr(resp, "additional_kwargs", None) or {}
+    if isinstance(extra, dict):
+        for key in ("content", "reasoning_content", "refusal"):
+            val = extra.get(key)
+            if isinstance(val, str) and val.strip():
+                return _strip_model_thinking(val)
+    return ""
+
+
+def _is_revenue_metric_query(query: str) -> bool:
+    q = query.lower()
+    return any(k in q for k in ("revenue", "net sales", "total sales", "sales"))
+
+
+def _is_yoy_revenue_query(
+    query: str,
+    state: AgentState | None,
+    filing_set: list[FilingRef],
+) -> bool:
+    if len(filing_set) < 2:
+        return False
+    q = query.lower()
+    yoy = any(
+        k in q
+        for k in ("year over year", "year-over-year", "yoy", "compared to last year")
+    )
+    if state:
+        macro = state.get("macro_plan")
+        if macro and getattr(macro.temporal_scope, "comparison_mode", None):
+            from models.enums import ComparisonMode
+
+            yoy = yoy or macro.temporal_scope.comparison_mode == ComparisonMode.YOY
+    return yoy and _is_revenue_metric_query(query)
+
+
+def _parse_billions_from_excerpt(excerpt: str) -> float | None:
+    m = re.search(r"\$([\d,.]+)\s+billion", excerpt, re.I)
+    if not m:
+        return None
+    try:
+        return float(m.group(1).replace(",", ""))
+    except ValueError:
+        return None
+
+
+def _revenue_chunk_for_filing(
+    evidence: list[EvidenceChunk],
+    filing: FilingRef,
+) -> EvidenceChunk | None:
+    doc_id = f"doc-{filing.accession}"
+    anchors = [filing.period_end]
+    candidates: list[EvidenceChunk] = []
+    for chunk in evidence:
+        if not chunk.chunk_node_id.startswith(doc_id):
+            continue
+        if "RevenueFromContract" not in chunk.excerpt:
+            continue
+        if not period_matches_anchor(None, anchors, excerpt=chunk.excerpt):
+            continue
+        candidates.append(chunk)
+    if not candidates:
+        return None
+    return max(
+        candidates,
+        key=lambda c: _parse_billions_from_excerpt(c.excerpt) or 0.0,
+    )
+
+
+def _synthesize_yoy_net_sales(
+    evidence: list[EvidenceChunk],
+    filing_set: list[FilingRef],
+    query: str,
+    *,
+    state: AgentState | None = None,
+) -> str | None:
+    """Deterministic YoY net sales answer from per-filing RevenueFromContract facts."""
+    if not _is_yoy_revenue_query(query, state, filing_set):
+        return None
+    ordered = sorted(filing_set, key=lambda f: f.period_end, reverse=True)
+    fy_end = infer_fiscal_year_end_month(filing_set)
+    rows: list[tuple[str, float, FilingRef]] = []
+    for filing in ordered:
+        chunk = _revenue_chunk_for_filing(evidence, filing)
+        if chunk is None:
+            continue
+        val = _parse_billions_from_excerpt(chunk.excerpt)
+        if val is None:
+            continue
+        label = FiscalPeriodLabel.from_filing(filing, fiscal_year_end_month=fy_end).label
+        rows.append((label, val, filing))
+    if len(rows) < 2:
+        return None
+    label_new, val_new, _ = rows[0]
+    label_old, val_old, _ = rows[1]
+    delta = val_new - val_old
+    pct = (delta / val_old) * 100.0 if val_old else 0.0
+    if delta > 0:
+        direction = "increased"
+    elif delta < 0:
+        direction = "decreased"
+    else:
+        direction = "was unchanged"
+    return (
+        f"Total net sales {direction} year over year, from ${val_old:.2f} billion in {label_old} "
+        f"to ${val_new:.2f} billion in {label_new} "
+        f"({delta:+.2f} billion, {pct:+.1f}%), per "
+        f"RevenueFromContractWithCustomerExcludingAssessedTax in the bound 10-K filings."
+    )
 
 
 def _extract_numbers_from_evidence(evidence: list[EvidenceChunk]) -> list[str]:

@@ -1,0 +1,13 @@
+meso:
+  discovery_mode: toc_planner
+  max_hops_per_filing: 24
+  max_visits_per_filing: 80
+micro:
+  max_hops_per_section: 12
+  max_visits_per_section: 40
+query:
+  max_total_visits: 200
+llm:
+  max_candidates_per_proposal: 3
+handoff:
+  top_sections_per_filing: 3

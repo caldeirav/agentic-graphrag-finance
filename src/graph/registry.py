@@ -143,7 +143,15 @@ def probe_stale_filings(
     max_filed = max(r.filed_at for r in snapshot.manifest.filing_refs)
     snapshot_accessions = {r.accession for r in snapshot.manifest.filing_refs}
     try:
-        recent = list_recent_filings(cik=cik, ticker=issuer, max_per_form=4)
+        from ingestion.corpus import load_corpus_defaults, trailing_counts_from_config
+
+        cfg = load_corpus_defaults()
+        trailing_10k, trailing_10q = trailing_counts_from_config(cfg)
+        recent = list_recent_filings(
+            cik=cik,
+            ticker=issuer,
+            max_per_form=max(trailing_10k, trailing_10q, 8),
+        )
     except Exception:
         return []
     newer: list[FilingRef] = []

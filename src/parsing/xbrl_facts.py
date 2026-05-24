@@ -21,6 +21,18 @@ _QUERY_CONCEPT_HINTS: dict[str, re.Pattern[str]] = {
     "debt": re.compile(r"Debt|Borrow", re.I),
 }
 
+_REVENUE_CONCEPT = re.compile(
+    r"RevenueFromContract|NetSales|TotalRevenues?|SalesRevenueNet",
+    re.I,
+)
+
+# "sales" in a query must not match AvailableForSale / proceeds-from-sale line items.
+_SECURITIES_SALES_FALSE_POSITIVE = re.compile(
+    r"AvailableForSale|ProceedsFromSale|SaleOfStock|SalesTypeLease|"
+    r"SecuritiesSold|DebtSecurities.*Sale|SaleMaturity|SaleOfAvailable",
+    re.I,
+)
+
 
 def consolidate_xbrl_fact_rows(rows: list[list[str]]) -> list[tuple[str, dict[str, str]]]:
     """Group flat key-value rows into one record per concept value instance (all contexts)."""
@@ -102,6 +114,33 @@ def concepts_for_query(query: str) -> re.Pattern[str] | None:
         if hint in q:
             return pattern
     return None
+
+
+def is_revenue_concept(concept: str) -> bool:
+    return bool(_REVENUE_CONCEPT.search(concept))
+
+
+def is_securities_sales_false_positive(concept: str) -> bool:
+    return bool(_SECURITIES_SALES_FALSE_POSITIVE.search(concept))
+
+
+def is_revenue_query(query: str) -> bool:
+    q = query.lower()
+    return any(k in q for k in ("revenue", "net sales", "total sales", "sales"))
+
+
+def xbrl_concept_matches_query(concept: str, query: str) -> bool:
+    """Match XBRL taxonomy names to a financial query without securities false positives."""
+    if not concept:
+        return False
+    if is_securities_sales_false_positive(concept):
+        return False
+    if is_revenue_query(query) and is_revenue_concept(concept):
+        return True
+    pat = concepts_for_query(query)
+    if pat and pat.search(concept):
+        return True
+    return False
 
 
 def select_facts_for_index(

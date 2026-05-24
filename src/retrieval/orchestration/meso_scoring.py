@@ -2,7 +2,23 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
+
+_MDA_QUERY = re.compile(
+    r"\b(md&a|mda|management['\u2019]s discussion|management discussion|"
+    r"managements discussion)\b",
+    re.I,
+)
+_RISK_QUERY = re.compile(r"\b(risk|factor|factors|item\s*1a)\b", re.I)
+
+
+def is_mda_query(query: str) -> bool:
+    return bool(_MDA_QUERY.search(query))
+
+
+def is_risk_only_query(query: str) -> bool:
+    return bool(_RISK_QUERY.search(query)) and not is_mda_query(query)
 
 
 def score_section(
@@ -54,27 +70,43 @@ def score_section(
         components["xbrl_numeric_query"] = 2.0
         score += 2.0
 
+    if prefer_html and ("xbrl-facts" in node_id or "xbrl facts" in label_lower):
+        if is_mda_query(q) or any(
+            k in q for k in ("risk", "management", "discussion", "policy", "footnote")
+        ):
+            components["xbrl_bucket_penalty"] = -4.0
+            score -= 4.0
+
     if prefer_html and ("html-" in node_id or section_id_lower.startswith("html")):
         components["html_preference"] = 2.5
         score += 2.5
 
-    risk_query = prefer_html and any(k in q for k in ("risk", "factor", "factors", "1a"))
-    if risk_query:
+    if prefer_html and is_mda_query(q):
+        if "md_and_a" in section_id_lower or "html-md" in node_id:
+            components["mda_section_boost"] = 15.0
+            score += 15.0
+        if any(
+            k in label_lower
+            for k in ("management", "discussion", "analysis", "md&a", "mda")
+        ):
+            components["mda_label_boost"] = 8.0
+            score += 8.0
+        if "risk_factors" in section_id_lower or "html-risk" in node_id:
+            components["mda_query_risk_item_penalty"] = -4.0
+            score -= 4.0
+    elif prefer_html and is_risk_only_query(q):
         if "risk_factors" in section_id_lower or "html-risk" in node_id:
             components["risk_section_boost"] = 12.0
             score += 12.0
-        elif "md_and_a" in section_id_lower or "md&a" in label_lower:
-            components["risk_query_mda_penalty"] = -2.0
-            score -= 2.0
-    elif prefer_html and any(k in q for k in ("risk", "factor")):
+    elif prefer_html and _RISK_QUERY.search(q):
         if any(
             k in label_lower or section_id_lower
-            for k in ("risk", "1a", "html-risk")
+            for k in ("risk", "1a", "html-risk", "risk_factors")
         ):
             components["risk_keyword"] = 3.0
             score += 3.0
 
-    if prefer_html and not risk_query and any(
+    if prefer_html and not is_mda_query(q) and any(
         k in label_lower for k in ("risk", "management", "md&a", "business", "item 7")
     ):
         components["html_narrative_label"] = 0.8

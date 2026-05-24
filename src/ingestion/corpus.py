@@ -41,21 +41,45 @@ def _issuer_cik_ticker(issuer_id: str) -> tuple[str, str]:
 def load_corpus_defaults(config_path: Path | None = None) -> dict:
     path = config_path or Path("configs/corpus.yaml")
     if not path.exists():
-        return {"max_filings": 12, "trailing_10k": 1, "trailing_10q": 4}
+        return {
+            "max_filings": 12,
+            "trailing_years": 2,
+            "trailing_10k": 2,
+            "trailing_10q": 8,
+        }
     return yaml.safe_load(path.read_text()) or {}
+
+
+def trailing_counts_from_config(cfg: dict) -> tuple[int, int]:
+    """Resolve trailing 10-K / 10-Q counts from corpus config."""
+    if cfg.get("trailing_years") is not None:
+        years = int(cfg["trailing_years"])
+        return years, years * 4
+    return int(cfg.get("trailing_10k", 2)), int(cfg.get("trailing_10q", 8))
 
 
 def default_corpus_definition(issuer_id: str, *, ticker: str | None = None) -> CorpusDefinition:
     cfg = load_corpus_defaults()
+    trailing_10k, trailing_10q = trailing_counts_from_config(cfg)
     key = (ticker or issuer_id).upper()
+    max_filings = max(
+        int(cfg.get("max_filings", 12)),
+        trailing_10k + trailing_10q,
+    )
+    trailing_years = cfg.get("trailing_years")
     return CorpusDefinition(
         issuer_id=key,
         mode=CorpusDefinitionMode.DEFAULT_TRAILING,
-        max_filings=int(cfg.get("max_filings", 12)),
-        trailing_10k=int(cfg.get("trailing_10k", 1)),
-        trailing_10q=int(cfg.get("trailing_10q", 4)),
+        max_filings=max_filings,
+        trailing_years=int(trailing_years) if trailing_years is not None else None,
+        trailing_10k=trailing_10k,
+        trailing_10q=trailing_10q,
         form_types=list(cfg.get("form_types", ["10-K", "10-Q"])),
     )
+
+
+def _list_max_per_form(definition: CorpusDefinition) -> int:
+    return max(definition.trailing_10k, definition.trailing_10q, 8)
 
 
 def _definition_hash(definition: CorpusDefinition) -> str:
@@ -83,7 +107,12 @@ def resolve_corpus_members(definition: CorpusDefinition) -> list[FilingResolutio
                 )
     elif definition.mode == CorpusDefinitionMode.DATE_RANGE:
         cik, ticker = _issuer_cik_ticker(definition.issuer_id)
-        pool = list_recent_filings(cik=cik, ticker=ticker, form_types=definition.form_types)
+        pool = list_recent_filings(
+            cik=cik,
+            ticker=ticker,
+            form_types=definition.form_types,
+            max_per_form=_list_max_per_form(definition),
+        )
         resolutions = []
         for res in pool:
             if definition.period_start and res.period_end < definition.period_start:
@@ -93,7 +122,12 @@ def resolve_corpus_members(definition: CorpusDefinition) -> list[FilingResolutio
             resolutions.append(res)
     else:
         cik, ticker = _issuer_cik_ticker(definition.issuer_id)
-        pool = list_recent_filings(cik=cik, ticker=ticker, form_types=definition.form_types)
+        pool = list_recent_filings(
+            cik=cik,
+            ticker=ticker,
+            form_types=definition.form_types,
+            max_per_form=_list_max_per_form(definition),
+        )
         tens_k = [r for r in pool if r.form_type == "10-K"][: definition.trailing_10k]
         tens_q = [r for r in pool if r.form_type == "10-Q"][: definition.trailing_10q]
         resolutions = tens_k + tens_q

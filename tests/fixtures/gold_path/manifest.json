@@ -1,0 +1,5 @@
+{
+  "snapshot_id": "macro-test",
+  "issuer_id": "AAPL",
+  "description": "Use aapl_macro_snapshot or sample_graph_snapshot in tests"
+}

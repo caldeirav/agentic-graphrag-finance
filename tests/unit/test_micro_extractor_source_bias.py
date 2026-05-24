@@ -1,5 +1,5 @@
 from models.enums import EvidenceSourceType, SourceBias
-from retrieval.orchestration.nodes.micro_extractor import _source_bias_multiplier
+from retrieval.orchestration.micro_scoring import source_bias_multiplier as _source_bias_multiplier
 
 
 def test_xbrl_primary_bias() -> None:

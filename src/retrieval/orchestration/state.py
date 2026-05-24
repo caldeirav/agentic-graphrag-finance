@@ -55,3 +55,4 @@ class AgentState(TypedDict, total=False):
     cli_prebound: bool | None
     binding_deferred: bool | None
     synthesis_retry_budget: bool | None
+    navigation_trace: Any | None

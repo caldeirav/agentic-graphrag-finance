@@ -11,6 +11,8 @@ import yaml
 
 from models.enums import EvidenceSourceType, QueryIntent
 from models.query import EvidenceChunk
+from parsing.xbrl_facts import is_revenue_concept, is_revenue_query
+from retrieval.orchestration.meso_scoring import is_mda_query
 
 _CHARS_PER_TOKEN = 3.2
 _TEMPLATE_RESERVE_TOKENS = 900
@@ -197,15 +199,33 @@ def compact_evidence_for_llm(
     if query_intent == QueryIntent.QUALITATIVE:
         html = [c for c in pool if _is_html(c)]
         if html:
-            if "risk" in query.lower():
-                html = [
+            q = query.lower()
+            mda_targeted = is_mda_query(q)
+            if "risk" in q and not mda_targeted:
+                filtered = [
                     c
                     for c in html
                     if "risk" in c.excerpt.lower()
                     or "risk" in (c.section_id or "").lower()
                 ]
-            pool = sorted(html, key=lambda c: len(c.excerpt), reverse=True) or html
-        pool = pool[:max_chunks]
+                html = filtered or html
+            elif mda_targeted:
+                mda_chunks = [
+                    c
+                    for c in html
+                    if "md_and_a" in (c.section_id or "").lower()
+                    or "mda" in (c.section_id or "").lower()
+                ]
+                html = mda_chunks or html
+            pool = sorted(html, key=lambda c: len(c.excerpt), reverse=True)
+        if not pool:
+            pool = list(evidence)[:max_chunks]
+        else:
+            pool = pool[:max_chunks]
+    elif is_revenue_query(query):
+        revenue = [c for c in pool if is_revenue_concept(c.excerpt) or is_revenue_concept(c.citation_label)]
+        rest = [c for c in pool if c not in revenue]
+        pool = (revenue + rest)[:max_chunks]
     else:
         pool = pool[:max_chunks]
 

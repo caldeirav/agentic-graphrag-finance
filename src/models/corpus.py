@@ -68,8 +68,9 @@ class CorpusDefinition(BaseModel):
     mode: CorpusDefinitionMode = CorpusDefinitionMode.DEFAULT_TRAILING
     form_types: list[str] = Field(default_factory=lambda: ["10-K", "10-Q"])
     max_filings: int = 12
-    trailing_10k: int = 1
-    trailing_10q: int = 4
+    trailing_years: int | None = None
+    trailing_10k: int = 2
+    trailing_10q: int = 8
     accessions: list[str] = Field(default_factory=list)
     period_start: date | None = None
     period_end: date | None = None

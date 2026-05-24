@@ -147,6 +147,16 @@ def log_trajectory(run_id: str, trajectory: TrajectoryRecord) -> str:
     return f"{uri}/runs/{run_id}/artifacts/{path}"
 
 
+def log_navigation_trace(run_id: str, record: Any) -> str:
+    setup_mlflow()
+    client = mlflow.tracking.MlflowClient()
+    payload = record.to_trajectory_dict() if hasattr(record, "to_trajectory_dict") else record
+    path = "navigation_trace.json"
+    client.log_dict(run_id, payload, path)
+    uri = mlflow.get_tracking_uri()
+    return f"{uri}/runs/{run_id}/artifacts/{path}"
+
+
 def log_macro_binding(run_id: str, record: Any) -> str:
     setup_mlflow()
     client = mlflow.tracking.MlflowClient()
@@ -161,23 +171,33 @@ def build_trajectory_from_state(state: dict[str, Any]) -> TrajectoryRecord:
     from models.enums import QueryStatus
     from models.query import GraphVisit
 
-    visits = [
-        GraphVisit(
-            node_id=v.get("node_id", ""),
-            stage=v.get("stage", "meso"),
-            path_edge_types=list(v.get("path_edge_types") or []),
-            path_node_ids=list(v.get("path_node_ids") or []),
+    visits = []
+    for v in state.get("graph_traversal", []):
+        if not isinstance(v, dict):
+            continue
+        edge_types = list(v.get("path_edge_types") or [])
+        if v.get("edge_type") and not edge_types:
+            edge_types = [str(v.get("edge_type"))]
+        visits.append(
+            GraphVisit(
+                node_id=v.get("node_id", ""),
+                stage=v.get("stage", "meso"),
+                path_edge_types=edge_types,
+                path_node_ids=list(v.get("path_node_ids") or []),
+            )
         )
-        for v in state.get("graph_traversal", [])
-        if isinstance(v, dict)
-    ]
     macro_binding = None
     record = state.get("macro_binding_record")
     if record is not None and hasattr(record, "to_trajectory_dict"):
         macro_binding = record.to_trajectory_dict()
+    nav_trace = None
+    nt = state.get("navigation_trace")
+    if nt is not None:
+        nav_trace = nt.to_trajectory_dict() if hasattr(nt, "to_trajectory_dict") else nt
     return TrajectoryRecord(
         plan=state.get("macro_plan"),
         macro_binding=macro_binding,
+        navigation_trace=nav_trace,
         intent_router=state.get("intent_trace"),
         document_route=state.get("filing_set") or [],
         graph_traversal=visits,

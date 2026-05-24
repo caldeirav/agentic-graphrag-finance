@@ -6,8 +6,14 @@ import re
 from typing import Any
 
 from models.enums import EvidenceSourceType, SourceBias
-from parsing.xbrl_facts import concepts_for_query
+from parsing.xbrl_facts import (
+    concepts_for_query,
+    is_revenue_concept,
+    is_revenue_query,
+    is_securities_sales_false_positive,
+)
 from retrieval.evidence_scope import period_alignment_score
+from retrieval.orchestration.meso_scoring import is_mda_query
 
 _FINANCIAL_QUERY = re.compile(
     r"\b(revenue|sales|income|earnings|profit|assets|liabilities|cash|eps|margin|"
@@ -68,7 +74,17 @@ def qualitative_keyword_boost(
     boost = 0.0
     if "risk" in q and "risk" in ex:
         boost += 10.0
-    if any(k in q for k in ("md&a", "management", "liquidity", "outlook")) and any(
+    if any(
+        k in q
+        for k in (
+            "md&a",
+            "mda",
+            "management discussion",
+            "management's discussion",
+        )
+    ) and any(k in ex for k in ("management", "md&a", "discussion", "analysis", "liquidity")):
+        boost += 10.0
+    elif any(k in q for k in ("management", "liquidity", "outlook")) and any(
         k in ex for k in ("management", "md&a", "discussion", "liquidity")
     ):
         boost += 6.0
@@ -77,12 +93,16 @@ def qualitative_keyword_boost(
     return boost
 
 
-def risk_excerpt_score_adjustment(excerpt: str, section_id: str) -> float:
+def risk_excerpt_score_adjustment(excerpt: str, section_id: str, *, query: str = "") -> float:
     ex = excerpt.lower()
     sid = section_id.lower()
     adjust = 0.0
     if "risk_factors" in sid:
         adjust += 4.0
+    if "md_and_a" in sid:
+        adjust += 6.0
+    if query and is_mda_query(query) and "risk_factors" in sid and "md_and_a" not in sid:
+        adjust -= 8.0
     if _RISK_CROSS_REF.search(ex) and len(excerpt) < 2500:
         adjust -= 12.0
     if _OFF_TOPIC_RISK_CHUNK.search(ex):
@@ -136,6 +156,14 @@ def score_chunk(
         components["financial_xbrl_boost"] = 3.0
         score += 3.0
 
+    concept = label or excerpt
+    if is_xbrl_fact and is_revenue_query(query) and is_revenue_concept(concept):
+        components["revenue_concept_boost"] = 20.0
+        score += 20.0
+    if is_xbrl_fact and is_revenue_query(query) and is_securities_sales_false_positive(concept):
+        components["securities_sales_penalty"] = -15.0
+        score -= 15.0
+
     if qualitative_only and node_source == EvidenceSourceType.HTML:
         html_base = 5.0
         components["html_qualitative_base"] = html_base
@@ -148,7 +176,7 @@ def score_chunk(
             score += 3.0
 
     if qualitative_only and _RISK_QUERY.search(query):
-        risk_adj = risk_excerpt_score_adjustment(excerpt, section_id)
+        risk_adj = risk_excerpt_score_adjustment(excerpt, section_id, query=query)
         if risk_adj:
             components["risk_excerpt_adjustment"] = round(risk_adj, 3)
             score += risk_adj

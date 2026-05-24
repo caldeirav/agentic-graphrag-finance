@@ -1,7 +1,9 @@
 # Multi-filing issuer corpus defaults (003)
+# ~2 fiscal years: 2 annual 10-K + 8 trailing 10-Q (4 quarters/year)
 max_filings: 12
-trailing_10k: 1
-trailing_10q: 4
+trailing_years: 2
+trailing_10k: 2
+trailing_10q: 8
 form_types:
   - "10-K"
   - "10-Q"

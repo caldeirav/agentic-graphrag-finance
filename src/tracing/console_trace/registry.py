@@ -79,6 +79,16 @@ def _render_meso_router(
     payload = (end.payload if end else {}) or {}
     if payload.get("candidate_count") is not None:
         lines.append(f"  candidate_count: {payload['candidate_count']}")
+    if payload.get("navigation_mode"):
+        lines.append(f"  navigation_mode: {payload['navigation_mode']}")
+    if payload.get("edge_types_used"):
+        lines.append(f"  edge_types_used: {payload['edge_types_used']}")
+    if payload.get("sample_path"):
+        lines.append(f"  sample_path: {payload['sample_path']}")
+    if payload.get("visit_count"):
+        lines.append(f"  visit_count: {payload['visit_count']}")
+    if payload.get("rejected_count") is not None:
+        lines.append(f"  rejected_count: {payload['rejected_count']}")
     if payload.get("top_section_ids"):
         lines.append(f"  top_section_ids: {payload['top_section_ids']}")
     for idx, sec in enumerate(payload.get("top_sections") or [], 1):
@@ -103,6 +113,16 @@ def _render_micro_extractor(
     lines = _header_lines(stage_id, events)
     end = _stage_end(events)
     payload = (end.payload if end else {}) or {}
+    if payload.get("navigation_mode"):
+        lines.append(f"  navigation_mode: {payload['navigation_mode']}")
+    if payload.get("edge_types_used"):
+        lines.append(f"  edge_types_used: {payload['edge_types_used']}")
+    if payload.get("sample_path"):
+        lines.append(f"  sample_path: {payload['sample_path']}")
+    if payload.get("visit_count"):
+        lines.append(f"  visit_count: {payload['visit_count']}")
+    if payload.get("rejected_count") is not None:
+        lines.append(f"  rejected_count: {payload['rejected_count']}")
     for key in ("count_before", "count_after", "source_bias"):
         if payload.get(key) is not None:
             lines.append(f"  {key}: {payload[key]}")
@@ -172,7 +192,12 @@ ASK_TRACE_REGISTRY: dict[str, TraceStageRegistration] = {
         title="Meso router",
         order=3,
         schema_version=2,
-        state_field_map=("section_candidates", "meso_section_trace", "graph_traversal"),
+        state_field_map=(
+            "section_candidates",
+            "meso_section_trace",
+            "graph_traversal",
+            "navigation_trace",
+        ),
         renderer=_render_meso_router,
     ),
     "micro_extractor": TraceStageRegistration(
@@ -185,6 +210,7 @@ ASK_TRACE_REGISTRY: dict[str, TraceStageRegistration] = {
             "micro_ranked_count",
             "micro_rank_trace",
             "graph_traversal",
+            "navigation_trace",
         ),
         renderer=_render_micro_extractor,
     ),

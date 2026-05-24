@@ -57,3 +57,16 @@ class FinAgentBenchDataset:
                 )
             )
         return items
+
+    def load_gold_path_slice(self, fixtures_dir: Path | None = None) -> list[dict]:
+        base = fixtures_dir or Path("tests/fixtures/gold_path")
+        path = base / "gold_path.jsonl"
+        if not path.exists():
+            path = self._dir / "gold_path.jsonl"
+        if not path.exists():
+            return []
+        rows: list[dict] = []
+        for line in path.read_text().splitlines():
+            if line.strip():
+                rows.append(json.loads(line))
+        return rows

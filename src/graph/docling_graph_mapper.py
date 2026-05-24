@@ -11,6 +11,7 @@ import re
 from collections import defaultdict
 
 from graph.edge_catalog import STRUCTURAL_EDGE_TYPES
+from graph.section_ontology import section_node_properties, xbrl_bucket_properties
 from models.enums import GraphEdgeType, GraphNodeType
 from models.graph import GraphEdge, GraphNode
 from models.graph_audit import FilingMaterializationResult, FilingMaterializationStatus
@@ -90,11 +91,7 @@ def map_filing(
                 node_id=sec_id,
                 node_type=GraphNodeType.SECTION,
                 label=sec.title,
-                properties={
-                    "level": sec.level,
-                    "section_id": sec.section_id,
-                    "source_type": sec_source,
-                },
+                properties=section_node_properties(sec),
                 source_ref=sec.section_id,
             )
         )
@@ -172,7 +169,7 @@ def map_filing(
                         node_id=xbrl_section_id,
                         node_type=GraphNodeType.SECTION,
                         label="XBRL Financial Facts",
-                        properties={"level": 0, "xbrl": True},
+                        properties=xbrl_bucket_properties(),
                         source_ref="xbrl",
                     )
                 )

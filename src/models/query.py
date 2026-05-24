@@ -31,6 +31,8 @@ class SectionCandidate(BaseModel):
     section_node_id: str
     score: float
     path: list[str] = Field(default_factory=list)
+    edge_types: list[str] = Field(default_factory=list)
+    accession: str = ""
 
 
 class IntentRouterTrace(BaseModel):
@@ -52,6 +54,8 @@ class EvidenceChunk(BaseModel):
     source_type: EvidenceSourceType = EvidenceSourceType.XBRL
     accession: str = ""
     section_id: str = ""
+    navigation_path_id: str = ""
+    edge_types: list[str] = Field(default_factory=list)
 
 
 class AnswerPackage(BaseModel):
@@ -71,6 +75,7 @@ class GraphVisit(BaseModel):
 class TrajectoryRecord(BaseModel):
     plan: MacroPlan | None = None
     macro_binding: dict | None = None
+    navigation_trace: dict | None = None
     intent_router: IntentRouterTrace | None = None
     document_route: list[FilingRef] = Field(default_factory=list)
     graph_traversal: list[GraphVisit] = Field(default_factory=list)

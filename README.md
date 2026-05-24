@@ -168,7 +168,7 @@ Start LM Studio, load your model (set context length to match `context_tokens` i
 uv run agent-query materialize --ticker AAPL
 ```
 
-Builds a versioned issuer snapshot under `data/graphs/AAPL/` (`index.json` + `{snapshot_id}.graphml` + `.manifest.json`) from the latest 10-K and trailing 10-Q filings (see `configs/corpus.yaml`).
+Builds a versioned issuer snapshot under `data/graphs/AAPL/` (`index.json` + `{snapshot_id}.graphml` + `.manifest.json`) from the trailing **two fiscal years** of 10-K and 10-Q filings (default: 2× 10-K + 8× 10-Q; see `configs/corpus.yaml`).
 
 ```bash
 # Re-download XBRL and rebuild graphs after parser or graph-builder changes
@@ -272,6 +272,20 @@ USE_MOCK_LLM=1 uv run pytest tests/integration/test_macro_binding_benchmark.py -
 ```
 
 Gates: ≥80% items require multi-filing, ≥70% exact accession-set match vs rubric. Trajectory artifact: MLflow `macro_binding.json` on every ask.
+
+#### Graph-native meso/micro navigation (009)
+
+Meso section discovery defaults to **TOC planner** (`configs/graph_navigation.yaml` → `meso.discovery_mode: toc_planner`): one LLM call per filing with a section table-of-contents (Item 1 / 1A / 7 / XBRL bucket tags from materialize). Micro walks only inside planner-selected sections and excludes kinds such as Item 1A when the question targets MD&A. Set `meso.discovery_mode: graph_walk` to restore hop-by-hop meso + heuristic section ranking.
+
+**Re-materialize** after upgrading so SECTION nodes carry `narrative_kind` / `item_number` (`graph/section_ontology.py`).
+
+```bash
+uv run agent-query materialize --ticker AAPL --force-refresh
+USE_MOCK_LLM=1 uv run agent-query ask --ticker AAPL --trace verbose --query "What are the principal risk factors discussed in MD&A?"
+USE_MOCK_LLM=1 uv run agent-query test --gold-path
+```
+
+Trajectory artifact: MLflow `navigation_trace.json` (includes `toc_plans`, `section_discovery_mode`). Gold-path fixture: `tests/fixtures/gold_path/gold_path.jsonl`.
 
 #### Test (offline / CI)
 

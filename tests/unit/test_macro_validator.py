@@ -17,6 +17,30 @@ def test_validate_prior_quarter_approved(aapl_macro_snapshot):
     assert result.approved_accessions[0] == "0000320193-26-000006"
 
 
+def test_validate_yoy_explicit_annual_accessions_approved(aapl_macro_snapshot):
+    """LLM-proposed 10-K pair must not be rejected by quarterly YoY re-pairing."""
+    snap = aapl_macro_snapshot
+    proposal = MacroBindingProposal(
+        intent_summary="Compare total net sales year over year using annual reports.",
+        comparison_mode=ComparisonMode.YOY,
+        is_comparison=True,
+        period_labels=["FY2025", "FY2024"],
+        proposed_accessions=["0000320193-25-000079", "0000320193-24-000123"],
+        quarterly_metric_cue=True,
+        proposal_source=ProposalSource.LLM,
+    )
+    result = validate_macro_binding(
+        proposal,
+        snap,
+        query="How did total net sales change year over year?",
+    )
+    assert result.status == ValidationStatus.APPROVED
+    assert set(result.approved_accessions) == {
+        "0000320193-25-000079",
+        "0000320193-24-000123",
+    }
+
+
 def test_validate_yoy_quarterly_approved(aapl_macro_snapshot):
     snap = aapl_macro_snapshot
     proposal = MacroBindingProposal(

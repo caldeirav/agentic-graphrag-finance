@@ -77,9 +77,19 @@ def build_intent_router_trace_payload(state: AgentState) -> dict:
     return {"decision_summary": summary, "payload": payload}
 
 
+def _navigation_payload(state: AgentState) -> dict:
+    nt = state.get("navigation_trace")
+    if nt is None:
+        return {}
+    if hasattr(nt, "to_trajectory_dict"):
+        return nt.to_trajectory_dict()
+    return nt if isinstance(nt, dict) else {}
+
+
 def build_meso_router_trace_payload(state: AgentState) -> dict:
     candidates = list(state.get("section_candidates") or [])
     section_trace = list(state.get("meso_section_trace") or [])
+    nav = _navigation_payload(state)
     cfg = load_trace_config_limits()
     limit = cfg["top_sections"]
     if not section_trace and candidates:
@@ -93,12 +103,33 @@ def build_meso_router_trace_payload(state: AgentState) -> dict:
         ]
     else:
         top = section_trace[:limit]
+    edge_types = nav.get("structural_edge_types_used") or []
+    sample_path = ""
+    ranks = nav.get("meso_ranks") or []
+    if ranks:
+        path = ranks[0].get("path", {}) if isinstance(ranks[0], dict) else {}
+        seq = path.get("edge_type_sequence") or []
+        sample_path = " → ".join(seq[:6])
+    toc_plans = nav.get("toc_plans") or []
+    discovery = nav.get("section_discovery_mode", "graph_native")
+    summary = f"graph-native: {len(candidates)} section candidate(s)"
+    if discovery == "toc_planner" and toc_plans:
+        primary = toc_plans[0].get("primary_narrative_kind", "")
+        summary = f"toc_planner ({primary}): {len(candidates)} section(s)"
     return {
-        "decision_summary": f"selected {len(candidates)} section candidate(s)",
+        "decision_summary": summary,
         "payload": {
+            "navigation_mode": "graph_native",
+            "section_discovery_mode": discovery,
+            "toc_plans": toc_plans[:2],
             "candidate_count": len(candidates),
-            "top_section_ids": [r["section_node_id"] for r in top],
+            "top_section_ids": [r.get("section_node_id", r.get("section_id", "")) for r in top],
             "top_sections": top,
+            "edge_types_used": edge_types,
+            "visit_count": nav.get("visit_counts", {}),
+            "sample_path": sample_path,
+            "rejected_count": len(nav.get("rejected_proposals") or []),
+            "budget_exhausted": bool(nav.get("budget_exhausted")),
         },
     }
 
@@ -126,16 +157,28 @@ def build_micro_extractor_trace_payload(state: AgentState) -> dict:
     ranked = state.get("micro_ranked_count")
     count_after = len(chunks)
     count_before = ranked if ranked is not None else count_after
+    nav = _navigation_payload(state)
+    edge_types = nav.get("structural_edge_types_used") or []
+    micro_paths = nav.get("micro_paths") or []
+    sample_path = ""
+    if micro_paths:
+        seq = micro_paths[0].get("edge_type_sequence") or []
+        sample_path = " → ".join(seq[:8])
     return {
         "decision_summary": (
-            f"evidence {count_before}→{count_after} bias={bias} "
+            f"graph-native evidence {count_before}→{count_after} bias={bias} "
             f"top={min(len(ranked_preview), cfg['top_evidence'])}"
         ),
         "payload": {
+            "navigation_mode": "graph_native",
             "count_before": count_before,
             "count_after": count_after,
             "source_bias": bias,
             "ranked": ranked_preview,
+            "edge_types_used": edge_types,
+            "visit_count": nav.get("visit_counts", {}),
+            "sample_path": sample_path,
+            "rejected_count": len(nav.get("rejected_proposals") or []),
         },
     }
 

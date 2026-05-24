@@ -9,7 +9,17 @@ from graph.reachability import shortest_structural_path
 from graph.store import load_snapshot
 from models.enums import GraphEdgeType, GraphNodeType
 from models.filing import FilingRef
-from models.graph import GraphNode, GraphSnapshot
+from models.graph import GraphEdge, GraphNode, GraphSnapshot
+from graph.accession import accession_from_node_id, document_root_id
+
+
+_NAVIGABLE_TYPES = {
+    GraphNodeType.SECTION,
+    GraphNodeType.CHUNK_TABLE,
+    GraphNodeType.CHUNK_ROW,
+    GraphNodeType.CHUNK_PARAGRAPH,
+    GraphNodeType.CHUNK_XBRL_FACT,
+}
 
 
 class GraphQueryAPI(Protocol):
@@ -21,6 +31,15 @@ class GraphQueryAPI(Protocol):
     def sections_for_filings(
         self, snapshot_id: str, filings: list[FilingRef]
     ) -> list[GraphNode]: ...
+    def document_roots_for_filings(
+        self, snapshot_id: str, filings: list[FilingRef]
+    ) -> list[GraphNode]: ...
+    def outgoing_edges(
+        self, snapshot_id: str, node_id: str, edge_types: list[GraphEdgeType]
+    ) -> list[tuple[GraphEdgeType, GraphNode]]: ...
+    def navigable_node_count(
+        self, snapshot_id: str, filings: list[FilingRef]
+    ) -> int: ...
 
 
 class LocalGraphQueryAPI:
@@ -76,6 +95,47 @@ class LocalGraphQueryAPI:
                     if node.node_id == edge.target_id and node.node_type == GraphNodeType.SECTION:
                         sections.append(node)
         return sections
+
+    def document_roots_for_filings(
+        self, snapshot_id: str, filings: list[FilingRef]
+    ) -> list[GraphNode]:
+        snap = self.get_snapshot(snapshot_id)
+        roots: list[GraphNode] = []
+        for filing in filings:
+            rid = document_root_id(filing.accession)
+            for node in snap.nodes:
+                if node.node_id == rid:
+                    roots.append(node)
+                    break
+        return roots
+
+    def outgoing_edges(
+        self, snapshot_id: str, node_id: str, edge_types: list[GraphEdgeType]
+    ) -> list[tuple[GraphEdgeType, GraphNode]]:
+        snap = self.get_snapshot(snapshot_id)
+        allowed = set(edge_types)
+        out: list[tuple[GraphEdgeType, GraphNode]] = []
+        node_by_id = {n.node_id: n for n in snap.nodes}
+        for edge in snap.edges:
+            if edge.edge_type not in allowed:
+                continue
+            if edge.source_id == node_id and edge.target_id in node_by_id:
+                out.append((edge.edge_type, node_by_id[edge.target_id]))
+        return out
+
+    def navigable_node_count(
+        self, snapshot_id: str, filings: list[FilingRef]
+    ) -> int:
+        snap = self.get_snapshot(snapshot_id)
+        accessions = {f.accession for f in filings}
+        count = 0
+        for node in snap.nodes:
+            if node.node_type not in _NAVIGABLE_TYPES:
+                continue
+            acc = accession_from_node_id(node.node_id)
+            if acc and acc in accessions:
+                count += 1
+        return count
 
     def shortest_structural_path(
         self,

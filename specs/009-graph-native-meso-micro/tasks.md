@@ -28,10 +28,10 @@ description: "Task list for graph-native meso and micro navigation (009)"
 
 **Purpose**: Navigation package scaffold, budget config, planner and gold-path fixture stubs
 
-- [ ] T001 Create `src/retrieval/navigation/__init__.py` and package exports per `plan.md`
-- [ ] T002 [P] Add `configs/graph_navigation.yaml` with defaults from `research.md` R6 (`meso.max_hops_per_filing`, `micro.max_hops_per_section`, `query.max_total_visits`, etc.)
-- [ ] T003 [P] Add `tests/fixtures/navigation_planner/` directory with meso/micro `USE_MOCK_LLM` JSON stubs per `contracts/hop-proposal-validator.md`
-- [ ] T004 [P] Add `tests/fixtures/gold_path/gold_path.jsonl` skeleton (≥5 placeholder rows) and `tests/fixtures/gold_path/manifest.json` referencing `aapl_macro_snapshot`
+- [x] T001 Create `src/retrieval/navigation/__init__.py` and package exports per `plan.md`
+- [x] T002 [P] Add `configs/graph_navigation.yaml` with defaults from `research.md` R6 (`meso.max_hops_per_filing`, `micro.max_hops_per_section`, `query.max_total_visits`, etc.)
+- [x] T003 [P] Add `tests/fixtures/navigation_planner/` directory with meso/micro `USE_MOCK_LLM` JSON stubs per `contracts/hop-proposal-validator.md`
+- [x] T004 [P] Add `tests/fixtures/gold_path/gold_path.jsonl` skeleton (≥5 placeholder rows) and `tests/fixtures/gold_path/manifest.json` referencing `aapl_macro_snapshot`
 
 **Checkpoint**: `uv run python -c "from retrieval.navigation import models"` succeeds after T001
 
@@ -43,18 +43,18 @@ description: "Task list for graph-native meso and micro navigation (009)"
 
 **⚠️ CRITICAL**: No user story work until this phase is complete
 
-- [ ] T005 [P] Implement `HopProposal`, `HopCandidate`, `HopValidationResult`, `NavigationVisit`, `NavigationPath`, `MesoRankRecord`, `NavigationTraceRecord` in `src/retrieval/navigation/models.py` per `data-model.md`
-- [ ] T005a [P] Extend `SectionCandidate` and `EvidenceChunk` in `src/models/query.py` with `edge_types`, `accession`, and `navigation_path_id` per `data-model.md`
-- [ ] T006 [P] Implement `NavigationBudgetState` and YAML loader in `src/retrieval/navigation/budget.py` reading `configs/graph_navigation.yaml`
-- [ ] T007 Narrow `AGENT_TRAVERSAL_POLICY` to `STRUCTURAL_EDGE_TYPES` only in `src/graph/edge_catalog.py` per `contracts/graph-navigation-policy.md`
-- [ ] T008 [P] Extend `GraphQueryAPI` / `LocalGraphQueryAPI` in `src/graph/query_api.py` with `document_roots_for_filings()`, `outgoing_edges()`, and `navigable_node_count()` per `research.md` R7
-- [ ] T009 Implement `validate_hop_proposal()` in `src/retrieval/navigation/validator.py` per `contracts/hop-proposal-validator.md` (structural edges, scope, budgets, rejection codes)
-- [ ] T010 Implement `propose_next_hop()` in `src/retrieval/navigation/planner.py` with `USE_MOCK_LLM` fixture loading from `tests/fixtures/navigation_planner/` (**before** walker; FR-002/002a)
-- [ ] T011 [P] Add `tests/unit/test_navigation_validator.py` covering all rejection codes in `contracts/hop-proposal-validator.md`
-- [ ] T012 [P] Add `tests/unit/test_navigation_validator_scope.py` for cross-accession and disallowed `TEMPORAL_TRANSITION` / `SEMANTIC_SIMILARITY` rejects
-- [ ] T014 [P] Add `tests/contract/test_navigation_layer_boundaries.py` asserting `evaluation/` does not import `retrieval.navigation.planner`
-- [ ] T015 Implement `walk_meso()` and `walk_micro()` in `src/retrieval/navigation/walker.py` using validator + planner + budget state; enforce top-3 section handoff helper (depends on T010)
-- [ ] T013 [P] Add `tests/unit/test_navigation_walker_budget.py` for hop/visit cap exhaustion and `stop_reason=budget` (depends on T015)
+- [x] T005 [P] Implement `HopProposal`, `HopCandidate`, `HopValidationResult`, `NavigationVisit`, `NavigationPath`, `MesoRankRecord`, `NavigationTraceRecord` in `src/retrieval/navigation/models.py` per `data-model.md`
+- [x] T005a [P] Extend `SectionCandidate` and `EvidenceChunk` in `src/models/query.py` with `edge_types`, `accession`, and `navigation_path_id` per `data-model.md`
+- [x] T006 [P] Implement `NavigationBudgetState` and YAML loader in `src/retrieval/navigation/budget.py` reading `configs/graph_navigation.yaml`
+- [x] T007 Narrow `AGENT_TRAVERSAL_POLICY` to `STRUCTURAL_EDGE_TYPES` only in `src/graph/edge_catalog.py` per `contracts/graph-navigation-policy.md`
+- [x] T008 [P] Extend `GraphQueryAPI` / `LocalGraphQueryAPI` in `src/graph/query_api.py` with `document_roots_for_filings()`, `outgoing_edges()`, and `navigable_node_count()` per `research.md` R7
+- [x] T009 Implement `validate_hop_proposal()` in `src/retrieval/navigation/validator.py` per `contracts/hop-proposal-validator.md` (structural edges, scope, budgets, rejection codes)
+- [x] T010 Implement `propose_next_hop()` in `src/retrieval/navigation/planner.py` with `USE_MOCK_LLM` fixture loading from `tests/fixtures/navigation_planner/` (**before** walker; FR-002/002a)
+- [x] T011 [P] Add `tests/unit/test_navigation_validator.py` covering all rejection codes in `contracts/hop-proposal-validator.md`
+- [x] T012 [P] Add `tests/unit/test_navigation_validator_scope.py` for cross-accession and disallowed `TEMPORAL_TRANSITION` / `SEMANTIC_SIMILARITY` rejects
+- [x] T014 [P] Add `tests/contract/test_navigation_layer_boundaries.py` asserting `evaluation/` does not import `retrieval.navigation.planner`
+- [x] T015 Implement `walk_meso()` and `walk_micro()` in `src/retrieval/navigation/walker.py` using validator + planner + budget state; enforce top-3 section handoff helper (depends on T010)
+- [x] T013 [P] Add `tests/unit/test_navigation_walker_budget.py` for hop/visit cap exhaustion and `stop_reason=budget` (depends on T015)
 
 **Checkpoint**: `uv run pytest tests/unit/test_navigation_validator.py tests/unit/test_navigation_walker_budget.py -q` passes (run walker tests after T015)
 
@@ -68,14 +68,14 @@ description: "Task list for graph-native meso and micro navigation (009)"
 
 ### Tests for User Story 1
 
-- [ ] T016 [P] [US1] Add `tests/integration/test_meso_graph_navigation.py` asserting meso ranks stay within macro-bound accessions, ≤3 `micro_eligible` sections per filing, and each meso visit record includes `edge_type` + `stage=meso` on `AgentState` (not MLflow artifact)
+- [x] T016 [P] [US1] Add `tests/integration/test_meso_graph_navigation.py` asserting meso ranks stay within macro-bound accessions, ≤3 `micro_eligible` sections per filing, and each meso visit record includes `edge_type` + `stage=meso` on `AgentState` (not MLflow artifact)
 
 ### Implementation for User Story 1
 
-- [ ] T017 [US1] Refactor `meso_router()` in `src/retrieval/orchestration/nodes/meso_router.py` to call `walk_meso()` per filing document root via `graph_api` (remove flat `sections_for_filings` + `score_section` as default path)
-- [ ] T018 [US1] Populate `section_candidates` and `meso_section_trace` from `MesoRankRecord` paths (include `edge_types`, `accession`) in `src/retrieval/orchestration/nodes/meso_router.py`
-- [ ] T019 [US1] Update `graph_traversal` state entries to include `edge_type` and `stage=meso` per visit in `src/retrieval/orchestration/nodes/meso_router.py`
-- [ ] T020 [US1] Store partial `navigation_trace` meso fields on `AgentState` in `src/retrieval/orchestration/state.py` for downstream micro and trajectory
+- [x] T017 [US1] Refactor `meso_router()` in `src/retrieval/orchestration/nodes/meso_router.py` to call `walk_meso()` per filing document root via `graph_api` (remove flat `sections_for_filings` + `score_section` as default path)
+- [x] T018 [US1] Populate `section_candidates` and `meso_section_trace` from `MesoRankRecord` paths (include `edge_types`, `accession`) in `src/retrieval/orchestration/nodes/meso_router.py`
+- [x] T019 [US1] Update `graph_traversal` state entries to include `edge_type` and `stage=meso` per visit in `src/retrieval/orchestration/nodes/meso_router.py`
+- [x] T020 [US1] Store partial `navigation_trace` meso fields on `AgentState` in `src/retrieval/orchestration/state.py` for downstream micro and trajectory
 
 **Checkpoint**: US1 integration test passes; meso no longer uses heuristic-only default
 
@@ -89,16 +89,16 @@ description: "Task list for graph-native meso and micro navigation (009)"
 
 ### Tests for User Story 2
 
-- [ ] T021 [P] [US2] Add `tests/integration/test_micro_multihop_paths.py` for section → table → footnote path per spec US2 acceptance scenario 2
-- [ ] T022 [P] [US2] Add `tests/unit/test_micro_chunk_from_path.py` verifying evidence chunks map to terminal navigable nodes only
-- [ ] T022a [P] [US2] Add `tests/integration/test_synthesis_navigation_grounding.py` asserting synthesis input evidence is a subset of graph-walked micro chunks only (FR-010 / SC-005 smoke)
+- [x] T021 [P] [US2] Add `tests/integration/test_micro_multihop_paths.py` for section → table → footnote path per spec US2 acceptance scenario 2
+- [x] T022 [P] [US2] Add `tests/unit/test_micro_chunk_from_path.py` verifying evidence chunks map to terminal navigable nodes only
+- [x] T022a [P] [US2] Add `tests/integration/test_synthesis_navigation_grounding.py` asserting synthesis input evidence is a subset of graph-walked micro chunks only (FR-010 / SC-005 smoke)
 
 ### Implementation for User Story 2
 
-- [ ] T023 [US2] Refactor `micro_extractor()` in `src/retrieval/orchestration/nodes/micro_extractor.py` to call `walk_micro()` from each micro-eligible section (top 3 per filing); remove global snapshot node scan as default
-- [ ] T024 [US2] Build `EvidenceChunk` list from micro terminal nodes; attach `navigation_path_id` and `edge_types` on chunks in `src/retrieval/orchestration/nodes/micro_extractor.py`
-- [ ] T025 [US2] Merge `micro_paths` and visit counts into `navigation_trace` on `AgentState` in `src/retrieval/orchestration/nodes/micro_extractor.py`
-- [ ] T026 [US2] Ensure `src/retrieval/service.py` returns `INSUFFICIENT_EVIDENCE` with persisted partial trace when micro yields zero chunks (FR-013a; no heuristic fallback)
+- [x] T023 [US2] Refactor `micro_extractor()` in `src/retrieval/orchestration/nodes/micro_extractor.py` to call `walk_micro()` from each micro-eligible section (top 3 per filing); remove global snapshot node scan as default
+- [x] T024 [US2] Build `EvidenceChunk` list from micro terminal nodes; attach `navigation_path_id` and `edge_types` on chunks in `src/retrieval/orchestration/nodes/micro_extractor.py`
+- [x] T025 [US2] Merge `micro_paths` and visit counts into `navigation_trace` on `AgentState` in `src/retrieval/orchestration/nodes/micro_extractor.py`
+- [x] T026 [US2] Ensure `src/retrieval/service.py` returns `INSUFFICIENT_EVIDENCE` with persisted partial trace when micro yields zero chunks (FR-013a; no heuristic fallback)
 
 **Checkpoint**: US2 tests pass; synthesis receives only graph-walked chunks
 
@@ -112,16 +112,16 @@ description: "Task list for graph-native meso and micro navigation (009)"
 
 ### Tests for User Story 3
 
-- [ ] T027 [P] [US3] Add contract test `tests/contract/test_navigation_trajectory_schema.py` per `contracts/navigation-trajectory.md`
-- [ ] T028 [P] [US3] Add integration test `tests/integration/test_ask_navigation_trajectory.py` for `navigation_trace.json` on mock ask (SC-001 smoke)
+- [x] T027 [P] [US3] Add contract test `tests/contract/test_navigation_trajectory_schema.py` per `contracts/navigation-trajectory.md`
+- [x] T028 [P] [US3] Add integration test `tests/integration/test_ask_navigation_trajectory.py` for `navigation_trace.json` on mock ask (SC-001 smoke)
 
 ### Implementation for User Story 3
 
-- [ ] T029 [US3] Implement `log_navigation_trace()` in `src/tracing/mlflow_langgraph.py` and invoke from `src/retrieval/service.py` after meso/micro complete
-- [ ] T030 [US3] Extend `build_meso_router_trace_payload()` and `build_micro_extractor_trace_payload()` in `src/retrieval/orchestration/trace_payloads.py` with `navigation_mode`, `edge_types_used`, `sample_path`, `rejected_count`, `visit_count`
-- [ ] T031 [US3] Update meso/micro renderers in `src/tracing/console_trace/registry.py` for graph-native fields at normal and verbose depth
-- [ ] T032 [US3] Add `navigation_trace` to `TrajectoryRecord` / `build_trajectory_from_state()` in `src/tracing/mlflow_langgraph.py`
-- [ ] T033 [US3] Compute `scan_ratio` in walker or service using `navigable_node_count()` for trajectory and eval harness consumption
+- [x] T029 [US3] Implement `log_navigation_trace()` in `src/tracing/mlflow_langgraph.py` and invoke from `src/retrieval/service.py` after meso/micro complete
+- [x] T030 [US3] Extend `build_meso_router_trace_payload()` and `build_micro_extractor_trace_payload()` in `src/retrieval/orchestration/trace_payloads.py` with `navigation_mode`, `edge_types_used`, `sample_path`, `rejected_count`, `visit_count`
+- [x] T031 [US3] Update meso/micro renderers in `src/tracing/console_trace/registry.py` for graph-native fields at normal and verbose depth
+- [x] T032 [US3] Add `navigation_trace` to `TrajectoryRecord` / `build_trajectory_from_state()` in `src/tracing/mlflow_langgraph.py`
+- [x] T033 [US3] Compute `scan_ratio` in walker or service using `navigable_node_count()` for trajectory and eval harness consumption
 
 **Checkpoint**: Contract + integration trajectory tests pass; console trace shows edge types on representative ask
 
@@ -135,15 +135,15 @@ description: "Task list for graph-native meso and micro navigation (009)"
 
 ### Tests for User Story 4
 
-- [ ] T034 [P] [US4] Add `tests/integration/test_gold_path_benchmark.py` asserting SC-003 and SC-004 thresholds against `tests/fixtures/gold_path/gold_path.jsonl`
+- [x] T034 [P] [US4] Add `tests/integration/test_gold_path_benchmark.py` asserting SC-003 and SC-004 thresholds against `tests/fixtures/gold_path/gold_path.jsonl`
 
 ### Implementation for User Story 4
 
-- [ ] T035 [US4] Expand `tests/fixtures/gold_path/gold_path.jsonl` to ≥40 labeled items (single- and multi-filing) with `required_chunk_node_ids` and `acceptable_edge_sequences` per `contracts/gold-path-eval-harness.md`
-- [ ] T036 [P] [US4] Implement `chunk_reach_rate`, `path_match_rate`, and `scan_ratio` in `src/evaluation/metrics/gold_path.py`
-- [ ] T037 [US4] Add `load_gold_path_slice()` to `src/evaluation/datasets/finagentbench.py`
-- [ ] T038 [US4] Add `--gold-path` flag to `src/cli/commands/test.py` wiring gold-path benchmark runner
-- [ ] T039 [P] [US4] Optional: add `src/cli/gold_path_labeler.py` offline helper to draft labels from mock walks (document in quickstart only)
+- [x] T035 [US4] Expand `tests/fixtures/gold_path/gold_path.jsonl` to ≥40 labeled items (single- and multi-filing) with `required_chunk_node_ids` and `acceptable_edge_sequences` per `contracts/gold-path-eval-harness.md`
+- [x] T036 [P] [US4] Implement `chunk_reach_rate`, `path_match_rate`, and `scan_ratio` in `src/evaluation/metrics/gold_path.py`
+- [x] T037 [US4] Add `load_gold_path_slice()` to `src/evaluation/datasets/finagentbench.py`
+- [x] T038 [US4] Add `--gold-path` flag to `src/cli/commands/test.py` wiring gold-path benchmark runner
+- [x] T039 [P] [US4] Optional: add `src/cli/gold_path_labeler.py` offline helper to draft labels from mock walks (document in quickstart only)
 
 **Checkpoint**: Gold-path integration test passes in CI with `USE_MOCK_LLM=1`
 
@@ -153,12 +153,12 @@ description: "Task list for graph-native meso and micro navigation (009)"
 
 **Purpose**: Documentation, grounding checks, full regression, usability sign-off
 
-- [ ] T040 [P] Update `README.md` with graph-native meso/micro navigation and `--gold-path` eval instructions
+- [x] T040 [P] Update `README.md` with graph-native meso/micro navigation and `--gold-path` eval instructions
 - [ ] T041 Run `quickstart.md` commands and fix any drift in docs or CLI flags
-- [ ] T042 [P] Add `docs/navigation-trace-usability-checklist.md` for SC-002 five-query manual review template
-- [ ] T043 [P] Add grounding assertion helper for gold-path subset (SC-005) in `tests/integration/test_gold_path_grounding.py` or extend `test_gold_path_benchmark.py`
-- [ ] T044 Run full 009 test slice: `USE_MOCK_LLM=1 uv run pytest tests/unit/test_navigation*.py tests/contract/test_navigation*.py tests/integration/test_*navigation*.py tests/integration/test_gold_path*.py -q`
-- [ ] T045 Verify `rank_sections_heuristic` / legacy aliases either removed or raise explicit error when called in production path per FR-013
+- [x] T042 [P] Add `docs/navigation-trace-usability-checklist.md` for SC-002 five-query manual review template
+- [x] T043 [P] Add grounding assertion helper for gold-path subset (SC-005) in `tests/integration/test_gold_path_grounding.py` or extend `test_gold_path_benchmark.py`
+- [x] T044 Run full 009 test slice: `USE_MOCK_LLM=1 uv run pytest tests/unit/test_navigation*.py tests/contract/test_navigation*.py tests/integration/test_*navigation*.py tests/integration/test_gold_path*.py -q`
+- [x] T045 Verify `rank_sections_heuristic` / legacy aliases either removed or raise explicit error when called in production path per FR-013
 
 ---
 

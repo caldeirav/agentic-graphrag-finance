@@ -39,13 +39,13 @@ def load_lm_config(config_path: Path | None = None) -> dict:
     }
 
 
-def create_chat_llm(*, mock: bool = False) -> ChatOpenAI:
+def create_chat_llm(*, mock: bool = False, temperature: float | None = None) -> ChatOpenAI:
     if mock or os.environ.get("USE_MOCK_LLM", "0") == "1":
         return ChatOpenAI(
             model="mock",
             base_url="http://localhost:9999/v1",
             api_key="mock",
-            temperature=0,
+            temperature=temperature if temperature is not None else 0,
             max_tokens=256,
         )
     cfg = load_lm_config()
@@ -53,6 +53,6 @@ def create_chat_llm(*, mock: bool = False) -> ChatOpenAI:
         model=cfg["model"],
         base_url=cfg["base_url"],
         api_key=os.environ.get("OPENAI_API_KEY", "lm-studio"),
-        temperature=cfg["temperature"],
+        temperature=temperature if temperature is not None else cfg["temperature"],
         max_tokens=cfg["max_tokens"],
     )

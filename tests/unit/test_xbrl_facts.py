@@ -2,7 +2,9 @@ from parsing.xbrl_facts import (
     consolidate_xbrl_fact_rows,
     fact_to_excerpt,
     format_xbrl_numeric,
+    is_securities_sales_false_positive,
     select_facts_for_index,
+    xbrl_concept_matches_query,
 )
 
 
@@ -52,6 +54,20 @@ def test_consolidate_keeps_multiple_periods_per_concept():
     periods = {f["period"] for f in rev}
     assert "2025-09-28 - 2025-12-28" in periods
     assert "2024-09-29 - 2024-12-29" in periods
+
+
+def test_xbrl_concept_matches_revenue_not_securities_sales():
+    query = "How did total net sales change year over year?"
+    assert xbrl_concept_matches_query(
+        "RevenueFromContractWithCustomerExcludingAssessedTax", query
+    )
+    assert not xbrl_concept_matches_query(
+        "OtherComprehensiveIncomeLossAvailableForSaleSecuritiesAdjustmentNetOfTax",
+        query,
+    )
+    assert is_securities_sales_false_positive(
+        "ProceedsFromSaleOfAvailableForSaleSecuritiesDebt"
+    )
 
 
 def test_fact_excerpt_readable():
