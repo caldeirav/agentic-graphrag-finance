@@ -40,15 +40,15 @@ def build_navigation_eval_snapshot():
                 narrative_kind=NarrativeSectionKind.RISK_FACTORS,
             ),
             SectionBlock(
-                section_id="sec-notes",
-                title="Notes to Consolidated Financial Statements",
-                text="Summary of significant accounting policies and estimates.",
-                level=1,
-            ),
-            SectionBlock(
                 section_id="sec-bs",
                 title="Consolidated Balance Sheets",
                 text="Assets and liabilities at fiscal year end.",
+                level=1,
+            ),
+            SectionBlock(
+                section_id="sec-notes",
+                title="Notes to Consolidated Financial Statements",
+                text="Summary of significant accounting policies and estimates.",
                 level=1,
             ),
         ],

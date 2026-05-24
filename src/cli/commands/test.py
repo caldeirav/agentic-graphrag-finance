@@ -49,7 +49,7 @@ def test_cmd(
         return
 
     if macro_binding:
-        from cli.macro_binding_eval import run_macro_binding_eval
+        from retrieval.macro.binding_eval import run_macro_binding_eval
 
         report = run_macro_binding_eval(ticker=ticker or "AAPL")
         if as_json:

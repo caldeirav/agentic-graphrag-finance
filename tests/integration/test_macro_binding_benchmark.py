@@ -2,7 +2,7 @@
 
 from evaluation.datasets.finagentbench import FinAgentBenchDataset
 from evaluation.metrics.macro_binding import macro_binding_accuracy, multi_filing_rate
-from cli.macro_binding_eval import build_aapl_macro_eval_snapshot, run_macro_binding_eval
+from retrieval.macro.binding_eval import run_macro_binding_eval
 
 
 def test_macro_binding_dataset_slice_contract():

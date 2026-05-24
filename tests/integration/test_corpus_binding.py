@@ -1,12 +1,10 @@
 """Binding manifest matches expected accessions."""
 
-from datetime import date
-from pathlib import Path
 
 from cli.corpus_pipeline import run_materialize_pipeline
+from graph.registry import get_latest_snapshot
 from models.corpus import CorpusDefinition, CorpusDefinitionMode, CorpusTemporalScope
 from retrieval.temporal import bind_filings_for_query
-from graph.registry import get_latest_snapshot
 
 
 def test_structured_scope_binding(tmp_path):

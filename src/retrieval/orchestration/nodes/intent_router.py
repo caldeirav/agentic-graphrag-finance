@@ -18,9 +18,9 @@ from models.enums import (
 )
 from models.query import IntentRouterTrace
 from retrieval.orchestration.llm import create_chat_llm
-from tracing.console_trace.llm import traced_llm_invoke
 from retrieval.orchestration.nodes.macro_router import _extract_json_from_llm
 from retrieval.orchestration.state import AgentState
+from tracing.console_trace.llm import traced_llm_invoke
 
 _INTENT_TO_BIAS = {
     QueryIntent.NUMERIC: SourceBias.XBRL_PRIMARY,

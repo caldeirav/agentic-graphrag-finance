@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-import os
-
 import pytest
 
 from graph.legacy_builder import build_snapshot as legacy_build_snapshot
 from models.enums import GraphEdgeType, GraphNodeType
-from models.filing import FilingRef
+from models.filing import FilingRef, SectionBlock
 from models.graph import GraphEdge, GraphNode
-from models.filing import SectionBlock
 from models.parsing import ParsedDocument
 from retrieval.navigation.budget import load_navigation_budget
 from retrieval.navigation.models import HopCandidate, HopDirection, HopProposal, NavigationStage

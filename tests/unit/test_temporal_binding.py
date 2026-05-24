@@ -2,8 +2,6 @@
 
 from datetime import date
 
-import pytest
-
 from graph.legacy_builder import build_snapshot
 from models.corpus import CorpusTemporalScope
 from models.parsing import ParsedDocument

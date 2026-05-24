@@ -6,6 +6,8 @@ from retrieval.macro.pairing import (
     pair_single_anchor,
     pair_yoy,
 )
+
+
 def test_detect_quarterly_metric_cue():
     assert detect_quarterly_metric_cue("How did revenue change?")
     assert not detect_quarterly_metric_cue("Summarize risk factors")

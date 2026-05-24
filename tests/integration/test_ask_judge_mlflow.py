@@ -1,5 +1,4 @@
 import mlflow
-import pytest
 
 from contracts.query import QueryRequest
 from graph.store import save_snapshot

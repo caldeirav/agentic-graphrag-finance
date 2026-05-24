@@ -7,7 +7,6 @@ from unittest.mock import MagicMock, patch
 from evaluation.fixtures.navigation_eval_snapshot import build_navigation_eval_snapshot
 from graph.query_api import LocalGraphQueryAPI
 from graph.store import save_snapshot
-from models.enums import GraphEdgeType
 from retrieval.navigation.models import NavigationStage
 from retrieval.navigation.planner import propose_next_hop
 

@@ -10,10 +10,10 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from models.enums import ComparisonMode
 from models.graph import GraphSnapshot
+from retrieval.macro.llm_json import extract_json_from_llm, parse_comparison_mode
 from retrieval.macro.models import MacroBindingProposal, ProposalSource
 from retrieval.macro.pairing import detect_quarterly_metric_cue
 from retrieval.orchestration.llm import create_chat_llm
-from retrieval.macro.llm_json import extract_json_from_llm, parse_comparison_mode
 from tracing.console_trace.llm import traced_llm_invoke
 
 

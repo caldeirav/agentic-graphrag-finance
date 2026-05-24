@@ -1,5 +1,5 @@
 from models.enums import IntentSource, QueryIntent, RouterFallbackReason, SourceBias
-from models.query import IntentRouterTrace, TrajectoryRecord
+from models.query import IntentRouterTrace
 from tracing.mlflow_langgraph import build_trajectory_from_state
 
 

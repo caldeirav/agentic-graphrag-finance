@@ -3,10 +3,10 @@ from pathlib import Path
 
 from bs4 import XMLParsedAsHTMLWarning
 
-from parsing.html_narrative import extract_narrative_sections, merge_html_into_document
 from models.enums import EvidenceSourceType, HtmlNarrativeStatus
 from models.filing import FilingRef, SectionBlock
 from models.parsing import ParsedDocument
+from parsing.html_narrative import extract_narrative_sections, merge_html_into_document
 
 
 def test_extract_sections_from_fixture_xml_without_html_parser_warning() -> None:

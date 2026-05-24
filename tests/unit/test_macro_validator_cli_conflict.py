@@ -2,6 +2,8 @@
 
 from retrieval.macro.models import MacroBindingProposal, ProposalSource, ValidationStatus
 from retrieval.macro.validator import validate_macro_binding
+
+
 def test_cli_prebound_approved(aapl_macro_snapshot):
     snap = aapl_macro_snapshot
     cli = [snap.manifest.filing_refs[0]]

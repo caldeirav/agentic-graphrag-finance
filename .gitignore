@@ -22,9 +22,7 @@ mlflow.db
 mlflow.db-journal
 mlflow.db-wal
 mlflow.db-shm
-# Malformed MLflow dirs from legacy bash-style tracking_uri (literal folder names)
-/${MLFLOW*
-mlruns[}]/
+# Legacy malformed MLflow dirs: remove with `uv run agent-query mlflow-clean`
 reports/
 *.graphml.bak
 

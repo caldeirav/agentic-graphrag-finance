@@ -7,6 +7,7 @@ from retrieval.macro.models import (
     ProposalSource,
     ValidationStatus,
 )
+
 _REQUIRED_KEYS = {
     "binding_source",
     "comparison_mode",

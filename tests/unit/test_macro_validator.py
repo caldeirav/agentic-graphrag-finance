@@ -3,6 +3,8 @@
 from models.enums import ComparisonMode
 from retrieval.macro.models import MacroBindingProposal, ProposalSource, ValidationStatus
 from retrieval.macro.validator import validate_macro_binding
+
+
 def test_validate_prior_quarter_approved(aapl_macro_snapshot):
     snap = aapl_macro_snapshot
     proposal = MacroBindingProposal(

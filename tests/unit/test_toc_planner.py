@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-
 import pytest
 
 from evaluation.fixtures.navigation_eval_snapshot import build_navigation_eval_snapshot

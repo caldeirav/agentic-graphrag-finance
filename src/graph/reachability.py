@@ -89,7 +89,6 @@ def _stratified_sample(snapshot: GraphSnapshot, sample_size: int, seed: int) -> 
     xbrl = [n for n in snapshot.nodes if n.node_type == GraphNodeType.CHUNK_XBRL_FACT]
     rows = [n for n in snapshot.nodes if _is_numeric_table_row(n)]
     min_xbrl = max(1, int(sample_size * 0.6))
-    min_rows = max(0, sample_size - min_xbrl)
     rng = random.Random(seed)
     rng.shuffle(xbrl)
     rng.shuffle(rows)

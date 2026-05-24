@@ -1,8 +1,9 @@
+from datetime import date
+
 from models.enums import EvidenceSourceType
+from models.filing import FilingRef
 from models.query import EvidenceChunk
 from retrieval.synthesis import _synthesize_template
-from models.filing import FilingRef
-from datetime import date
 
 
 def test_template_citations_include_source_type() -> None:

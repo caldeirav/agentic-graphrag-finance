@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import hashlib
-import re
 from collections import defaultdict
 
+from graph.accession import accession_from_node_id, document_root_id
 from models.enums import EvidenceSourceType, GraphNodeType, QueryIntent, QueryStatus, SourceBias
 from models.filing import FilingRef
 from models.graph import GraphNode, GraphSnapshot
 from models.query import EvidenceChunk, SectionCandidate
-from graph.accession import accession_from_node_id, document_root_id
 from retrieval.navigation.budget import NavigationBudgetState, load_navigation_budget
 from retrieval.navigation.models import (
     MesoRankRecord,
@@ -29,7 +28,6 @@ from retrieval.navigation.validator import is_chunk_node, validate_hop_proposal
 from retrieval.orchestration.meso_scoring import score_section, section_trace_row
 from retrieval.orchestration.micro_scoring import is_financial_query, score_chunk
 from retrieval.orchestration.state import AgentState
-
 
 _CHUNK_TYPES = {
     GraphNodeType.CHUNK_TABLE,
@@ -531,6 +529,7 @@ def run_micro_navigation(
                 if cid in nodes
                 else 0,
             )
+            path.chunk_node_ids = list(chunk_ids_to_score)
         else:
             path, rejected, _ = _walk_from(
                 stage=NavigationStage.MICRO,

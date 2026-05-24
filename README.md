@@ -26,7 +26,7 @@ USE_MOCK_LLM=0 uv run agent-query ask --ticker AAPL --trace normal \
 | YoY / multi-period (autonomous filing pick) | `ask` with no `--anchor` |
 | Specific quarter | `ask --anchor prior-quarter --query "…"` |
 | Latest 10-K narrative | `ask --anchor latest-annual --query "…"` |
-| Offline / CI (no LM Studio) | `USE_MOCK_LLM=1 uv run agent-query test --ticker AAPL` |
+| Offline / CI (no LM Studio) | `USE_MOCK_LLM=1 USE_MOCK_JUDGE=1 uv run agent-query test --ticker AAPL` |
 
 Details: [setup](#prerequisites-and-setup) · [all CLI flags](#cli-reference-agent-query) · [more examples](#live-usage-examples)
 
@@ -43,6 +43,7 @@ Details: [setup](#prerequisites-and-setup) · [all CLI flags](#cli-reference-age
 - [Live usage examples](#live-usage-examples)
 - [Staged pipeline (debugging)](#staged-pipeline-debugging)
 - [Data layout](#data-layout)
+- [Trajectory audit and judge](#trajectory-audit-and-judge)
 - [Testing](#testing)
 - [Specifications](#specifications)
 
@@ -58,8 +59,9 @@ At a high level, every **`ask`** run does the following:
 4. **Meso** — Within each bound filing, pick **sections** to search (default: **TOC planner** — one LLM call per filing over a table of contents with `narrative_kind` tags).
 5. **Micro** — Collect **evidence chunks** under those sections (XBRL fact nodes, table rows, HTML paragraphs), score and rank them, apply source bias.
 6. **Synthesize** — Send top evidence to the **local LLM** (LM Studio) with strict grounding instructions; produce prose + citations.
+7. **Audit** — Export a versioned **agent trajectory**, run a deterministic **validator**, then a blocking **Gemini judge** (four rubric scores). Results land in MLflow metrics/artifacts and a stderr **trajectory audit** footer when tracing is enabled.
 
-Nothing answers from model memory alone: the agent only sees evidence extracted from the graph for the **bound** accessions and periods.
+Nothing answers from model memory alone: the agent only sees evidence extracted from the graph for the **bound** accessions and periods. The judge scores whether that path was auditable—not whether the model “guessed” from training data.
 
 ---
 
@@ -169,14 +171,23 @@ flowchart TB
     end
 
     subgraph agent ["Agent · src/retrieval/"]
-        ASK["ask"]
+        ASK["ask · LangGraph"]
         MAT --> ASK
-        ASK --> OUT["Answer + citations<br/>MLflow trajectory"]
+        ASK --> OUT["Answer + citations"]
+    end
+
+    subgraph audit ["Audit · feature 010"]
+        SNAP["agent_trajectory.json"]
+        VAL["trajectory_validation"]
+        JUDGE["Gemini judge<br/>4 criteria"]
+        ASK --> SNAP --> VAL --> JUDGE
     end
 
     subgraph observe ["Observability"]
-        MLF["MLflow + console trace"]
+        MLF["MLflow traces · metrics · artifacts"]
         OUT --> MLF
+        JUDGE --> MLF
+        SNAP --> MLF
     end
 ```
 
@@ -194,6 +205,8 @@ stateDiagram-v2
     micro_extractor --> synthesize
     synthesize --> [*]
 ```
+
+After the graph completes, **QueryService** (outside LangGraph) exports the trajectory, validates it, and runs the Gemini judge—see [Trajectory audit and judge](#trajectory-audit-and-judge).
 
 | Stage | Node | What it decides | LLM? |
 |-------|------|-----------------|------|
@@ -217,7 +230,7 @@ stateDiagram-v2
 | Graph | docling-graph schema + `docling_graph_mapper`, NetworkX / GraphML |
 | Orchestration | LangGraph, LangChain OpenAI-compatible client |
 | LLM (local) | [LM Studio](https://lmstudio.ai/) — default Qwen via OpenAI API |
-| Judge (benchmarks) | Google Gemini |
+| Judge (every `ask`) | Google Gemini 2.5 Pro (`GOOGLE_API_KEY`; `USE_MOCK_JUDGE=1` in CI) |
 | Observability | MLflow (SQLite recommended), Rich console trace |
 
 Governed by [.specify/memory/constitution.md](.specify/memory/constitution.md).
@@ -243,7 +256,7 @@ cp .env.example .env
 | `LM_STUDIO_BASE_URL` | Live `ask` | Default `http://localhost:1234/v1` |
 | `LM_STUDIO_MODEL` | Live `ask` | Model id from LM Studio |
 | `MLFLOW_TRACKING_URI` | Recommended | `sqlite:///mlflow.db` |
-| `GOOGLE_API_KEY` | Benchmarks | Gemini judge |
+| `GOOGLE_API_KEY` | Live `ask` audit | Gemini trajectory judge (`USE_MOCK_JUDGE=0`) |
 | `USE_MOCK_LLM` | Optional | `1` = no LM Studio; template / deterministic answers |
 | `USE_MOCK_JUDGE` | Optional | `1` = mock judge (CI); `0` = live Gemini judge on every `ask` |
 | `USE_FIXTURE_INGESTION` | Optional | `1` = bundled XBRL under `tests/fixtures/` |
@@ -383,7 +396,57 @@ uv run mlflow ui --backend-store-uri sqlite:///mlflow.db
 
 Inspect runs, **Traces** (LangGraph spans), **Metrics** (`judge.trajectory_coherence`, etc.), `evaluation/judge_verdict.json`, `evaluation/trajectory_validation.json`, `agent_trajectory.json`, plus legacy `trajectory.json`, `macro_binding.json`, `navigation_trace.json`, `intent_router.json`.
 
-Every production `ask` runs a **blocking trajectory validator** and **Gemini judge** (`GOOGLE_API_KEY`, `USE_MOCK_JUDGE=0`) before the CLI finishes; stderr shows a compact audit footer when `--trace normal` or `verbose`. See [specs/010-mlflow-trajectory-judge-eval/quickstart.md](specs/010-mlflow-trajectory-judge-eval/quickstart.md).
+Every production `ask` runs a **blocking trajectory validator** and **Gemini judge** (`GOOGLE_API_KEY`, `USE_MOCK_JUDGE=0`) before the CLI finishes; stderr shows a compact audit footer when `--trace normal` or `verbose`.
+
+---
+
+## Trajectory audit and judge
+
+After LangGraph returns, `QueryService` builds an `AgentTrajectorySnapshot` (plan, document route with `filed_at`, graph hops, evidence) and runs `run_post_query_audit()`:
+
+```mermaid
+sequenceDiagram
+    participant LG as LangGraph
+    participant QS as QueryService
+    participant V as validate_trajectory
+    participant G as GeminiJudgePanel
+    participant ML as MLflow run
+
+    LG->>QS: final state + answer
+    QS->>ML: agent_trajectory.json
+    QS->>V: snapshot
+    V->>ML: evaluation/trajectory_validation.json
+    alt validation = complete
+        QS->>G: judge_trajectory (4 criteria)
+        G->>ML: evaluation/judge_verdict.json
+        G->>ML: metrics judge.*
+    else incomplete / non_reproducible
+        QS->>ML: judge_status=not_evaluable
+    end
+    QS->>QS: trajectory audit footer (stderr)
+```
+
+| Criterion | What it measures |
+|-----------|------------------|
+| `trajectory_coherence` | Plan → route → hops → evidence tell one story (uses `evaluation_as_of` + `filed_at`; not “future FY” skepticism) |
+| `routing_decisions` | Filing binding, intent, section choices |
+| `retrieval_fidelity` | Evidence matches bound accessions and question |
+| `synthesis_grounding` | Answer stays within cited evidence |
+
+**Validator outcomes:** `complete` → judge runs; `incomplete` / `non_reproducible` → judge skipped (`not_evaluable`). Config: `configs/trajectory_judge.yaml`, `configs/judges/gemini_2_5_pro.yaml`.
+
+**Console footer** (`--trace normal` / `verbose`):
+
+```text
+validation: complete
+judge: ok (gemini-2.5-pro)
+  trajectory_coherence: 0.92
+  routing_decisions: 1.00
+  ...
+weakest: synthesis_grounding @ synthesis
+```
+
+Design: [010 spec](specs/010-mlflow-trajectory-judge-eval/spec.md) · [010 plan](specs/010-mlflow-trajectory-judge-eval/plan.md) · [ask-pipeline-judge contract](specs/010-mlflow-trajectory-judge-eval/contracts/ask-pipeline-judge.md)
 
 ---
 
@@ -402,7 +465,7 @@ USE_MOCK_LLM=0 uv run agent-query ask --ticker AAPL --trace verbose \
   --query "How did total net sales change year over year?"
 ```
 
-Expect: macro **YoY** with two accessions; meso `toc_planner (xbrl_bucket)`; answer with dollar amounts and % change grounded in XBRL citations.
+Expect: macro **YoY** with two accessions; meso `toc_planner (xbrl_bucket)`; answer with dollar amounts and % change grounded in XBRL citations; audit footer with four judge scores and MLflow metrics `judge.*`.
 
 ### 2. Prior-quarter revenue (CLI anchor + numeric intent)
 
@@ -537,7 +600,7 @@ src/
   parsing/       Docling XBRL pipeline, xbrl_facts, HTML narrative
   graph/         docling_graph_mapper, builder, registry, reachability audit
   retrieval/     LangGraph agent, navigation (TOC planner, walker), synthesis
-  evaluation/    Benchmarks, gold-path metrics, Gemini judge
+  evaluation/    Benchmarks, validator, ask_judge, gate, Gemini panel
   tracing/       MLflow, console trace, trajectories
   cli/           agent-query commands
   models/        Pydantic types
@@ -549,14 +612,25 @@ configs/         corpus, docling_xbrl, graph_navigation, lm_studio, trace, …
 
 ## Specifications
 
-| Document | Scope |
-|----------|-------|
-| [001 plan](specs/001-sec-disclosure-rag/plan.md) | Core GraphRAG pipeline and benchmarks |
-| [002 quickstart](specs/002-live-disclosure-cli/quickstart.md) | Live EDGAR ingestion and CLI |
-| [003 quickstart](specs/003-multi-filing-corpus/quickstart.md) | Multi-filing corpus and temporal `ask` |
-| [004 quickstart](specs/004-docling-graph-materialization/quickstart.md) | docling-graph materialization and audit |
-| [005 quickstart](specs/005-html-narrative-supplement/quickstart.md) | HTML narrative supplement |
-| [007 quickstart](specs/007-ask-console-trace/quickstart.md) | Console trace |
-| [008 quickstart](specs/008-autonomous-macro-routing/quickstart.md) | Autonomous macro binding |
-| [009 quickstart](specs/009-graph-native-meso-micro/quickstart.md) | Graph-native meso/micro navigation |
-| [XBRL research](specs/002-live-disclosure-cli/research-xbrl-retrieval.md) | XBRL-first retrieval design |
+Feature work is tracked under `specs/{NNN-feature-name}/`. Each folder has a **spec** (requirements), **plan** (architecture and phases), and often **tasks**, **contracts**, and **research** notes.
+
+| ID | Feature | Spec | Plan |
+|----|---------|------|------|
+| — | Project constitution (principles, audit hooks) | [constitution](.specify/memory/constitution.md) | — |
+| 001 | Core GraphRAG pipeline and benchmarks | [spec](specs/001-sec-disclosure-rag/spec.md) | [plan](specs/001-sec-disclosure-rag/plan.md) |
+| 002 | Live EDGAR ingestion and CLI | [spec](specs/002-live-disclosure-cli/spec.md) | [plan](specs/002-live-disclosure-cli/plan.md) |
+| 003 | Multi-filing corpus and temporal `ask` | [spec](specs/003-multi-filing-corpus/spec.md) | [plan](specs/003-multi-filing-corpus/plan.md) |
+| 004 | docling-graph materialization and reachability audit | [spec](specs/004-docling-graph-materialization/spec.md) | [plan](specs/004-docling-graph-materialization/plan.md) |
+| 005 | HTML narrative supplement (MD&A, risk factors) | [spec](specs/005-html-narrative-supplement/spec.md) | [plan](specs/005-html-narrative-supplement/plan.md) |
+| 007 | Console trace (`--trace`, Rich panels) | [spec](specs/007-ask-console-trace/spec.md) | [plan](specs/007-ask-console-trace/plan.md) |
+| 008 | Autonomous macro binding and validator | [spec](specs/008-autonomous-macro-routing/spec.md) | [plan](specs/008-autonomous-macro-routing/plan.md) |
+| 009 | Graph-native meso/micro navigation | [spec](specs/009-graph-native-meso-micro/spec.md) | [plan](specs/009-graph-native-meso-micro/plan.md) |
+| **010** | **MLflow trajectories, validator, blocking judge** | [spec](specs/010-mlflow-trajectory-judge-eval/spec.md) | [plan](specs/010-mlflow-trajectory-judge-eval/plan.md) |
+
+**Active implementation plan** (agent routing in Cursor): [002 plan](specs/002-live-disclosure-cli/plan.md) with extensions from 003–010.
+
+**Design notes (not feature specs):**
+
+- [XBRL-first retrieval research](specs/002-live-disclosure-cli/research-xbrl-retrieval.md)
+- [docling-graph edge catalog](specs/004-docling-graph-materialization/contracts/edge-catalog.md)
+- [Trajectory judge pipeline contract](specs/010-mlflow-trajectory-judge-eval/contracts/ask-pipeline-judge.md)

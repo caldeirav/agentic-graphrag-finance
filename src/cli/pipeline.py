@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import json
-import time
 from pathlib import Path
 
 from cli.corpus_pipeline import run_ask_pipeline as _run_ask_corpus
 from graph.builder import build_snapshot
 from ingestion import fetch_filing
 from models.ingestion import CLIAskRequest, CLIAskResult
-from parsing.sec_download_adapter import parse_from_cache, write_parsed_document
+from parsing.sec_download_adapter import parse_from_cache
 
 
 def run_ask_pipeline(request: CLIAskRequest) -> CLIAskResult:

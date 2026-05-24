@@ -6,10 +6,10 @@ import hashlib
 import uuid
 from datetime import UTC, datetime
 
+from graph.section_ontology import section_node_properties, xbrl_bucket_properties
 from models.enums import GraphEdgeType, GraphNodeType
 from models.graph import GraphEdge, GraphManifest, GraphNode, GraphSnapshot
 from models.parsing import ParsedDocument
-from graph.section_ontology import section_node_properties, xbrl_bucket_properties
 from parsing.xbrl_facts import (
     consolidate_xbrl_fact_rows,
     fact_to_excerpt,

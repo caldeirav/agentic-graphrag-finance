@@ -1,6 +1,5 @@
 """Judge prompt includes corpus evaluation context (010)."""
 
-from datetime import date
 
 from evaluation.judges.gemini_panel import GeminiJudgePanel
 from models.trajectory import AgentTrajectorySnapshot, FilingRouteEntry, TrajectoryPlan

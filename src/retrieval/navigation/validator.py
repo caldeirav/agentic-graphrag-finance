@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
+from graph.accession import accession_from_node_id
 from graph.edge_catalog import STRUCTURAL_EDGE_TYPES
 from models.enums import GraphEdgeType, GraphNodeType
 from models.graph import GraphSnapshot
-from graph.accession import accession_from_node_id
 from retrieval.navigation.budget import NavigationBudgetState
 from retrieval.navigation.models import (
+    HopDirection,
     HopProposal,
     HopValidationResult,
-    HopDirection,
     NavigationVisit,
 )
 

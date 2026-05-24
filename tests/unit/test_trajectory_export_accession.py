@@ -2,11 +2,11 @@
 
 from datetime import date
 
+from evaluation.validator.trajectory import validate_trajectory
 from models.enums import QueryStatus
+from models.evaluation import ValidationStatus
 from models.filing import FilingRef
 from models.query import EvidenceChunk, MacroPlan, TemporalScope
-from evaluation.validator.trajectory import validate_trajectory
-from models.evaluation import ValidationStatus
 from tracing.trajectory_export import build_agent_trajectory_snapshot
 
 _AAPL_25 = "0000320193-25-000079"

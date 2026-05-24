@@ -9,7 +9,7 @@ from pathlib import Path
 
 from ingestion.edgar_xbrl import download_edgar_xbrl_package
 from ingestion.settings import get_settings, is_fixture_ingestion
-from models.ingestion import FilingResolution, XBRLArtifact, XBRLArtifactManifest, XBRLArtifactRole
+from models.ingestion import FilingResolution, XBRLArtifact, XBRLArtifactManifest
 
 logger = logging.getLogger(__name__)
 

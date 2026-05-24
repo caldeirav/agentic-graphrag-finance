@@ -7,7 +7,7 @@ from pathlib import Path
 from models.filing import FilingRef
 from models.ingestion import XBRLArtifactManifest, XBRLArtifactRole
 from models.parsing import ParsedDocument
-from parsing.docling_xbrl import PARSER_VERSION, is_xbrl_instance_path, parse_xbrl_instance
+from parsing.docling_xbrl import is_xbrl_instance_path, parse_xbrl_instance
 from parsing.errors import ParseError
 
 

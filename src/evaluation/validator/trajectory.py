@@ -6,7 +6,7 @@ import re
 
 from models.enums import QueryStatus
 from models.evaluation import TrajectoryValidationResult, ValidationReason, ValidationStatus
-from models.trajectory import AgentTrajectorySnapshot, TRAJECTORY_SCHEMA_VERSION
+from models.trajectory import TRAJECTORY_SCHEMA_VERSION, AgentTrajectorySnapshot
 
 _SUCCESS_STATUSES = {
     QueryStatus.SUCCESS,

@@ -1,7 +1,6 @@
-from models.enums import EvidenceSourceType
+from models.enums import EvidenceSourceType, HtmlNarrativeStatus
 from models.filing import SectionBlock
 from parsing.html_narrative import merge_html_into_document
-from models.enums import HtmlNarrativeStatus
 
 
 def test_single_artifact_no_sidecar(sample_parsed_document) -> None:

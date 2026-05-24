@@ -8,8 +8,8 @@ from models.enums import ComparisonMode, QueryStatus
 from models.filing import FilingRef
 from models.query import AnswerPackage, MacroPlan, TemporalScope
 from retrieval.macro.models import (
-    MacroBindingRecord,
     MacroBindingProposal,
+    MacroBindingRecord,
     ProposalSource,
     ValidationStatus,
 )
@@ -138,7 +138,7 @@ def macro_router(state: AgentState, *, graph_api=None) -> dict:
 
 
 # Re-export for tests that imported private helpers from this module
-from retrieval.macro.llm_json import extract_json_from_llm as _extract_json_from_llm
-from retrieval.macro.llm_json import parse_comparison_mode as _parse_comparison_mode
+from retrieval.macro.llm_json import extract_json_from_llm as _extract_json_from_llm  # noqa: E402
+from retrieval.macro.llm_json import parse_comparison_mode as _parse_comparison_mode  # noqa: E402
 
 __all__ = ["macro_router", "_extract_json_from_llm", "_parse_comparison_mode"]

@@ -7,7 +7,7 @@ from graph.legacy_builder import build_snapshot
 from models.enums import GraphNodeType, QueryIntent, SourceBias
 from models.filing import FilingRef
 from models.parsing import ParsedDocument
-from models.query import IntentRouterTrace, SectionCandidate
+from models.query import SectionCandidate
 from retrieval.orchestration.nodes.micro_extractor import micro_extractor
 
 

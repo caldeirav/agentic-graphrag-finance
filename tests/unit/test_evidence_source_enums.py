@@ -1,5 +1,4 @@
 from models.enums import (
-    EvidenceSourceType,
     IntentSource,
     QueryIntent,
     RouterFallbackReason,

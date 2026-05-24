@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 
-from models.corpus import CorpusTemporalScope, FiscalPeriodLabel, infer_fiscal_year_end_month
+from models.corpus import CorpusTemporalScope, infer_fiscal_year_end_month
 from models.enums import ComparisonMode
 from models.filing import FilingRef
 from models.graph import GraphSnapshot

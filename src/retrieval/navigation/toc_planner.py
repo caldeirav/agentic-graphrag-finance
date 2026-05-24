@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 from pathlib import Path
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -13,7 +12,7 @@ from pydantic import BaseModel, Field
 from graph.accession import document_root_id
 from models.enums import GraphEdgeType, GraphNodeType, NarrativeSectionKind
 from models.filing import FilingRef
-from models.graph import GraphNode, GraphSnapshot
+from models.graph import GraphSnapshot
 from retrieval.macro.llm_json import extract_json_from_llm
 from retrieval.orchestration.llm import create_chat_llm
 from retrieval.orchestration.meso_scoring import is_mda_query, is_risk_only_query
@@ -87,7 +86,14 @@ def _mock_plan(query: str, toc: list[TocEntry], filing: FilingRef) -> TocPlanRes
     exclude_kinds: list[str] = []
     ranked: list[str] = []
 
-    if is_mda_query(q):
+    if "footnote" in q:
+        ranked = [
+            e.section_node_id
+            for e in toc
+            if "note" in e.section_id.lower() or "note" in e.label.lower()
+        ]
+        primary = "other"
+    elif is_mda_query(q):
         primary = NarrativeSectionKind.MD_AND_A.value
         exclude_kinds = [NarrativeSectionKind.RISK_FACTORS.value, "xbrl_bucket"]
         ranked = [e.section_node_id for e in by_kind.get(primary, [])]

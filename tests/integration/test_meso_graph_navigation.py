@@ -9,7 +9,6 @@ import pytest
 from graph.query_api import LocalGraphQueryAPI
 from graph.store import save_snapshot
 from models.enums import IntentSource, QueryIntent, SourceBias
-from models.filing import FilingRef
 from models.query import IntentRouterTrace
 from retrieval.orchestration.nodes.meso_router import meso_router
 

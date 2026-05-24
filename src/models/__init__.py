@@ -1,5 +1,16 @@
 """Shared Pydantic data contracts."""
 
+from models.corpus import (
+    BoundFilingEntry,
+    CorpusDefinition,
+    CorpusMaterializationJob,
+    CorpusMember,
+    CorpusTemporalScope,
+    FilingBinding,
+    FiscalPeriodLabel,
+    IssuerSnapshotIndex,
+    SnapshotScopeManifest,
+)
 from models.enums import (
     EvidenceSourceType,
     GraphEdgeType,
@@ -27,16 +38,6 @@ from models.evaluation import (
     ValidationReason,
     ValidationStatus,
 )
-from models.trajectory import (
-    TRAJECTORY_SCHEMA_VERSION,
-    AgentTrajectorySnapshot,
-    EvidenceEntry,
-    FilingRouteEntry,
-    GraphHop,
-    SynthesisPath,
-    StageDecision,
-    TrajectoryPlan,
-)
 from models.filing import CellSpan, FilingRef, FootnoteBlock, SectionBlock, TableBlock
 from models.graph import GraphEdge, GraphManifest, GraphNode, GraphSnapshot
 from models.graph_audit import (
@@ -44,17 +45,6 @@ from models.graph_audit import (
     FilingMaterializationResult,
     FilingMaterializationStatus,
     ReachabilityAuditReport,
-)
-from models.corpus import (
-    BoundFilingEntry,
-    CorpusDefinition,
-    CorpusMaterializationJob,
-    CorpusMember,
-    CorpusTemporalScope,
-    FilingBinding,
-    FiscalPeriodLabel,
-    IssuerSnapshotIndex,
-    SnapshotScopeManifest,
 )
 from models.ingestion import (
     CacheEntry,
@@ -77,6 +67,16 @@ from models.query import (
     SectionCandidate,
     TemporalScope,
     TrajectoryRecord,
+)
+from models.trajectory import (
+    TRAJECTORY_SCHEMA_VERSION,
+    AgentTrajectorySnapshot,
+    EvidenceEntry,
+    FilingRouteEntry,
+    GraphHop,
+    StageDecision,
+    SynthesisPath,
+    TrajectoryPlan,
 )
 
 __all__ = [

@@ -8,7 +8,6 @@ from pathlib import Path
 
 import pytest
 
-from graph.builder import build_snapshot
 from models.filing import FilingRef, SectionBlock, TableBlock
 from models.ingestion import FilingResolution, XBRLArtifact, XBRLArtifactManifest, XBRLArtifactRole
 from models.parsing import ParsedDocument

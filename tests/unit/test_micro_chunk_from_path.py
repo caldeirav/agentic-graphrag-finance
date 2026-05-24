@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 from evaluation.fixtures.navigation_eval_snapshot import build_navigation_eval_snapshot
 from retrieval.navigation.validator import is_chunk_node
 from retrieval.navigation.walker import run_meso_navigation, run_micro_navigation
-from unittest.mock import MagicMock
 
 
 def _in_memory_api(snap):

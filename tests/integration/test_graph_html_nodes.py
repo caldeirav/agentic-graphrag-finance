@@ -1,6 +1,6 @@
+from graph.builder import build_snapshot
 from models.enums import EvidenceSourceType, NarrativeSectionKind
 from models.filing import SectionBlock
-from graph.builder import build_snapshot
 
 
 def test_graph_nodes_carry_html_source_type(sample_parsed_document) -> None:

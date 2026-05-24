@@ -5,13 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Protocol
 
+from graph.accession import accession_from_node_id, document_root_id
 from graph.reachability import shortest_structural_path
 from graph.store import load_snapshot
 from models.enums import GraphEdgeType, GraphNodeType
 from models.filing import FilingRef
-from models.graph import GraphEdge, GraphNode, GraphSnapshot
-from graph.accession import accession_from_node_id, document_root_id
-
+from models.graph import GraphNode, GraphSnapshot
 
 _NAVIGABLE_TYPES = {
     GraphNodeType.SECTION,

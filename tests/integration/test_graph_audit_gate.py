@@ -1,7 +1,6 @@
 """Integration: reachability audit on built snapshot."""
 
 from datetime import UTC, datetime
-from pathlib import Path
 
 from graph.builder import build_snapshot
 from graph.reachability import audit_snapshot_reachability, save_reachability_report

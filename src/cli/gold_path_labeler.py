@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from evaluation.fixtures.navigation_eval_snapshot import build_navigation_eval_snapshot
-
 DOC = "doc-0000320193-24-000123"
 ACC = "0000320193-24-000123"
 

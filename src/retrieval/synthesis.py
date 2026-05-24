@@ -23,8 +23,8 @@ from retrieval.evidence_scope import (
     period_matches_anchor,
 )
 from retrieval.orchestration.llm import create_chat_llm
-from tracing.console_trace.llm import traced_llm_invoke
 from retrieval.orchestration.state import AgentState
+from tracing.console_trace.llm import traced_llm_invoke
 
 
 def _tag_synthesis_path(result: dict, path: str) -> dict:

@@ -7,10 +7,10 @@ import json
 import typer
 
 from cli.pipeline import run_ask_pipeline
-from tracing.console_trace.config import resolve_trace_level
 from ingestion.edgar_client import ResolutionError
 from models.corpus import CorpusTemporalScope
 from models.ingestion import CLIAskRequest, IssuerIdentifierInput
+from tracing.console_trace.config import resolve_trace_level
 
 
 def _validate_identifiers(ticker: str | None, cik: str | None) -> None:

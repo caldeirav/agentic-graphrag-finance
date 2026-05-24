@@ -16,7 +16,7 @@ def test_meso_respects_low_visit_budget(tmp_path, sample_graph_snapshot, monkeyp
     import retrieval.navigation.walker as walker_mod
 
     def _tiny_budget():
-        from retrieval.navigation.budget import NavigationBudgetState, NavigationBudgetLimits
+        from retrieval.navigation.budget import NavigationBudgetLimits, NavigationBudgetState
 
         return NavigationBudgetState(
             limits=NavigationBudgetLimits(

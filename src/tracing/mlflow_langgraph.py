@@ -258,8 +258,8 @@ def build_trajectory_from_state(state: dict[str, Any]) -> TrajectoryRecord:
         )
         for h in snapshot.graph_traversal
     ]
-    from models.query import EvidenceChunk
     from models.enums import EvidenceSourceType
+    from models.query import EvidenceChunk
 
     evidence: list[EvidenceChunk] = []
     for e in snapshot.evidence:

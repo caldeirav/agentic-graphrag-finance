@@ -4,7 +4,6 @@ from pathlib import Path
 import pytest
 
 from evaluation.validator import validate_trajectory
-from models.evaluation import ValidationStatus
 from models.trajectory import AgentTrajectorySnapshot
 
 MANIFEST = Path("tests/fixtures/trajectory_validation/manifest.json")

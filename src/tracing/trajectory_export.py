@@ -6,18 +6,18 @@ import uuid
 from datetime import date
 from typing import Any
 
+from graph.accession import accession_from_node_id
 from models.enums import QueryStatus
 from models.filing import FilingRef
 from models.query import EvidenceChunk, IntentRouterTrace, MacroPlan
-from graph.accession import accession_from_node_id
 from models.trajectory import (
     TRAJECTORY_SCHEMA_VERSION,
     AgentTrajectorySnapshot,
     EvidenceEntry,
     FilingRouteEntry,
     GraphHop,
-    SynthesisPath,
     StageDecision,
+    SynthesisPath,
     TrajectoryPlan,
 )
 

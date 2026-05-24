@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import mlflow
-from graph.store import save_snapshot
-from graph.legacy_builder import build_snapshot
-from models.parsing import ParsedDocument
-from retrieval.service import QueryService
+
 from contracts.query import QueryRequest
+from graph.store import save_snapshot
+from retrieval.service import QueryService
 from tracing.mlflow_langgraph import setup_mlflow
 
 

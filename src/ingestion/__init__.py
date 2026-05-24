@@ -10,7 +10,13 @@ from ingestion.edgar_client import list_recent_filings, resolve_from_input, reso
 from ingestion.settings import ConfigurationError, require_edgar_user_agent
 from ingestion.validators import ValidationError
 from ingestion.xbrl_downloader import download_artifacts, package_dir, write_manifest
-from models.ingestion import CacheEntry, FetchJob, FetchJobStatus, FilingResolution, IssuerIdentifierInput
+from models.ingestion import (
+    CacheEntry,
+    FetchJob,
+    FetchJobStatus,
+    FilingResolution,
+    IssuerIdentifierInput,
+)
 
 logger = logging.getLogger(__name__)
 

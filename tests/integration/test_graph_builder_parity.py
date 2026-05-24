@@ -1,6 +1,5 @@
 """Parity: legacy builder vs docling-graph mapper on fixture."""
 
-import os
 from datetime import UTC, datetime
 
 from graph import legacy_builder

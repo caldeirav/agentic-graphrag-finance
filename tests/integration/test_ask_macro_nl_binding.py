@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import date
-from pathlib import Path
 from unittest.mock import MagicMock
 
 from graph.legacy_builder import build_snapshot

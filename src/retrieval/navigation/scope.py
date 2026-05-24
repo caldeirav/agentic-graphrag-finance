@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from models.enums import GraphEdgeType, GraphNodeType
+from models.enums import GraphEdgeType
 from models.graph import GraphSnapshot
 from retrieval.navigation.validator import is_chunk_node
 
@@ -24,6 +24,12 @@ def chunk_ids_in_section_subtree(snapshot: GraphSnapshot, section_node_id: str) 
         for edge in snapshot.edges:
             if edge.source_id == cur and edge.edge_type == GraphEdgeType.CONTAINS:
                 stack.append(edge.target_id)
+    # Footnotes attach via FOOTNOTE_OF (footnote → table), not CONTAINS from section root.
+    for edge in snapshot.edges:
+        if edge.edge_type == GraphEdgeType.FOOTNOTE_OF and edge.target_id in out:
+            fn = nodes_by_id.get(edge.source_id)
+            if fn is not None and is_chunk_node(fn.node_type):
+                out.add(edge.source_id)
     return out
 
 

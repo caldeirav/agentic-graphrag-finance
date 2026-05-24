@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from models.enums import ComparisonMode, QueryStatus
+from models.enums import ComparisonMode
 from models.filing import FilingRef
 from models.query import EvidenceChunk
 from retrieval.macro.models import (
@@ -26,7 +26,6 @@ def test_infer_anchor_skips_qoq_phrase():
 
 
 def test_resolve_temporal_anchor_from_macro_record(aapl_macro_snapshot):
-    snap = aapl_macro_snapshot
     proposal = MacroBindingProposal(
         intent_summary="prior quarter",
         anchor="prior_quarter",

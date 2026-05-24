@@ -1,9 +1,9 @@
 """Integration: multi-filing corpus materialize pipeline."""
 
-from pathlib import Path
 
 from cli.corpus_pipeline import run_materialize_pipeline
-from graph.registry import get_latest_snapshot, load_index as load_snapshot_index
+from graph.registry import get_latest_snapshot
+from graph.registry import load_index as load_snapshot_index
 from models.corpus import CorpusDefinition, CorpusDefinitionMode
 
 

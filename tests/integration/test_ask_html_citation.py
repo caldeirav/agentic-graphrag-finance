@@ -1,11 +1,11 @@
 import os
 
+from contracts.query import QueryRequest
 from graph.builder import build_snapshot
 from graph.store import save_snapshot
 from models.enums import EvidenceSourceType, NarrativeSectionKind
 from models.filing import SectionBlock
 from retrieval.service import QueryService
-from contracts.query import QueryRequest
 
 
 def test_qualitative_ask_includes_html_citation_in_trajectory(

@@ -7,7 +7,11 @@ import uuid
 from datetime import UTC, datetime
 
 from graph.docling_graph_mapper import DOCLING_GRAPH_MAPPER_VERSION, map_filing
-from graph.similarity import add_deterministic_concept_edges, add_thematic_edges, load_similarity_config
+from graph.similarity import (
+    add_deterministic_concept_edges,
+    add_thematic_edges,
+    load_similarity_config,
+)
 from models.enums import GraphEdgeType
 from models.graph import GraphEdge, GraphManifest, GraphSnapshot
 from models.graph_audit import FilingMaterializationStatus
