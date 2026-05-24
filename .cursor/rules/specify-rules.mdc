@@ -6,13 +6,14 @@ alwaysApply: true
 For additional context about technologies, project structure, shell commands, and
 pipeline segments, read the current implementation plan:
 
-**Plan**: `specs/009-graph-native-meso-micro/plan.md` (active) | Prior: `specs/008-autonomous-macro-routing/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
+**Plan**: `specs/010-mlflow-trajectory-judge-eval/plan.md` (active) | Prior: `specs/009-graph-native-meso-micro/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
 
 Quick reference:
-- **Stack**: uv, EDGAR ingest, Docling, docling-graph, LangGraph, Qwen/LM Studio, MLflow, Gemini judge, Rich console trace
-- **Layers**: `src/ingestion/`, `src/parsing/`, `src/graph/`, `src/retrieval/macro/`, `src/retrieval/navigation/`, `src/retrieval/orchestration/`, `src/tracing/`, `src/evaluation/`, `src/cli/`
-- **CLI**: `uv run agent-query ask --ticker AAPL --trace verbose --query "..."` | eval: `agent-query test --gold-path`
-- **Storage**: `data/graphs/{issuer}/`, `tests/fixtures/gold_path/gold_path.jsonl`, `configs/graph_navigation.yaml`
-- **Phases**: P1 policy+graph API → P2 validator+walker → P3 planner+meso/micro nodes → P4 trajectory → P5 gold-path eval
-- **Design artifacts**: `specs/009-graph-native-meso-micro/{research,data-model,quickstart}.md` and `contracts/`
+- **Stack**: uv, EDGAR ingest, Docling, docling-graph, LangGraph, Qwen/LM Studio, MLflow Traces + autolog, Gemini 2.5 Pro judge (`GOOGLE_API_KEY`), Rich console trace
+- **Layers**: `src/ingestion/`, `src/parsing/`, `src/graph/`, `src/retrieval/`, `src/tracing/`, `src/evaluation/` (validator + judge, no retrieval imports), `src/cli/`
+- **CLI**: `uv run agent-query ask --ticker AAPL --trace normal --query "..."` | eval gate: reference suite ≥50 items, 90% `complete` trajectories
+- **Storage**: MLflow `sqlite:///mlflow.db`; artifacts `agent_trajectory.json`, `trajectory_validation.json`, `judge_verdict.json`
+- **Configs**: `configs/mlflow.yaml`, `configs/trajectory_judge.yaml`, `configs/judges/gemini_2_5_pro.yaml`
+- **Phases**: A schema+export → B validator → C judge → D ask+console → E benchmark gate → F MLflow UX
+- **Design artifacts**: `specs/010-mlflow-trajectory-judge-eval/{research,data-model,quickstart}.md` and `contracts/`
 <!-- SPECKIT END -->
