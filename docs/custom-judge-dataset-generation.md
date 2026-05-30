@@ -2,7 +2,7 @@
 
 This guide describes how the project builds a **versioned, offline evaluation benchmark** from live SEC EDGAR filings. The pipeline samples issuers, materializes XBRL/graph snapshots through the same production path as `agent-query ask`, uses **Gemini** to author grounded Q&A items, validates them against the bundled graph index, and writes a reproducible draft bundle.
 
-**Related specs:** [012 spec](../specs/012-judge-eval-dataset/spec.md) · [012 plan](../specs/012-judge-eval-dataset/plan.md) · [operator quickstart](../specs/012-judge-eval-dataset/quickstart.md)
+**Related specs:** [011 spec](../specs/011-judge-eval-dataset/spec.md) · [011 plan](../specs/011-judge-eval-dataset/plan.md) · [operator quickstart](../specs/011-judge-eval-dataset/quickstart.md)
 
 ---
 
@@ -150,7 +150,7 @@ Console tracing uses Rich panels on stderr (`--trace quiet|normal|verbose`), sam
 | `configs/benchmarks/inspiration_profiles/*.yaml` | Per-profile Gemini prompt templates |
 | `configs/judges/gemini_2_5_pro.yaml` | Model pin (`gemini-2.5-pro`, temperature 0) |
 
-Key YAML fields (see [generation-config-schema](../specs/012-judge-eval-dataset/contracts/generation-config-schema.md)):
+Key YAML fields (see [generation-config-schema](../specs/011-judge-eval-dataset/contracts/generation-config-schema.md)):
 
 - `random_seed`, `issuer_sample_count`, `allowlist_path`
 - `filing_filters` — form types, fiscal year range, max filings per issuer
@@ -281,7 +281,7 @@ Offline hash check:
 uv run agent-query benchmark-dataset reproduce --version 1.0.0
 ```
 
-Run agent against the bundle (see [012 quickstart](../specs/012-judge-eval-dataset/quickstart.md) for smoke eval with `custom-judge` registry).
+Run agent against the bundle (see [011 quickstart](../specs/011-judge-eval-dataset/quickstart.md) for smoke eval with `custom-judge` registry).
 
 ---
 
@@ -299,4 +299,4 @@ Run agent against the bundle (see [012 quickstart](../specs/012-judge-eval-datas
 
 ## Architecture boundaries
 
-Generation code under `src/evaluation/generation/` must **not** import retrieval or ingestion fetch paths. Materialization is orchestrated only from `src/cli/benchmark_materialize.py`. See [judge-generation-boundary](../specs/012-judge-eval-dataset/contracts/judge-generation-boundary.md).
+Generation code under `src/evaluation/generation/` must **not** import retrieval or ingestion fetch paths. Materialization is orchestrated only from `src/cli/benchmark_materialize.py`. See [judge-generation-boundary](../specs/011-judge-eval-dataset/contracts/judge-generation-boundary.md).

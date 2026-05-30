@@ -6,7 +6,7 @@ alwaysApply: true
 For additional context about technologies, project structure, shell commands, and
 pipeline segments, read the current implementation plan:
 
-**Plan**: `specs/012-judge-eval-dataset/plan.md` (active) | Prior: `specs/010-mlflow-trajectory-judge-eval/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
+**Plan**: `specs/011-judge-eval-dataset/plan.md` (active) | Prior: `specs/010-mlflow-trajectory-judge-eval/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
 
 Quick reference:
 - **Stack**: uv, EDGAR ingest, Docling/XBRL, docling-graph, LangGraph, MLflow Traces, Gemini 2.5 Pro (generation + judge), Git LFS corpus bundles
@@ -15,5 +15,5 @@ Quick reference:
 - **Storage**: Published bundles `data/benchmarks/custom-judge/v{version}/`; LFS under `corpus/`; allowlist `configs/benchmarks/issuer_allowlist_v1.json`
 - **Configs**: `configs/benchmarks/custom_judge_v1.yaml`, inspiration profiles under `configs/benchmarks/inspiration_profiles/`
 - **Phases**: A scaffold → B sample+materialize → C judge generate → D bundle CLI → E registry+offline eval → F publish v1 (≥200 items)
-- **Design artifacts**: `specs/012-judge-eval-dataset/{research,data-model,quickstart}.md` and `contracts/`
+- **Design artifacts**: `specs/011-judge-eval-dataset/{research,data-model,quickstart}.md` and `contracts/`
 <!-- SPECKIT END -->

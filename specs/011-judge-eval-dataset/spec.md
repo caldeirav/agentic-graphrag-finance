@@ -172,7 +172,7 @@ An engineer reproduces the full dataset from documented config or extends an exi
 | FinanceBench | [GitHub](https://github.com/patronus-ai/financebench) / [arXiv:2311.11944](https://arxiv.org/abs/2311.11944) | Question types: metrics, domain-relevant, novel |
 | FinAgentBench | [Kaggle ICAIF 25](https://www.kaggle.com/competitions/acm-icaif-25-ai-agentic-retrieval-grand-challenge/data) / arXiv:2508.14052 | Agentic multi-filing retrieval patterns |
 | Benchmark registry | [001 contract](../001-sec-disclosure-rag/contracts/benchmark-registry.md) | Plug-in registration |
-| Public benchmark adapters | [011 spec](../011-benchmark-dataset-adapters/spec.md) | Related; adapts upstream rather than generates |
+| Public benchmark adapters | *(planned)* | Related complementary feature: adapts upstream benchmarks rather than generating native corpus |
 | Trajectory judge | [010 spec](../010-mlflow-trajectory-judge-eval/spec.md) | Evaluation and judge version pinning |
 
 ## Out of Scope (v1)

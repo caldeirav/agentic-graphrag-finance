@@ -1,4 +1,4 @@
-"""Validate generated benchmark items against corpus index (012)."""
+"""Validate generated benchmark items against corpus index (011)."""
 
 from __future__ import annotations
 

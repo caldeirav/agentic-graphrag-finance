@@ -1,4 +1,4 @@
-"""Unit tests for item validator (012)."""
+"""Unit tests for item validator (011)."""
 
 from evaluation.generation.item_validator import validate_item
 from models.benchmark_generation import GeneratedBenchmarkItem

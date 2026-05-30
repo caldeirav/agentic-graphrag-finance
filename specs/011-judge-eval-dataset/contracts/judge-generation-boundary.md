@@ -1,4 +1,4 @@
-# Judge Generation Layer Boundary Contract (012)
+# Judge Generation Layer Boundary Contract (011)
 
 **Goal**: Dataset generation stays in the **evaluation** layer without importing **agentic retrieval** internals.
 

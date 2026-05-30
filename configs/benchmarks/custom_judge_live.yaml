@@ -1,4 +1,4 @@
-# Live EDGAR + Gemini smoke — 1 issuer (AAPL), 2 items (012)
+# Live EDGAR + Gemini smoke — 1 issuer (AAPL), 2 items (011)
 config_id: custom_judge_live
 random_seed: 42
 

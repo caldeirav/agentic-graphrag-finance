@@ -1,4 +1,4 @@
-"""Rich console tracing for benchmark-dataset generation (012)."""
+"""Rich console tracing for benchmark-dataset generation (011)."""
 
 from __future__ import annotations
 

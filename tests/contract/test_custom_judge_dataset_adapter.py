@@ -1,4 +1,4 @@
-"""Contract tests for custom-judge dataset adapter (012)."""
+"""Contract tests for custom-judge dataset adapter (011)."""
 
 from pathlib import Path
 

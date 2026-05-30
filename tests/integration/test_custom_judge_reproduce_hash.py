@@ -1,4 +1,4 @@
-"""Integration test for custom-judge reproduce hash (012)."""
+"""Integration test for custom-judge reproduce hash (011)."""
 
 from pathlib import Path
 

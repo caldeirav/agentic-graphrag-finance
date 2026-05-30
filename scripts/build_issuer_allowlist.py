@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build committed issuer allowlist for custom-judge generation (012)."""
+"""Build committed issuer allowlist for custom-judge generation (011)."""
 
 from __future__ import annotations
 

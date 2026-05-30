@@ -2,7 +2,7 @@
 
 **Branch**: `011-judge-eval-dataset` | **Date**: 2026-05-20 | **Spec**: [spec.md](./spec.md)
 
-**Input**: Feature specification from `/specs/012-judge-eval-dataset/spec.md` with clarifications on allowlist sampling, draft+publish workflow, config-only profile quotas (v1 equal thirds), Git LFS corpus bundles, and separate judge pins (v1 same Gemini).
+**Input**: Feature specification from `/specs/011-judge-eval-dataset/spec.md` with clarifications on allowlist sampling, draft+publish workflow, config-only profile quotas (v1 equal thirds), Git LFS corpus bundles, and separate judge pins (v1 same Gemini).
 
 ## Summary
 
@@ -57,7 +57,7 @@ Build an **offline dataset generation pipeline** that (1) seed-samples issuers f
 ### Documentation (this feature)
 
 ```text
-specs/012-judge-eval-dataset/
+specs/011-judge-eval-dataset/
 ├── plan.md
 ├── research.md
 ├── data-model.md
@@ -133,7 +133,7 @@ tests/
 
 ## Gap Analysis (current code → target)
 
-| Area | Current | Target (012) |
+| Area | Current | Target (011) |
 |------|---------|--------------|
 | Custom dataset | None; synthetic fallback in `_base.load_jsonl_dataset` | `CustomJudgeDataset` + real bundled items |
 | Generation pipeline | None | Full sampler → materialize → judge → validate → bundle |

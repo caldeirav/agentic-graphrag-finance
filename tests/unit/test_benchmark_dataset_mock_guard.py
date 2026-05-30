@@ -1,4 +1,4 @@
-"""Mock judge guard for benchmark-dataset CLI (012)."""
+"""Mock judge guard for benchmark-dataset CLI (011)."""
 
 import os
 from pathlib import Path

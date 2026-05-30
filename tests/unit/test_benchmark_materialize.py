@@ -1,4 +1,4 @@
-"""Unit tests for benchmark materialize facade (012)."""
+"""Unit tests for benchmark materialize facade (011)."""
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch

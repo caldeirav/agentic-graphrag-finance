@@ -1,4 +1,4 @@
-"""Draft and published bundle assembly for custom-judge datasets (012).
+"""Draft and published bundle assembly for custom-judge datasets (011).
 
 Extend workflow: parent published artifacts are immutable. ``extend`` copies parent
 items/corpus into a new draft; delta issuers may add a new composite ``snapshot_id``

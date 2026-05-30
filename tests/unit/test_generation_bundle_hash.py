@@ -1,4 +1,4 @@
-"""Deterministic items_hash tests (012)."""
+"""Deterministic items_hash tests (011)."""
 
 from pathlib import Path
 

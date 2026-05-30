@@ -1,2 +1,2 @@
-# Git LFS — custom-judge frozen corpus artifacts (012)
+# Git LFS — custom-judge frozen corpus artifacts (011)
 data/benchmarks/custom-judge/**/corpus/** filter=lfs diff=lfs merge=lfs -text

@@ -1,4 +1,4 @@
-"""Live Gemini benchmark item generation (012)."""
+"""Live Gemini benchmark item generation (011)."""
 
 from __future__ import annotations
 

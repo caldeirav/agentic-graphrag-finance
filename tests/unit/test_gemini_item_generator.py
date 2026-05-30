@@ -1,4 +1,4 @@
-"""Unit tests for live Gemini item generator (012)."""
+"""Unit tests for live Gemini item generator (011)."""
 
 from __future__ import annotations
 

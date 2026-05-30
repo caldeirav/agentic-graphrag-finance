@@ -1,10 +1,10 @@
 ---
-description: "Task list for judge-generated custom evaluation dataset (012)"
+description: "Task list for judge-generated custom evaluation dataset (011)"
 ---
 
 # Tasks: Judge-Generated Custom Evaluation Dataset
 
-**Input**: Design documents from `specs/012-judge-eval-dataset/`
+**Input**: Design documents from `specs/011-judge-eval-dataset/`
 
 **Prerequisites**: plan.md, spec.md (with clarifications), research.md, data-model.md, contracts/, quickstart.md; features 010 (judge), 004 (materialization), 001 (benchmark registry) on branch `011-judge-eval-dataset`
 
@@ -179,9 +179,9 @@ description: "Task list for judge-generated custom evaluation dataset (012)"
 **Purpose**: End-to-end smoke, docs, operator publish gate
 
 - [ ] T051 [P] Add integration test `tests/integration/test_custom_judge_offline_eval.py` running ≥20 items with `USE_MOCK_LLM=1` `USE_MOCK_JUDGE=1` per SC-006
-- [X] T052 [P] Add `configs/benchmarks/custom_judge_v1_extend.yaml` example for extend workflow in `specs/012-judge-eval-dataset/quickstart.md`
-- [X] T053 [P] Add README subsection linking to `specs/012-judge-eval-dataset/quickstart.md` under benchmark/evaluation docs in `README.md`
-- [ ] T054 Run full `specs/012-judge-eval-dataset/quickstart.md` validation on fixture bundle (reproduce + smoke eval steps)
+- [X] T052 [P] Add `configs/benchmarks/custom_judge_v1_extend.yaml` example for extend workflow in `specs/011-judge-eval-dataset/quickstart.md`
+- [X] T053 [P] Add README subsection linking to `specs/011-judge-eval-dataset/quickstart.md` under benchmark/evaluation docs in `README.md`
+- [ ] T054 Run full `specs/011-judge-eval-dataset/quickstart.md` validation on fixture bundle (reproduce + smoke eval steps)
 - [ ] T055 **Operator gate**: Run full `generate` + operator `publish --version 1.0.0` with real Gemini/EDGAR; confirm ≥200 items and commit LFS corpus (manual, documented in quickstart)
 
 **Checkpoint**: SC-001–SC-007 satisfied for v1.0.0 publish (T055 manual)

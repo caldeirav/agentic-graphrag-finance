@@ -1,4 +1,4 @@
-"""Near-duplicate question deduplication for generated items (012)."""
+"""Near-duplicate question deduplication for generated items (011)."""
 
 from __future__ import annotations
 

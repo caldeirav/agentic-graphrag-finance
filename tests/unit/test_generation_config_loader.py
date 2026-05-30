@@ -1,4 +1,4 @@
-"""Unit tests for generation config loader (012)."""
+"""Unit tests for generation config loader (011)."""
 
 from pathlib import Path
 

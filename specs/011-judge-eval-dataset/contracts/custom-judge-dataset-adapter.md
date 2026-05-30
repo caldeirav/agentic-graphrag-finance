@@ -1,4 +1,4 @@
-# Custom Judge Dataset Adapter Contract (012)
+# Custom Judge Dataset Adapter Contract (011)
 
 **Package**: `src/evaluation/datasets/custom_judge.py`  
 **Registry name**: `custom-judge`

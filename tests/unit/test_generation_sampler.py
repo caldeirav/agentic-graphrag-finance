@@ -1,4 +1,4 @@
-"""Unit tests for generation sampler (012)."""
+"""Unit tests for generation sampler (011)."""
 
 import json
 from pathlib import Path

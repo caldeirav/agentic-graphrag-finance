@@ -33,6 +33,6 @@
 
 ## Notes
 
-- Validation iteration 1 (2026-05-20): All items pass. Feature complements [011 benchmark adapters](../011-benchmark-dataset-adapters/spec.md) (upstream normalization) with native judge-generated corpus; relationship documented in Assumptions and Out of Scope.
+- Validation iteration 1 (2026-05-20): All items pass. Feature complements planned public benchmark adapter work (upstream normalization) with native judge-generated corpus; relationship documented in Assumptions and Out of Scope.
 - Clarification session 2026-05-20 (5 Q&A): issuer allowlist sampling, draft+publish workflow, config-only profile quotas (v1 equal thirds), Git LFS corpus default, separate judge pins (v1 same Gemini).
-- Spec directory `012-judge-eval-dataset` vs git branch `011-judge-eval-dataset` is intentional (011 directory already allocated).
+- Spec directory `011-judge-eval-dataset` aligns with git branch `011-judge-eval-dataset`.

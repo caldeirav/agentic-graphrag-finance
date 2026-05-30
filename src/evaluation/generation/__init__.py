@@ -1,4 +1,4 @@
-"""Judge-assisted benchmark dataset generation (012).
+"""Judge-assisted benchmark dataset generation (011).
 
 Public API for config loading and governance; sampler/materialize/judge modules
 are wired from ``cli.commands.benchmark_dataset``.

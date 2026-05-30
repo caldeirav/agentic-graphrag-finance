@@ -1,4 +1,4 @@
-"""Load and validate custom-judge generation YAML configs (012)."""
+"""Load and validate custom-judge generation YAML configs (011)."""
 
 from __future__ import annotations
 

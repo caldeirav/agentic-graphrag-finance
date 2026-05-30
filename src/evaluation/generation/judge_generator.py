@@ -1,4 +1,4 @@
-"""Judge-assisted benchmark item generation (012)."""
+"""Judge-assisted benchmark item generation (011)."""
 
 from __future__ import annotations
 

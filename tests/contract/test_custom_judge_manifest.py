@@ -1,4 +1,4 @@
-"""Validate golden custom-judge manifest against Pydantic models (012)."""
+"""Validate golden custom-judge manifest against Pydantic models (011)."""
 
 import json
 from pathlib import Path

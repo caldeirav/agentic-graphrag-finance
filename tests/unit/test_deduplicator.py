@@ -1,4 +1,4 @@
-"""Unit tests for deduplicator (012)."""
+"""Unit tests for deduplicator (011)."""
 
 from evaluation.generation.deduplicator import deduplicate_items
 from models.benchmark_generation import GeneratedBenchmarkItem

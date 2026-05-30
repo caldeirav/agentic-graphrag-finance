@@ -1,4 +1,4 @@
-"""Mock judge generation tests (012)."""
+"""Mock judge generation tests (011)."""
 
 from pathlib import Path
 

@@ -1,4 +1,4 @@
-# Dataset Generation CLI Contract (012)
+# Dataset Generation CLI Contract (011)
 
 **Command group**: `agent-query benchmark-dataset` (Typer sub-app)
 

@@ -1,4 +1,4 @@
-# Dataset Bundle Manifest Contract (012)
+# Dataset Bundle Manifest Contract (011)
 
 **Artifact**: `data/benchmarks/custom-judge/v{version}/manifest.json`
 

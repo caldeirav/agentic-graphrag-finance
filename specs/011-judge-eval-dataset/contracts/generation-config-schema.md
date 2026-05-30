@@ -1,4 +1,4 @@
-# Generation Config Schema Contract (012)
+# Generation Config Schema Contract (011)
 
 **Default file**: `configs/benchmarks/custom_judge_v1.yaml`
 
