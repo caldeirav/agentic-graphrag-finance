@@ -28,7 +28,7 @@
 
 ## R3 — Dense embedding model for flat-chunk baseline
 
-**Decision**: Pin **`sentence-transformers/all-MiniLM-L6-v2`** (384-dim, CPU-viable) recorded in release manifest as `embedding_model_id` + config hash of `configs/reproduction/embeddings/all_minilm_l6_v2.yaml`.
+**Decision**: Pin **`sentence-transformers/all-MiniLM-L6-v2`** (384-dim, CPU-viable) recorded in release manifest as `embedding_model_id`, **`embedding_model_revision`** (HF commit hash), and `embedding_config_hash` of `configs/reproduction/embeddings/all_minilm_l6_v2.yaml`.
 
 **Rationale**: Aligns with 004 thematic-link research note; no API key; deterministic given model revision pin; strong enough baseline without oracle leakage.
 

@@ -56,7 +56,9 @@ ReleaseManifest ──orchestrates──> ReproRun
 | `judge_config_path` | path | yes | e.g. `configs/judges/gemini_2_5_pro.yaml` |
 | `judge_config_hash` | string | yes | |
 | `embedding_model_id` | string | yes | HF model id |
+| `embedding_model_revision` | string | yes | HF commit/revision pin for reproducible vectors |
 | `embedding_config_path` | path | yes | top-k, batch size, cache policy |
+| `embedding_config_hash` | string | yes | SHA-256 of embedding config file |
 
 ## ToleranceBands
 

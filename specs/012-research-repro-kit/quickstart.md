@@ -77,7 +77,7 @@ reports/repro-paper-v1.0/tables/
 uv run pytest tests/integration/test_repro_smoke.py -q
 ```
 
-Uses `releases/paper-smoke/manifest.yaml`, `USE_MOCK_JUDGE=1`, `USE_MOCK_LLM=1`, fixture bundle subset.
+Uses `releases/paper-smoke/manifest.yaml` (all five variants, ≤20 items), `USE_MOCK_JUDGE=1`, `USE_MOCK_LLM=1`, fixture bundle subset.
 
 ## Troubleshooting
 

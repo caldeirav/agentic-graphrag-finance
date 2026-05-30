@@ -50,7 +50,7 @@ OFFLINE_BENCHMARK=1 uv run agent-query repro run-all \
 
 ```text
 reports/repro-paper-v1.0/
-├── repro_run.json
+├── repro_run.json           # ReproRun audit (variant runs, timings, manifest ref)
 ├── graph-full/
 │   └── benchmark-{id}/summary.json
 ├── flat-chunk/

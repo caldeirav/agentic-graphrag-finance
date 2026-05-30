@@ -33,7 +33,9 @@ model_pins:
   judge_config_path: configs/judges/gemini_2_5_pro.yaml
   judge_config_hash: "sha256:…"
   embedding_model_id: sentence-transformers/all-MiniLM-L6-v2
+  embedding_model_revision: "abc123def456"  # HF revision commit; pin at release
   embedding_config_path: configs/reproduction/embeddings/all_minilm_l6_v2.yaml
+  embedding_config_hash: "sha256:…"
 
 tolerance_bands:
   mean_outcome_accuracy: 0.02

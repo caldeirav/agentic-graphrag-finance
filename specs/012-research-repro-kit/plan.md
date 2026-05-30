@@ -178,7 +178,7 @@ docs/
 | Full repro runtime >8 h | Document parallel variant runs (future); smoke path for CI |
 | Embedding model drift | Pin HF revision in manifest; cache vectors in bundle |
 | Relevance coverage <90% | Pre-publish materialize gate; failure report lists items |
-| Ablation flags subtly change graph-full | Contract test: default profile ≡ current production graph |
+| Ablation flags subtly change graph-full | Contract test: default profile ≡ current production graph (**tasks.md T055**) |
 
 ## Generated Artifacts (this command)
 
