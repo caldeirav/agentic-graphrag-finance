@@ -17,6 +17,31 @@ def test_extract_sections_from_fixture_xml_without_html_parser_warning() -> None
     assert sections or True  # fixture may be minimal; generic block allowed
 
 
+def test_extract_sections_from_ixbrl_htm_content_without_html_parser_warning() -> None:
+    path = Path("tests/fixtures/narrative/ixbrl.htm")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        '<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml" '
+        'xmlns:ix="http://www.xbrl.org/2013/inlineXBRL">'
+        + ("intro " * 80)
+        + "ITEM 1A. RISK FACTORS Supply chain and regulatory risks. "
+        + ("More risk discussion. " * 80)
+        + "ITEM 7. MANAGEMENT'S DISCUSSION MD&A content here. "
+        + ("Operations review. " * 80)
+        + "</html>",
+        encoding="utf-8",
+    )
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", XMLParsedAsHTMLWarning)
+            sections = extract_narrative_sections(path, form_type="10-K")
+        assert any(s.narrative_kind and s.narrative_kind.value == "risk_factors" for s in sections)
+    finally:
+        path.unlink(missing_ok=True)
+        if path.parent.exists() and not any(path.parent.iterdir()):
+            path.parent.rmdir()
+
+
 def test_merge_preserves_xbrl_sections(sample_filing: FilingRef) -> None:
     doc = ParsedDocument(
         filing=sample_filing,

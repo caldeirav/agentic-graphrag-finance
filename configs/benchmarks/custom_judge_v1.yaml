@@ -4,14 +4,14 @@ random_seed: 42
 allowlist_id: issuer_allowlist_v1
 allowlist_path: configs/benchmarks/issuer_allowlist_v1.json
 
-issuer_sample_count: 12
+issuer_sample_count: 20
 
 filing_filters:
   form_types:
     - 10-K
     - 10-Q
   min_fiscal_year: 2022
-  max_fiscal_year: 2024
+  max_fiscal_year: 2025
   max_filings_per_issuer: 4
 
 profile_quotas:
@@ -31,10 +31,10 @@ evaluation_judge_version: gemini-2.5-pro
 evaluation_judge_config: configs/judges/gemini_2_5_pro.yaml
 
 governance:
-  max_issuers: 12
+  max_issuers: 20
   max_filings_per_issuer: 4
   max_items: 220
-  max_judge_api_calls: 600
+  max_judge_api_calls: 800
   max_storage_bytes: 5368709120
   max_wall_clock_seconds: 14400
   validation_pass_rate: 0.95

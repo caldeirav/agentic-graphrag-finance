@@ -39,11 +39,43 @@ def _is_xml_narrative_path(path: Path) -> bool:
     return path.suffix.lower() == ".xml" or name.endswith("_htm.xml") or name.endswith("_ins.xml")
 
 
+_XML_PROLOG = re.compile(r"^\s*<\?xml", re.I)
+_IXBRL_MARKERS = re.compile(
+    r"<(?:html|xbrl|ix:header|xbrli:xbrl)[\s/>]|xmlns:ix=|xmlns=\"http://www\.xbrl\.org",
+    re.I,
+)
+
+
+def _is_xml_narrative_content(raw: str) -> bool:
+    """Detect inline XBRL / XML filing documents regardless of filename."""
+    head = raw[:8000]
+    if _XML_PROLOG.search(head):
+        return True
+    return bool(_IXBRL_MARKERS.search(head))
+
+
+def _narrative_markup_parser(raw: str, path: Path | None = None) -> str:
+    if path is not None and _is_xml_narrative_path(path):
+        return "lxml-xml"
+    if _is_xml_narrative_content(raw):
+        return "lxml-xml"
+    return "lxml"
+
+
 def _parse_narrative_soup(path: Path, raw: str) -> BeautifulSoup:
-    """Parse inline XBRL/XML or HTML filing documents without HTML-on-XML warnings."""
-    if _is_xml_narrative_path(path):
-        return BeautifulSoup(raw, "lxml-xml")
-    return BeautifulSoup(raw, "lxml")
+    """Parse inline XBRL/XML or HTML filing documents with the appropriate parser."""
+    return BeautifulSoup(raw, _narrative_markup_parser(raw, path))
+
+
+def _markup_to_plaintext(markup: str, *, path: Path) -> str:
+    """Extract plain text from HTML or iXBRL/XML markup without HTML-on-XML warnings."""
+    if _narrative_markup_parser(markup, path) == "lxml-xml":
+        try:
+            return BeautifulSoup(markup, "lxml-xml").get_text("\n", strip=True)
+        except Exception:
+            plain = re.sub(r"<[^>]+>", " ", markup)
+            return re.sub(r"\s+", " ", plain).strip()
+    return BeautifulSoup(markup, "lxml").get_text("\n", strip=True)
 
 
 def _classify_heading(text: str, patterns: dict[str, list[str]]) -> NarrativeSectionKind:
@@ -101,6 +133,8 @@ def _primary_item_boundaries(text: str) -> list[re.Match[str]]:
 def _extract_sections_from_item_boundaries(
     text: str,
     patterns: dict[str, list[str]],
+    *,
+    source_path: Path,
 ) -> list[SectionBlock]:
     """Split inline iXBRL / filing text on SEC Item headings (full document)."""
     matches = _primary_item_boundaries(text)
@@ -114,7 +148,7 @@ def _extract_sections_from_item_boundaries(
         chunk = text[start:end].strip()
         if len(chunk) < 200:
             continue
-        chunk = BeautifulSoup(chunk, "lxml").get_text("\n", strip=True)
+        chunk = _markup_to_plaintext(chunk, path=source_path)
         if len(chunk) < 500:
             continue
         if chunk.count("Item ") > 8 and len(chunk) < 3000:
@@ -150,7 +184,7 @@ def extract_narrative_sections(
     raw = html_path.read_text(encoding="utf-8", errors="replace")
     patterns = load_section_patterns()
 
-    by_item = _extract_sections_from_item_boundaries(raw, patterns)
+    by_item = _extract_sections_from_item_boundaries(raw, patterns, source_path=html_path)
     if by_item:
         return by_item
 

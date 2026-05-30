@@ -1,4 +1,8 @@
+from pathlib import Path
+
 from parsing.html_narrative import _extract_sections_from_item_boundaries, load_section_patterns
+
+_PLAIN_PATH = Path("narrative.htm")
 
 
 def test_item_1a_risk_section_extracted() -> None:
@@ -8,7 +12,7 @@ def test_item_1a_risk_section_extracted() -> None:
         + "More risk discussion here. " * 100
         + "ITEM 7. MANAGEMENT'S DISCUSSION MD&A content here. " * 50
     )
-    sections = _extract_sections_from_item_boundaries(text, load_section_patterns())
+    sections = _extract_sections_from_item_boundaries(text, load_section_patterns(), source_path=_PLAIN_PATH)
     assert len(sections) >= 1
     risk = next(s for s in sections if s.narrative_kind and s.narrative_kind.value == "risk_factors")
     assert "supply chain" in risk.text.lower()
@@ -21,7 +25,7 @@ def test_item_1a_not_split_on_inline_item_7_cross_reference() -> None:
         + "Additional regulatory and competitive risks. " * 40
         + "ITEM 7. MANAGEMENT'S DISCUSSION MD&A body. " * 50
     )
-    sections = _extract_sections_from_item_boundaries(text, load_section_patterns())
+    sections = _extract_sections_from_item_boundaries(text, load_section_patterns(), source_path=_PLAIN_PATH)
     risk = next(s for s in sections if s.narrative_kind and s.narrative_kind.value == "risk_factors")
     assert "supply chain" in risk.text.lower()
     assert "regulatory and competitive" in risk.text.lower()

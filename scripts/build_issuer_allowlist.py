@@ -29,6 +29,20 @@ FIXTURE_TICKERS: tuple[str, ...] = ("AAPL",)
 # FinDER-style coverage (ticker symbols extracted from public sample queries).
 FINDER_TICKERS: tuple[str, ...] = ("AAPL", "BAC", "KO", "XOM")
 
+# Sector-diverse expansion for v1 benchmark corpus (~20 issuers total after merge).
+BENCHMARK_UNIVERSE_TICKERS: tuple[str, ...] = (
+    "CAT",  # industrials
+    "CVX",  # energy
+    "DIS",  # media / entertainment
+    "HD",  # consumer discretionary / retail
+    "JNJ",  # healthcare
+    "META",  # communication / tech
+    "PG",  # consumer staples
+    "TSLA",  # automotive / tech
+    "UNH",  # healthcare / managed care
+    "V",  # financials / payments
+)
+
 
 def _canonical_payload(entries: list[dict[str, object]], provenance: str) -> dict[str, object]:
     sorted_entries = sorted(entries, key=lambda e: str(e["ticker"]))
@@ -58,6 +72,8 @@ def _merge_entries() -> list[dict[str, object]]:
         add(ticker, "financebench")
     for ticker in FINDER_TICKERS:
         add(ticker, "finder")
+    for ticker in BENCHMARK_UNIVERSE_TICKERS:
+        add(ticker, "benchmark_universe")
     for ticker in FIXTURE_TICKERS:
         add(ticker, "finagentbench")
     if FIXTURE_DOWNLOADS.is_dir():
@@ -74,7 +90,8 @@ def _merge_entries() -> list[dict[str, object]]:
 def build_allowlist(output: Path) -> dict[str, object]:
     provenance = (
         "Union of FinanceBench-style tickers, FinDER sample tickers, "
-        "FinAgentBench/project fixtures, and tests/fixtures/sec_downloads"
+        "sector-diverse benchmark_universe tickers, FinAgentBench/project fixtures, "
+        "and tests/fixtures/sec_downloads"
     )
     entries = _merge_entries()
     payload = _canonical_payload(entries, provenance)

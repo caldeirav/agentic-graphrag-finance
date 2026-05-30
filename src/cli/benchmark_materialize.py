@@ -1,4 +1,4 @@
-"""Materialize sampled corpus into draft bundle (012 CLI facade)."""
+"""Materialize sampled corpus into draft bundle (011 CLI facade)."""
 
 from __future__ import annotations
 
@@ -62,6 +62,11 @@ def materialize_sampled_corpus(
 
     for issuer in sampling.selected_issuers:
         accessions = issuer.accessions
+        if not accessions:
+            failures[f"no_filings_sampled:{issuer.ticker}"] = failures.get(
+                f"no_filings_sampled:{issuer.ticker}", 0
+            ) + 1
+            continue
         defn = CorpusDefinition(
             issuer_id=issuer.ticker,
             mode=CorpusDefinitionMode.EXPLICIT_ACCESSIONS,

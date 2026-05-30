@@ -2,7 +2,34 @@
 
 This guide describes how the project builds a **versioned, offline evaluation benchmark** from live SEC EDGAR filings. The pipeline samples issuers, materializes XBRL/graph snapshots through the same production path as `agent-query ask`, uses **Gemini** to author grounded Q&A items, validates them against the bundled graph index, and writes a reproducible draft bundle.
 
-**Related specs:** [011 spec](../specs/011-judge-eval-dataset/spec.md) · [011 plan](../specs/011-judge-eval-dataset/plan.md) · [operator quickstart](../specs/011-judge-eval-dataset/quickstart.md)
+Question **style and taxonomy** are inspired by three public financial QA benchmarks (FinanceBench, FinDER, FinAgentBench). Generated items are **native to this project's SEC/XBRL corpus**—we do not bulk-import upstream benchmark rows.
+
+**Related specs:** [011 spec](../specs/011-judge-eval-dataset/spec.md) · [011 plan](../specs/011-judge-eval-dataset/plan.md) · [011 research](../specs/011-judge-eval-dataset/research.md) · [operator quickstart](../specs/011-judge-eval-dataset/quickstart.md)
+
+---
+
+## Design references (papers and datasets)
+
+The `custom-judge` pipeline uses upstream work as **inspiration profiles** (prompt templates + validation rules), not as a source of copied questions. Each profile maps to a published benchmark family:
+
+| Inspiration profile | Upstream benchmark | Paper | Dataset / code |
+|---------------------|-------------------|-------|----------------|
+| `financebench` | **FinanceBench** — metrics, domain-relevant, and novel-generated QA over financial disclosures | [Isenberg et al., arXiv:2311.11944](https://arxiv.org/abs/2311.11944) | [patronus-ai/financebench](https://github.com/patronus-ai/financebench) |
+| `finder` | **FinDER** — retrieval QA with evidence rubrics for financial document retrieval | [Linq-AI-Research, arXiv:2504.15800](https://arxiv.org/abs/2504.15800) | [Hugging Face: Linq-AI-Research/FinDER](https://huggingface.co/datasets/Linq-AI-Research/FinDER) |
+| `finagentbench` | **FinAgentBench** — agentic multi-hop retrieval across multiple filings | [arXiv:2508.14052](https://arxiv.org/abs/2508.14052) | [Kaggle: ACM ICAIF '25 Agentic Retrieval Grand Challenge](https://www.kaggle.com/competitions/acm-icaif-25-ai-agentic-retrieval-grand-challenge/data) |
+
+### How each reference shapes generation
+
+| Profile | Borrowed from upstream | Adapted for this project |
+|---------|------------------------|---------------------------|
+| **FinanceBench** | Question-type taxonomy (`metrics-generated`, `domain-relevant`, `novel-generated`); short numeric or textual gold answers | Items bind to **graph-resolvable** `expected_section_paths` (`{accession}/{section_slug}`) instead of PDF page numbers |
+| **FinDER** | Retrieval-focused questions; **rubric-based** scoring with reference evidence | `ground_truth.rubric` is required; `ground_truth.answer` may be null (rubric-only items) |
+| **FinAgentBench** | Multi-hop, cross-filing agentic tasks | `expected_bindings.accessions` must span **≥2 filings**; section paths may cross accessions |
+
+Prompt templates: `configs/benchmarks/inspiration_profiles/{financebench,finder,finagentbench}.yaml`.  
+Profile mix is **config-only** (`profile_quotas` in YAML); v1 defaults to ~equal thirds (~34% / 33% / 33%).
+
+For design rationale and boundary decisions, see [research.md §R4](../specs/011-judge-eval-dataset/research.md#r4--inspiration-profile-prompts-financebench--finder--finagentbench).
 
 ---
 
@@ -13,7 +40,7 @@ This guide describes how the project builds a **versioned, offline evaluation be
 | Grounded items | Every item binds to real accessions and resolvable `expected_section_paths` from the materialized graph |
 | Reproducible sampling | Committed allowlist + `random_seed` → deterministic `sampling_manifest.json` hash |
 | Production-faithful corpus | Materialization calls `cli.corpus_pipeline.run_materialize_pipeline` (Docling/XBRL + docling-graph) |
-| Style diversity | Three **inspiration profiles** (FinanceBench / FinDER / FinAgentBench taxonomies) with configurable quotas |
+| Style diversity | Three **inspiration profiles** aligned to [FinanceBench](https://arxiv.org/abs/2311.11944), [FinDER](https://arxiv.org/abs/2504.15800), and [FinAgentBench](https://arxiv.org/abs/2508.14052) taxonomies |
 | Offline evaluation | Published bundle includes frozen corpus (Git LFS); eval runs refuse live EDGAR when `OFFLINE_BENCHMARK=1` |
 | Audit trail | Draft manifests, generation reports, and checkpoint files support review before `publish` |
 
@@ -62,7 +89,7 @@ flowchart LR
 ### Phase 3 — Judge generate + validate
 
 1. Schedule inspiration profiles per `profile_quotas` (v1 default: equal thirds; smoke configs may use 50/50).
-2. For each candidate, call **Gemini** (`GeminiItemGenerator`) with profile-specific prompts from `configs/benchmarks/inspiration_profiles/`.
+2. For each candidate, call **Gemini** (`GeminiItemGenerator`) with profile-specific prompts styled after FinanceBench, FinDER, and FinAgentBench (see [Design references](#design-references-papers-and-datasets)).
 3. **Validate** each item: non-empty question, ground truth or rubric, accessions ⊆ snapshot, every section path ∈ graph index; profile-specific rules (e.g. FinAgentBench ≥2 filings).
 4. **Deduplicate** near-duplicate questions (similarity threshold from governance config).
 5. Write accepted rows to `items/dev.jsonl`, all candidates to `candidates.jsonl`, finalize `manifest.json` (`status: draft`).
@@ -75,15 +102,42 @@ Mock mode (`USE_MOCK_JUDGE=1` + `custom_judge_ci` config) skips Gemini for CI.
 
 ## Inspiration profiles
 
-Prompt templates live under `configs/benchmarks/inspiration_profiles/`:
+Prompt templates live under `configs/benchmarks/inspiration_profiles/`. See [Design references](#design-references-papers-and-datasets) for papers and upstream datasets.
 
-| Profile | Style | Typical ground truth | Filing count |
-|---------|-------|---------------------|--------------|
-| `financebench` | Metrics, domain, novel generated | `ground_truth.answer` | Single-filing |
-| `finder` | Retrieval QA | `ground_truth.rubric` | Single-filing |
-| `finagentbench` | Agentic multi-hop | answer and/or rubric | ≥2 accessions |
+| Profile | Upstream | Style | Typical ground truth | Filing count |
+|---------|----------|-------|---------------------|--------------|
+| `financebench` | [FinanceBench](https://github.com/patronus-ai/financebench) | Metrics, domain, novel generated | `ground_truth.answer` | Single-filing |
+| `finder` | [FinDER](https://huggingface.co/datasets/Linq-AI-Research/FinDER) | Retrieval QA | `ground_truth.rubric` (answer optional) | Single-filing |
+| `finagentbench` | [FinAgentBench](https://www.kaggle.com/competitions/acm-icaif-25-ai-agentic-retrieval-grand-challenge/data) | Agentic multi-hop | answer and/or rubric | ≥2 accessions |
 
 Quotas are **config-only** (`profile_quotas` in YAML); the shipped v1 config uses ~equal thirds.
+
+---
+
+## Issuer allowlist
+
+Issuers are drawn from a **committed JSON allowlist** (`configs/benchmarks/issuer_allowlist_v1.json`), not from ad-hoc CLI flags. The allowlist is the union of tickers tagged by provenance:
+
+| Source tag | Origin |
+|------------|--------|
+| `financebench` | Tickers commonly present in [FinanceBench](https://github.com/patronus-ai/financebench) open releases |
+| `finder` | Tickers extracted from [FinDER](https://huggingface.co/datasets/Linq-AI-Research/FinDER) sample queries |
+| `finagentbench` | [FinAgentBench](https://www.kaggle.com/competitions/acm-icaif-25-ai-agentic-retrieval-grand-challenge/data) / project fixture overlap |
+| `benchmark_universe` | Sector-diverse expansion tickers (healthcare, energy, industrials, etc.) |
+| `fixture` | Directories under `tests/fixtures/sec_downloads/` |
+
+**v1 allowlist (20 tickers):** AAPL, AMZN, BAC, CAT, CVX, DIS, GOOGL, HD, JNJ, JPM, KO, META, MSFT, NVDA, PG, TSLA, UNH, V, WMT, XOM.
+
+Rebuild after editing ticker lists in `scripts/build_issuer_allowlist.py` (updates `content_hash` required by the loader):
+
+```bash
+uv run python scripts/build_issuer_allowlist.py \
+  --output configs/benchmarks/issuer_allowlist_v1.json
+```
+
+To use a custom pool, copy the JSON, add entries, rebuild hash via the script, and point `allowlist_path` in your generation config. Keep `issuer_sample_count` ≤ allowlist size ≤ `governance.max_issuers`.
+
+Sampling is seed-random: with `random_seed: 42` and `issuer_sample_count: 20`, all 20 allowlist issuers are selected each run (shuffled, then take first *N*).
 
 ---
 
@@ -142,13 +196,25 @@ Console tracing uses Rich panels on stderr (`--trace quiet|normal|verbose`), sam
 
 | File | Role |
 |------|------|
-| `configs/benchmarks/custom_judge_v1.yaml` | Production v1 defaults (12 issuers, ≥200 items, equal-thirds quotas) |
+| `configs/benchmarks/custom_judge_v1.yaml` | Production v1 defaults (**20 issuers**, ≥200 items, equal-thirds quotas) |
 | `configs/benchmarks/custom_judge_live.yaml` | Live EDGAR + Gemini smoke (1 issuer, 2 items) |
 | `configs/benchmarks/custom_judge_ci.yaml` | CI mock path (`--mock-judge` only) |
 | `configs/benchmarks/custom_judge_v1_extend.yaml` | Example extend delta config |
-| `configs/benchmarks/issuer_allowlist_v1.json` | Committed issuer union (FinanceBench / FinDER / fixture tickers) |
-| `configs/benchmarks/inspiration_profiles/*.yaml` | Per-profile Gemini prompt templates |
+| `configs/benchmarks/issuer_allowlist_v1.json` | Committed 20-ticker union (FinanceBench / FinDER / FinAgentBench / benchmark_universe / fixtures) |
+| `configs/benchmarks/inspiration_profiles/*.yaml` | Per-profile Gemini prompt templates (see [Design references](#design-references-papers-and-datasets)) |
 | `configs/judges/gemini_2_5_pro.yaml` | Model pin (`gemini-2.5-pro`, temperature 0) |
+| `scripts/build_issuer_allowlist.py` | Regenerates allowlist JSON + content hash |
+
+**v1 governance defaults** (`custom_judge_v1.yaml`):
+
+| Field | Value |
+|-------|-------|
+| `issuer_sample_count` / `max_issuers` | 20 |
+| `max_filings_per_issuer` | 4 (latest 10-K + quarterly 10-Qs within fiscal year window) |
+| `max_items` | 220 (headroom above 200 publish gate) |
+| `max_judge_api_calls` | 800 |
+| `validation_pass_rate` | 0.95 |
+| `random_seed` | 42 |
 
 Key YAML fields (see [generation-config-schema](../specs/011-judge-eval-dataset/contracts/generation-config-schema.md)):
 
@@ -158,7 +224,7 @@ Key YAML fields (see [generation-config-schema](../specs/011-judge-eval-dataset/
 - `governance` — caps, `validation_pass_rate`, `dedup_similarity_threshold`, `judge_retries_per_item`
 - `output.drafts_root` / `published_root`
 
-Regenerate allowlist after ticker changes:
+Regenerate allowlist after ticker changes (see [Issuer allowlist](#issuer-allowlist)):
 
 ```bash
 uv run python scripts/build_issuer_allowlist.py
@@ -275,6 +341,8 @@ uv run agent-query benchmark-dataset publish \
   --version 1.0.0
 ```
 
+Publish gates (unless `--skip-gates`): ≥200 accepted items and pass rate ≥ 0.95 from `generation_report.json`.
+
 Offline hash check:
 
 ```bash
@@ -300,3 +368,15 @@ Run agent against the bundle (see [011 quickstart](../specs/011-judge-eval-datas
 ## Architecture boundaries
 
 Generation code under `src/evaluation/generation/` must **not** import retrieval or ingestion fetch paths. Materialization is orchestrated only from `src/cli/benchmark_materialize.py`. See [judge-generation-boundary](../specs/011-judge-eval-dataset/contracts/judge-generation-boundary.md).
+
+---
+
+## Further reading
+
+| Topic | Location |
+|-------|----------|
+| Feature requirements and success criteria | [spec.md](../specs/011-judge-eval-dataset/spec.md) |
+| Allowlist, materialization boundary, governance decisions | [research.md](../specs/011-judge-eval-dataset/research.md) |
+| Generation config schema | [generation-config-schema](../specs/011-judge-eval-dataset/contracts/generation-config-schema.md) |
+| Dataset bundle manifest | [dataset-bundle-manifest](../specs/011-judge-eval-dataset/contracts/dataset-bundle-manifest.md) |
+| Trajectory judge evaluation (feature 010) | [010 quickstart](../specs/010-mlflow-trajectory-judge-eval/quickstart.md) |

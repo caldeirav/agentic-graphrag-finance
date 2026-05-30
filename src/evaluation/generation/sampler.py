@@ -22,6 +22,10 @@ from models.benchmark_generation import (
 )
 
 
+class SamplingError(ValueError):
+    """Issuer or filing sample could not satisfy generation config."""
+
+
 def filter_accessions(
     records: list[AccessionRecord],
     filters: FilingFilters,
@@ -71,12 +75,12 @@ def sample_issuers_and_filings(
     rng = random.Random(config.random_seed)
     entries = list(allowlist.entries)
     rng.shuffle(entries)
-    selected_entries = entries[: config.issuer_sample_count]
 
     selected_issuers: list[SelectedIssuer] = []
     total_filings = 0
-    for entry in selected_entries:
-        tracker.record_issuer()
+    for entry in entries:
+        if len(selected_issuers) >= config.issuer_sample_count:
+            break
         ticker = entry.ticker.upper()
         pool = accession_catalog.get(ticker, [])
         accessions = filter_accessions(
@@ -84,6 +88,9 @@ def sample_issuers_and_filings(
             config.filing_filters,
             max_count=config.filing_filters.max_filings_per_issuer,
         )
+        if not accessions:
+            continue
+        tracker.record_issuer()
         total_filings += len(accessions)
         if total_filings > config.governance.max_filings_per_issuer * config.governance.max_issuers:
             raise GovernanceBudgetExceeded(
@@ -99,6 +106,14 @@ def sample_issuers_and_filings(
                 selection_rationale=sorted(entry.sources),
             )
         )
+
+    if len(selected_issuers) < config.issuer_sample_count:
+        msg = (
+            f"Only {len(selected_issuers)} issuers had eligible filings under "
+            f"filing_filters; need {config.issuer_sample_count}. "
+            "Widen min_fiscal_year/max_fiscal_year or expand the allowlist."
+        )
+        raise SamplingError(msg)
 
     selected_issuers.sort(key=lambda s: s.ticker)
     manifest = SamplingManifest(

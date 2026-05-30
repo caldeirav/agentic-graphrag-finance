@@ -1,6 +1,6 @@
 {
   "allowlist_id": "issuer_allowlist_v1",
-  "content_hash": "sha256:37f1de2b6d4d30356b67fe589fb96e8f73f1c74597b0711ab41bbb8d402bff73",
+  "content_hash": "sha256:4a131e8c90f7cad928b60f0303241eb3ad3402e587e2804dffa9be219d877ae3",
   "entries": [
     {
       "sources": [
@@ -25,9 +25,39 @@
     },
     {
       "sources": [
+        "benchmark_universe"
+      ],
+      "ticker": "CAT"
+    },
+    {
+      "sources": [
+        "benchmark_universe"
+      ],
+      "ticker": "CVX"
+    },
+    {
+      "sources": [
+        "benchmark_universe"
+      ],
+      "ticker": "DIS"
+    },
+    {
+      "sources": [
         "financebench"
       ],
       "ticker": "GOOGL"
+    },
+    {
+      "sources": [
+        "benchmark_universe"
+      ],
+      "ticker": "HD"
+    },
+    {
+      "sources": [
+        "benchmark_universe"
+      ],
+      "ticker": "JNJ"
     },
     {
       "sources": [
@@ -43,6 +73,12 @@
     },
     {
       "sources": [
+        "benchmark_universe"
+      ],
+      "ticker": "META"
+    },
+    {
+      "sources": [
         "financebench"
       ],
       "ticker": "MSFT"
@@ -52,6 +88,30 @@
         "financebench"
       ],
       "ticker": "NVDA"
+    },
+    {
+      "sources": [
+        "benchmark_universe"
+      ],
+      "ticker": "PG"
+    },
+    {
+      "sources": [
+        "benchmark_universe"
+      ],
+      "ticker": "TSLA"
+    },
+    {
+      "sources": [
+        "benchmark_universe"
+      ],
+      "ticker": "UNH"
+    },
+    {
+      "sources": [
+        "benchmark_universe"
+      ],
+      "ticker": "V"
     },
     {
       "sources": [
@@ -66,5 +126,5 @@
       "ticker": "XOM"
     }
   ],
-  "provenance": "Union of FinanceBench-style tickers, FinDER sample tickers, FinAgentBench/project fixtures, and tests/fixtures/sec_downloads"
+  "provenance": "Union of FinanceBench-style tickers, FinDER sample tickers, sector-diverse benchmark_universe tickers, FinAgentBench/project fixtures, and tests/fixtures/sec_downloads"
 }
