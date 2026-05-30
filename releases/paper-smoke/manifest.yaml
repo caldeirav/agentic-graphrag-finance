@@ -1,0 +1,39 @@
+schema_version: "1.0.0"
+release_tag: paper-smoke
+git_sha: TBD
+custom_judge_version: "0.0.0-draft"
+custom_judge_bundle_path: tests/fixtures/custom_judge
+eval_split: dev
+reproduction_mode: live_reexecution
+
+corpus_hashes:
+  corpus/graph_node_index.json: "sha256:d4f3fc8fd31d06e4a2a8d29dcb6d728c166bb9aae47a9707072d278b7f0d9620"
+
+relevance_labels_hash: ""
+relevance_coverage_rate: 0.0
+
+variant_ids:
+  - graph-full
+  - flat-chunk
+  - ablation-no-macro
+  - ablation-no-walker
+  - ablation-xbrl-only
+
+model_pins:
+  llm_config_path: configs/llm/lm_studio_qwen.yaml
+  llm_config_hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  judge_config_path: configs/judges/gemini_2_5_pro.yaml
+  judge_config_hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  embedding_model_id: sentence-transformers/all-MiniLM-L6-v2
+  embedding_model_revision: "mock-smoke"
+  embedding_config_path: configs/reproduction/embeddings/all_minilm_l6_v2.yaml
+  embedding_config_hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+
+tolerance_bands:
+  mean_outcome_accuracy: 0.02
+  mean_rubric_alignment: 0.02
+  mean_trajectory_fidelity: 0.02
+  ranking_metrics_exact: true
+  structural_metrics_exact: true
+
+expected_checksums_path: expected_checksums.json

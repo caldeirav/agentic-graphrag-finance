@@ -42,6 +42,34 @@ def _export_graph_node_index(snapshot: GraphSnapshot) -> list[str]:
     return sorted(set(paths))
 
 
+def _copy_snapshot_into_bundle(
+    *,
+    graphs_root: Path,
+    ticker: str,
+    snapshot_id: str,
+    draft_dir: Path,
+    artifact_hashes: dict[str, str],
+) -> int:
+    """Copy snapshot GraphML + manifest into draft corpus/graphs/{ticker}/."""
+    src_dir = graphs_root / ticker
+    dest_dir = draft_dir / "corpus" / "graphs" / ticker
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    copied = 0
+    graphml = dest_dir / f"{snapshot_id}.graphml"
+    for suffix in (".graphml", ".manifest.json", ".reachability.json"):
+        src = src_dir / f"{snapshot_id}{suffix}"
+        if not src.is_file():
+            continue
+        dest = dest_dir / f"{snapshot_id}{suffix}"
+        shutil.copy2(src, dest)
+        rel = dest.relative_to(draft_dir).as_posix()
+        artifact_hashes[rel] = _sha256_file(dest)
+        copied += dest.stat().st_size
+    if not graphml.is_file():
+        return -1
+    return copied
+
+
 def materialize_sampled_corpus(
     sampling: SamplingManifest,
     draft_dir: Path,
@@ -85,21 +113,22 @@ def materialize_sampled_corpus(
             failures["snapshot_load_failed"] = failures.get("snapshot_load_failed", 0) + 1
             continue
 
-        rel = Path("graphs") / issuer.ticker / job.snapshot_id
-        dest = corpus_root / rel
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        src = graphs_root / issuer.ticker / job.snapshot_id
-        if src.is_dir():
-            if dest.exists():
-                shutil.rmtree(dest)
-            shutil.copytree(src, dest)
-        elif src.with_suffix(".json").is_file():
-            dest.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src.with_suffix(".json"), dest / "snapshot.json")
+        copied_bytes = _copy_snapshot_into_bundle(
+            graphs_root=graphs_root,
+            ticker=issuer.ticker,
+            snapshot_id=job.snapshot_id,
+            draft_dir=draft_dir,
+            artifact_hashes=artifact_hashes,
+        )
+        if copied_bytes < 0:
+            failures["snapshot_copy_failed"] = failures.get("snapshot_copy_failed", 0) + 1
+            continue
+        total_bytes += copied_bytes
 
         for path in _export_graph_node_index(snapshot):
             all_paths.add(path)
 
+        rel = Path("graphs") / issuer.ticker / job.snapshot_id
         issuer_refs.append(
             IssuerSnapshotRef(
                 ticker=issuer.ticker,

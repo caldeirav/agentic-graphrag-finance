@@ -1,0 +1,61 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd"><key id="d7" for="edge" attr.name="edge_id" attr.type="string"/>
+<key id="d6" for="edge" attr.name="edge_type" attr.type="string"/>
+<key id="d5" for="node" attr.name="prop_sec_source" attr.type="string"/>
+<key id="d4" for="node" attr.name="prop_text" attr.type="string"/>
+<key id="d3" for="node" attr.name="prop_section_path" attr.type="string"/>
+<key id="d2" for="node" attr.name="source_ref" attr.type="string"/>
+<key id="d1" for="node" attr.name="label" attr.type="string"/>
+<key id="d0" for="node" attr.name="node_type" attr.type="string"/>
+<graph edgedefault="directed"><node id="0000320193-24-000123/Item7">
+  <data key="d0">SECTION</data>
+  <data key="d1">Item 7</data>
+  <data key="d2"></data>
+  <data key="d3">0000320193-24-000123/Item7</data>
+</node>
+<node id="0000320193-24-000123/Item1A">
+  <data key="d0">SECTION</data>
+  <data key="d1">Item 1A</data>
+  <data key="d2"></data>
+  <data key="d3">0000320193-24-000123/Item1A</data>
+</node>
+<node id="0000320193-24-000076/Item7">
+  <data key="d0">SECTION</data>
+  <data key="d1">Item 7</data>
+  <data key="d2"></data>
+  <data key="d3">0000320193-24-000076/Item7</data>
+</node>
+<node id="chunk-item7-p1">
+  <data key="d0">CHUNK_PARAGRAPH</data>
+  <data key="d1">Net sales</data>
+  <data key="d2"></data>
+  <data key="d4">Net sales were 391035 million.</data>
+  <data key="d5">XBRL</data>
+</node>
+<node id="chunk-item1a-p1">
+  <data key="d0">CHUNK_PARAGRAPH</data>
+  <data key="d1">Supply chain</data>
+  <data key="d2"></data>
+  <data key="d4">Supply chain risk factors for components.</data>
+  <data key="d5">HTML</data>
+</node>
+<node id="chunk-item7-old-p1">
+  <data key="d0">CHUNK_PARAGRAPH</data>
+  <data key="d1">Prior sales</data>
+  <data key="d2"></data>
+  <data key="d4">Prior year net sales discussion.</data>
+  <data key="d5">XBRL</data>
+</node>
+<edge source="0000320193-24-000123/Item7" target="chunk-item7-p1">
+  <data key="d6">CONTAINS</data>
+  <data key="d7">e1</data>
+</edge>
+<edge source="0000320193-24-000123/Item1A" target="chunk-item1a-p1">
+  <data key="d6">CONTAINS</data>
+  <data key="d7">e2</data>
+</edge>
+<edge source="0000320193-24-000076/Item7" target="chunk-item7-old-p1">
+  <data key="d6">CONTAINS</data>
+  <data key="d7">e3</data>
+</edge>
+</graph></graphml>

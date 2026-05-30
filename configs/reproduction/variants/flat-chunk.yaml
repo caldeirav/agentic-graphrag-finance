@@ -1,0 +1,6 @@
+variant_id: flat-chunk
+description: Dense embedding RAG over frozen corpus chunks (no graph navigation)
+backend: flat_chunk
+top_k: 10
+embedding_cache_subdir: chunk_embeddings/all-MiniLM-L6-v2
+capabilities: {}

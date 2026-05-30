@@ -1,0 +1,4 @@
+embedding_model_id: sentence-transformers/all-MiniLM-L6-v2
+top_k: 10
+batch_size: 32
+cache_policy: content_addressed

@@ -1,0 +1,7 @@
+variant_id: ablation-no-walker
+description: Graph agent without meso/micro graph walker hops
+backend: langgraph
+capabilities:
+  disable_macro_router: false
+  disable_graph_walker: true
+  xbrl_only: false

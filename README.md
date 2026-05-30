@@ -570,6 +570,30 @@ USE_MOCK_LLM=1 USE_MOCK_JUDGE=1 uv run sec-benchmark \
 | `sec-query` | `retrieval.cli` | LangGraph on one snapshot |
 | `sec-benchmark` | `evaluation.cli` | FinDER / FinAgentBench / FinanceBench pilot |
 | `agent-query benchmark-dataset` | `cli.commands.benchmark_dataset` | Generate/publish **custom-judge** evaluation dataset (011) |
+| `agent-query repro` | `cli.commands.repro` | Reproduce paper benchmark tables on custom-judge (012) |
+
+### Research reproduction (012)
+
+Reproduce **Graph-Grounded Agentic Retrieval** paper tables on the **custom-judge** dataset. The pipeline has two phases: **(1)** build a frozen corpus from **live SEC EDGAR** (`benchmark-dataset generate`), then **(2)** run five variants on that bundle (`repro run-all`). Phase 2 uses **Gemini** (judge, all variants), **LM Studio / Qwen** (agent for graph-full and ablations), and **MiniLM** (embeddings for the flat-chunk dense-RAG baseline only). Eval uses `OFFLINE_BENCHMARK=1` (no EDGAR during scoring — intentional for fair comparison).
+
+**Full walkthrough:** [docs/research-reproduction.md](docs/research-reproduction.md)
+
+**Live end-to-end smoke (2 items, ~5–15 min):**
+
+```bash
+# Phase 1 — live EDGAR + Gemini item generation
+uv run agent-query benchmark-dataset generate \
+  -c configs/benchmarks/custom_judge_live.yaml \
+  --run-id live-repro-smoke --target-items 2 --trace verbose
+
+# Phase 2 — live judge + LLM, five variants, table export
+export OFFLINE_BENCHMARK=1 USE_MOCK_JUDGE=0 USE_MOCK_LLM=0
+uv run agent-query repro run-all \
+  --manifest releases/paper-live-smoke/manifest.yaml \
+  --output reports/repro-live-smoke --max-items 2
+```
+
+Requires `.env`: `SEC_EDGAR_USER_AGENT`, `GOOGLE_API_KEY`, LM Studio running (graph variants). Also `uv sync --extra reproduction` for MiniLM (flat-chunk). CI fixture smoke (mock judge/LLM): see doc § CI smoke.
 
 ### Custom-judge evaluation dataset (011)
 

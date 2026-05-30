@@ -160,6 +160,10 @@ class DatasetManifest(BaseModel):
     profile_counts: dict[str, int]
     published_at: datetime | None = None
     published_by: str | None = None
+    relevance_labels_hash: str | None = None
+    relevance_coverage_rate: float | None = None
+    relevance_snapshot_id: str | None = None
+    relevance_labels_path: str | None = None
 
 
 class GenerationReport(BaseModel):

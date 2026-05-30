@@ -5,9 +5,11 @@
 ## Prerequisites
 
 - Checkout release tag `paper-v1.0` (or feature branch with `releases/paper-v1.0/manifest.yaml`)
-- `uv sync --locked --extra reproduction` (installs `sentence-transformers` for flat-chunk)
+- `uv sync --locked --extra reproduction` (installs `sentence-transformers` / **MiniLM** for the `flat-chunk` baseline only)
 - Git LFS: `git lfs pull --include="data/benchmarks/custom-judge/v1.0.0/corpus/**"`
-- `.env`: `GOOGLE_API_KEY` (live judge), LM Studio or pinned remote LLM per manifest
+- `.env`: `GOOGLE_API_KEY` (live judge for all variants), LM Studio for graph-full + ablations (not needed for flat-chunk)
+
+**MiniLM** (`all-MiniLM-L6-v2`) is the pinned dense-retrieval baseline: it embeds questions and frozen corpus chunks, ranks by cosine similarity, and returns top-k — no graph navigation. Gemini still judges the result. See [research-reproduction.md](../../docs/research-reproduction.md) § Models used in phase 2.
 - Published custom-judge v1.0.0 bundle (≥200 items, feature 011 publish gate)
 
 ## 1. Verify frozen corpus (offline)
@@ -73,11 +75,17 @@ reports/repro-paper-v1.0/tables/
 
 ## CI smoke (≤20 items, ≤15 min)
 
+Fixture bundle only — **not** live EDGAR or judge:
+
 ```bash
 uv run pytest tests/integration/test_repro_smoke.py -q
 ```
 
-Uses `releases/paper-smoke/manifest.yaml` (all five variants, ≤20 items), `USE_MOCK_JUDGE=1`, `USE_MOCK_LLM=1`, fixture bundle subset.
+Uses `releases/paper-smoke/manifest.yaml`, `USE_MOCK_JUDGE=1`, `USE_MOCK_LLM=1`.
+
+## Live end-to-end smoke (2 items)
+
+See [docs/research-reproduction.md](../../docs/research-reproduction.md) § Live end-to-end verification. Manifest: `releases/paper-live-smoke/manifest.yaml`.
 
 ## Troubleshooting
 

@@ -11,6 +11,16 @@ from models.enums import OperationClass
 from models.evaluation import BenchmarkItem, ExpectedBindings, GroundTruth
 
 
+class RelevanceManifestFields:
+    """Relevance label metadata from the published bundle manifest (012)."""
+
+    def __init__(self, manifest: DatasetManifest) -> None:
+        self.labels_hash = manifest.relevance_labels_hash
+        self.coverage_rate = manifest.relevance_coverage_rate
+        self.snapshot_id = manifest.relevance_snapshot_id
+        self.labels_path = manifest.relevance_labels_path
+
+
 class CustomJudgeDataset:
     name = "custom-judge"
 
@@ -42,6 +52,10 @@ class CustomJudgeDataset:
             )
             raise FileNotFoundError(msg)
         return DatasetManifest.model_validate(json.loads(manifest_path.read_text(encoding="utf-8")))
+
+    def relevance_manifest(self) -> RelevanceManifestFields:
+        """Expose graph-grounded relevance fields from the bundle manifest (012)."""
+        return RelevanceManifestFields(self.manifest())
 
     def corpus_bundle(self) -> CorpusBundle:
         return self.manifest().corpus_bundle

@@ -28,14 +28,14 @@ description: "Task list for research reproduction kit (012)"
 
 **Purpose**: Package scaffold, variant configs, smoke release manifest, CLI stub
 
-- [ ] T001 Create `src/evaluation/reproduction/__init__.py` exporting public repro API per `plan.md`
-- [ ] T002 Add optional dependency group `reproduction = ["sentence-transformers>=3.0"]` in `pyproject.toml` and run `uv lock`; commit updated `uv.lock` per `research.md` R3
-- [ ] T003 [P] Add five variant YAMLs under `configs/reproduction/variants/` per `contracts/system-variant-config.md`
-- [ ] T004 [P] Add `configs/reproduction/embeddings/all_minilm_l6_v2.yaml` (top_k, batch_size, cache policy) per `research.md` R3
-- [ ] T005 [P] Add smoke release `releases/paper-smoke/manifest.yaml` (all **five** variant ids, `--max-items` cap only) and `releases/paper-smoke/expected_checksums.json` per `contracts/release-manifest.md`
-- [ ] T006 [P] Add `releases/paper-v1.0/manifest.yaml` template with placeholder pins (git_sha, hashes TBD at publish) and full five-variant list per `plan.md` Phase E
-- [ ] T007 [P] Create `tests/fixtures/repro/paper-smoke/` with subset manifest pointers to `tests/fixtures/custom_judge/` corpus; fixture manifest MUST list same five variants as `paper-v1.0` per `quickstart.md` CI smoke
-- [ ] T008 Register Typer command group `repro` in `src/cli/main.py` pointing to `src/cli/commands/repro.py` with subcommand stubs per `contracts/reproduction-cli.md`
+- [X] T001 Create `src/evaluation/reproduction/__init__.py` exporting public repro API per `plan.md`
+- [X] T002 Add optional dependency group `reproduction = ["sentence-transformers>=3.0"]` in `pyproject.toml` and run `uv lock`; commit updated `uv.lock` per `research.md` R3
+- [X] T003 [P] Add five variant YAMLs under `configs/reproduction/variants/` per `contracts/system-variant-config.md`
+- [X] T004 [P] Add `configs/reproduction/embeddings/all_minilm_l6_v2.yaml` (top_k, batch_size, cache policy) per `research.md` R3
+- [X] T005 [P] Add smoke release `releases/paper-smoke/manifest.yaml` (all **five** variant ids, `--max-items` cap only) and `releases/paper-smoke/expected_checksums.json` per `contracts/release-manifest.md`
+- [X] T006 [P] Add `releases/paper-v1.0/manifest.yaml` template with placeholder pins (git_sha, hashes TBD at publish) and full five-variant list per `plan.md` Phase E
+- [X] T007 [P] Create `tests/fixtures/repro/paper-smoke/` with subset manifest pointers to `tests/fixtures/custom_judge/` corpus; fixture manifest MUST list same five variants as `paper-v1.0` per `quickstart.md` CI smoke
+- [X] T008 Register Typer command group `repro` in `src/cli/main.py` pointing to `src/cli/commands/repro.py` with subcommand stubs per `contracts/reproduction-cli.md`
 
 **Checkpoint**: `uv run agent-query repro --help` lists `verify-corpus`, `materialize-relevance`, `run`, `export-tables`, `verify-tables`, `run-all`
 
@@ -47,15 +47,15 @@ description: "Task list for research reproduction kit (012)"
 
 **⚠️ CRITICAL**: No user story work until this phase is complete
 
-- [ ] T009 [P] Add `ReleaseManifest`, `ModelPins` (incl. `embedding_model_revision`, `embedding_config_hash`), `ToleranceBands`, `SystemVariant`, `VariantCapabilities`, `RelevanceLabelSet`, `ReproRun`, `PaperTableExport` in `src/models/reproduction.py` per `data-model.md`
-- [ ] T010 Implement `src/evaluation/reproduction/manifest.py` load/validate YAML release manifest including `embedding_model_revision` and config hashes per `contracts/release-manifest.md`
-- [ ] T011 [P] Add contract test `tests/contract/test_release_manifest.py` validating smoke fixture against Pydantic models
-- [ ] T012 [P] Add contract test `tests/contract/test_repro_import_boundary.py` forbidding `retrieval.orchestration` imports in `src/evaluation/reproduction/relevance.py` and `flat_chunk.py` per plan Complexity Tracking
-- [ ] T013 Implement `src/evaluation/reproduction/corpus_verify.py` hash-checking `corpus_hashes` against custom-judge bundle per `contracts/release-manifest.md`
-- [ ] T014 Wire `repro verify-corpus` in `src/cli/commands/repro.py` requiring `OFFLINE_BENCHMARK=1` per FR-002
-- [ ] T015 [P] Add unit test `tests/unit/test_corpus_verify.py` for pass/fail hash mismatch messages
-- [ ] T016 [P] Extend `DatasetManifest` / custom-judge manifest reader with optional `relevance_labels_hash`, `relevance_coverage_rate`, `relevance_snapshot_id` fields in `src/models/benchmark_generation.py` per `data-model.md`
-- [ ] T017 [P] Extend `src/evaluation/datasets/custom_judge.py` to expose new manifest relevance fields on `manifest()`
+- [X] T009 [P] Add `ReleaseManifest`, `ModelPins` (incl. `embedding_model_revision`, `embedding_config_hash`), `ToleranceBands`, `SystemVariant`, `VariantCapabilities`, `RelevanceLabelSet`, `ReproRun`, `PaperTableExport` in `src/models/reproduction.py` per `data-model.md`
+- [X] T010 Implement `src/evaluation/reproduction/manifest.py` load/validate YAML release manifest including `embedding_model_revision` and config hashes per `contracts/release-manifest.md`
+- [X] T011 [P] Add contract test `tests/contract/test_release_manifest.py` validating smoke fixture against Pydantic models
+- [X] T012 [P] Add contract test `tests/contract/test_repro_import_boundary.py` forbidding `retrieval.orchestration` imports in `src/evaluation/reproduction/relevance.py` and `flat_chunk.py` per plan Complexity Tracking
+- [X] T013 Implement `src/evaluation/reproduction/corpus_verify.py` hash-checking `corpus_hashes` against custom-judge bundle per `contracts/release-manifest.md`
+- [X] T014 Wire `repro verify-corpus` in `src/cli/commands/repro.py` requiring `OFFLINE_BENCHMARK=1` per FR-002
+- [X] T015 [P] Add unit test `tests/unit/test_corpus_verify.py` for pass/fail hash mismatch messages
+- [X] T016 [P] Extend `DatasetManifest` / custom-judge manifest reader with optional `relevance_labels_hash`, `relevance_coverage_rate`, `relevance_snapshot_id` fields in `src/models/benchmark_generation.py` per `data-model.md`
+- [X] T017 [P] Extend `src/evaluation/datasets/custom_judge.py` to expose new manifest relevance fields on `manifest()`
 
 **Checkpoint**: `uv run pytest tests/contract/test_release_manifest.py tests/unit/test_corpus_verify.py -q` passes; `repro verify-corpus --manifest releases/paper-smoke/manifest.yaml` runs on fixture
 
@@ -69,15 +69,15 @@ description: "Task list for research reproduction kit (012)"
 
 ### Tests for User Story 2
 
-- [ ] T018 [P] [US2] Add unit tests `tests/unit/test_relevance_materialize.py` for section traversal, four chunk types, deterministic ordering per `contracts/relevance-materialize.md`
+- [X] T018 [P] [US2] Add unit tests `tests/unit/test_relevance_materialize.py` for section traversal, four chunk types, deterministic ordering per `contracts/relevance-materialize.md`
 
 ### Implementation for User Story 2
 
-- [ ] T019 [US2] Implement `src/evaluation/reproduction/relevance.py` with CONTAINS traversal and evidence chunk collection per FR-006
-- [ ] T020 [US2] Write `relevance_labels.json` sidecar and canonical `labels_hash` in `src/evaluation/reproduction/relevance.py` per `contracts/relevance-materialize.md`
-- [ ] T021 [US2] Update `items/dev.jsonl` rows with `relevant_chunk_ids` and emit `relevance_report.json` on failures in `src/evaluation/reproduction/relevance.py`
-- [ ] T022 [US2] Enforce ≥90% coverage gate (exit 1 below threshold) in `src/evaluation/reproduction/relevance.py` per FR-008
-- [ ] T023 [US2] Wire `repro materialize-relevance` in `src/cli/commands/repro.py` updating 011 bundle `manifest.json` relevance fields per FR-007
+- [X] T019 [US2] Implement `src/evaluation/reproduction/relevance.py` with CONTAINS traversal and evidence chunk collection per FR-006
+- [X] T020 [US2] Write `relevance_labels.json` sidecar and canonical `labels_hash` in `src/evaluation/reproduction/relevance.py` per `contracts/relevance-materialize.md`
+- [X] T021 [US2] Update `items/dev.jsonl` rows with `relevant_chunk_ids` and emit `relevance_report.json` on failures in `src/evaluation/reproduction/relevance.py`
+- [X] T022 [US2] Enforce ≥90% coverage gate (exit 1 below threshold) in `src/evaluation/reproduction/relevance.py` per FR-008
+- [X] T023 [US2] Wire `repro materialize-relevance` in `src/cli/commands/repro.py` updating 011 bundle `manifest.json` relevance fields per FR-007
 
 **Checkpoint**: US2 unit tests pass; materialize on fixture yields stable hash; gate rejects mock bundle with &lt;90% coverage
 
@@ -91,22 +91,22 @@ description: "Task list for research reproduction kit (012)"
 
 ### Tests for User Story 3
 
-- [ ] T024 [P] [US3] Add unit tests `tests/unit/test_flat_chunk_baseline.py` for cosine top-k ranking and cache idempotence in `src/evaluation/reproduction/flat_chunk.py`
-- [ ] T025 [P] [US3] Add unit tests `tests/unit/test_variant_profile.py` for ablation flag parsing in `src/retrieval/orchestration/variant_profile.py`
-- [ ] T026 [P] [US3] Add unit tests `tests/unit/test_structural_metrics.py` for accession binding, section path hit, multi-filing success in `src/evaluation/reproduction/structural.py`
+- [X] T024 [P] [US3] Add unit tests `tests/unit/test_flat_chunk_baseline.py` for cosine top-k ranking and cache idempotence in `src/evaluation/reproduction/flat_chunk.py`
+- [X] T025 [P] [US3] Add unit tests `tests/unit/test_variant_profile.py` for ablation flag parsing in `src/retrieval/orchestration/variant_profile.py`
+- [X] T026 [P] [US3] Add unit tests `tests/unit/test_structural_metrics.py` for accession binding, section path hit, multi-filing success in `src/evaluation/reproduction/structural.py`
 
 ### Implementation for User Story 3
 
-- [ ] T027 [P] [US3] Add `VariantCapabilities` loader and helpers in `src/retrieval/orchestration/variant_profile.py` per `contracts/system-variant-config.md`
-- [ ] T028 [US3] Extend `build_agent_graph` in `src/retrieval/orchestration/graph.py` to honor `disable_macro_router`, `disable_graph_walker`, `xbrl_only` flags per `research.md` R5
-- [ ] T055 [P] [US3] Add contract test `tests/contract/test_variant_default_parity.py` asserting default `VariantCapabilities` (all flags false) yields same compiled stage set as pre-012 production graph per `plan.md` Risk & Mitigation
-- [ ] T056 [P] [US3] Add unit test `tests/unit/test_xbrl_only_ablation.py` verifying `xbrl_only` excludes HTML-sourced narrative chunks from candidate sets in `src/retrieval/orchestration/graph.py`
-- [ ] T029 [US3] Implement `FlatChunkBaseline` in `src/evaluation/reproduction/flat_chunk.py` with embedding cache under bundle `corpus/chunk_embeddings/` per FR-004a
-- [ ] T030 [US3] Implement `src/evaluation/reproduction/structural.py` computing graph-structural scores from trajectories per FR-009
-- [ ] T031 [US3] Implement `src/evaluation/reproduction/runner.py` orchestrating per-variant eval (langgraph vs flat_chunk backends) extending `EvaluationRunner` patterns per `plan.md`; flat-chunk path MUST call shared LLM synthesis + judge scoring for outcome/rubric metrics (FR-009)
-- [ ] T032 [US3] Pass `variant_profile` via `QueryRequest.metadata` from repro runner in `src/evaluation/reproduction/runner.py`
-- [ ] T033 [US3] Wire `repro run` subcommand in `src/cli/commands/repro.py` with `--variants`, `--max-items`, custom-judge only (FR-003)
-- [ ] T034 [US3] Exclude incomplete/degraded items from per-run aggregates in `src/evaluation/reproduction/runner.py` per FR-010
+- [X] T027 [P] [US3] Add `VariantCapabilities` loader and helpers in `src/retrieval/orchestration/variant_profile.py` per `contracts/system-variant-config.md`
+- [X] T028 [US3] Extend `build_agent_graph` in `src/retrieval/orchestration/graph.py` to honor `disable_macro_router`, `disable_graph_walker`, `xbrl_only` flags per `research.md` R5
+- [X] T055 [P] [US3] Add contract test `tests/contract/test_variant_default_parity.py` asserting default `VariantCapabilities` (all flags false) yields same compiled stage set as pre-012 production graph per `plan.md` Risk & Mitigation
+- [X] T056 [P] [US3] Add unit test `tests/unit/test_xbrl_only_ablation.py` verifying `xbrl_only` excludes HTML-sourced narrative chunks from candidate sets in `src/retrieval/orchestration/graph.py`
+- [X] T029 [US3] Implement `FlatChunkBaseline` in `src/evaluation/reproduction/flat_chunk.py` with embedding cache under bundle `corpus/chunk_embeddings/` per FR-004a
+- [X] T030 [US3] Implement `src/evaluation/reproduction/structural.py` computing graph-structural scores from trajectories per FR-009
+- [X] T031 [US3] Implement `src/evaluation/reproduction/runner.py` orchestrating per-variant eval (langgraph vs flat_chunk backends) extending `EvaluationRunner` patterns per `plan.md`; flat-chunk path MUST call shared LLM synthesis + judge scoring for outcome/rubric metrics (FR-009)
+- [X] T032 [US3] Pass `variant_profile` via `QueryRequest.metadata` from repro runner in `src/evaluation/reproduction/runner.py`
+- [X] T033 [US3] Wire `repro run` subcommand in `src/cli/commands/repro.py` with `--variants`, `--max-items`, custom-judge only (FR-003)
+- [X] T034 [US3] Exclude incomplete/degraded items from per-run aggregates in `src/evaluation/reproduction/runner.py` per FR-010
 
 **Checkpoint**: Smoke run produces per-variant reports under `reports/repro-paper-smoke/{variant_id}/`; flat-chunk never invokes LangGraph
 
@@ -120,15 +120,15 @@ description: "Task list for research reproduction kit (012)"
 
 ### Tests for User Story 4
 
-- [ ] T035 [P] [US4] Add unit tests `tests/unit/test_paper_table_export.py` for aggregation rules and incomplete exclusion in `src/evaluation/reproduction/export.py`
-- [ ] T036 [P] [US4] Add contract test `tests/contract/test_paper_table_schema.py` validating CSV columns per `contracts/paper-table-export.md`
+- [X] T035 [P] [US4] Add unit tests `tests/unit/test_paper_table_export.py` for aggregation rules and incomplete exclusion in `src/evaluation/reproduction/export.py`
+- [X] T036 [P] [US4] Add contract test `tests/contract/test_paper_table_schema.py` validating CSV columns per `contracts/paper-table-export.md`
 
 ### Implementation for User Story 4
 
-- [ ] T037 [US4] Implement `src/evaluation/reproduction/export.py` producing `headline.csv`, `by_profile.csv`, `variant_delta.csv`, `trajectory_audit.csv` per FR-011
-- [ ] T038 [US4] Add optional `headline.tex` export in `src/evaluation/reproduction/export.py`
-- [ ] T039 [US4] Implement `src/evaluation/reproduction/verify_tables.py` comparing exports to manifest tolerances (exact structural/ranking) per `research.md` R8
-- [ ] T040 [US4] Wire `repro export-tables` and `repro verify-tables` in `src/cli/commands/repro.py`
+- [X] T037 [US4] Implement `src/evaluation/reproduction/export.py` producing `headline.csv`, `by_profile.csv`, `variant_delta.csv`, `trajectory_audit.csv` per FR-011
+- [X] T038 [US4] Add optional `headline.tex` export in `src/evaluation/reproduction/export.py`
+- [X] T039 [US4] Implement `src/evaluation/reproduction/verify_tables.py` comparing exports to manifest tolerances (exact structural/ranking) per `research.md` R8
+- [X] T040 [US4] Wire `repro export-tables` and `repro verify-tables` in `src/cli/commands/repro.py`
 
 **Checkpoint**: Export + verify-tables pass on committed smoke expected checksums fixture
 
@@ -142,15 +142,15 @@ description: "Task list for research reproduction kit (012)"
 
 ### Tests for User Story 1
 
-- [ ] T041 [P] [US1] Add integration test `tests/integration/test_repro_smoke.py` running full smoke workflow (all **five** manifest variants, ≤20 items) with `USE_MOCK_JUDGE=1` `USE_MOCK_LLM=1` in ≤15 min per SC-007 / FR-005a
-- [ ] T042 [P] [US1] Add integration test `tests/integration/test_repro_offline_guard.py` asserting zero EDGAR network calls when `OFFLINE_BENCHMARK=1` per SC-005
+- [X] T041 [P] [US1] Add integration test `tests/integration/test_repro_smoke.py` running full smoke workflow (all **five** manifest variants, ≤20 items) with `USE_MOCK_JUDGE=1` `USE_MOCK_LLM=1` in ≤15 min per SC-007 / FR-005a
+- [X] T042 [P] [US1] Add integration test `tests/integration/test_repro_offline_guard.py` asserting zero EDGAR network calls when `OFFLINE_BENCHMARK=1` per SC-005
 
 ### Implementation for User Story 1
 
-- [ ] T043 [US1] Implement `run_all` orchestration in `src/evaluation/reproduction/runner.py`: verify-corpus → relevance gate → five variants → export; persist `repro_run.json` audit artifact per `contracts/reproduction-cli.md` and `data-model.md` ReproRun
-- [ ] T044 [US1] Wire `repro run-all` in `src/cli/commands/repro.py` with `--strict-git`, `--output`, `--skip-relevance` flags per FR-002a/FR-002b
-- [ ] T045 [US1] Log MLflow parent repro run params (`release_tag`, `git_sha`, `custom_judge_version`, `relevance_labels_hash`, per-variant child runs) in `src/evaluation/reproduction/runner.py` per FR-012
-- [ ] T046 [US1] Enforce paper-v1.0 five-variant list and full `dev` split (no `--max-items` unless smoke manifest) in `src/evaluation/reproduction/manifest.py` validation
+- [X] T043 [US1] Implement `run_all` orchestration in `src/evaluation/reproduction/runner.py`: verify-corpus → relevance gate → five variants → export; persist `repro_run.json` audit artifact per `contracts/reproduction-cli.md` and `data-model.md` ReproRun
+- [X] T044 [US1] Wire `repro run-all` in `src/cli/commands/repro.py` with `--strict-git`, `--output`, `--skip-relevance` flags per FR-002a/FR-002b
+- [X] T045 [US1] Log MLflow parent repro run params (`release_tag`, `git_sha`, `custom_judge_version`, `relevance_labels_hash`, per-variant child runs) in `src/evaluation/reproduction/runner.py` per FR-012
+- [X] T046 [US1] Enforce paper-v1.0 five-variant list and full `dev` split (no `--max-items` unless smoke manifest) in `src/evaluation/reproduction/manifest.py` validation
 
 **Checkpoint**: `uv run pytest tests/integration/test_repro_smoke.py -q` passes; smoke `run-all` produces verified tables
 
@@ -166,12 +166,12 @@ description: "Task list for research reproduction kit (012)"
 
 ### Tests for User Story 5
 
-- [ ] T047 [P] [US5] Add integration test `tests/integration/test_repro_corpus_rebuild.py` verifying hash match on fixture after simulated clean verify per US5 acceptance scenario 1
+- [X] T047 [P] [US5] Add integration test `tests/integration/test_repro_corpus_rebuild.py` verifying hash match on fixture after simulated clean verify per US5 acceptance scenario 1
 
 ### Implementation for User Story 5
 
-- [ ] T048 [US5] Enhance `src/evaluation/reproduction/corpus_verify.py` missing-object messages with `git lfs pull --include=…` hints per US5 acceptance scenario 1
-- [ ] T049 [US5] Add dry-run eval preflight in `repro verify-corpus` loading custom-judge registry split header without executing items in `src/cli/commands/repro.py`
+- [X] T048 [US5] Enhance `src/evaluation/reproduction/corpus_verify.py` missing-object messages with `git lfs pull --include=…` hints per US5 acceptance scenario 1
+- [X] T049 [US5] Add dry-run eval preflight in `repro verify-corpus` loading custom-judge registry split header without executing items in `src/cli/commands/repro.py`
 
 **Checkpoint**: US5 integration test passes; quickstart step 1 documented behavior verified
 
@@ -181,10 +181,10 @@ description: "Task list for research reproduction kit (012)"
 
 **Purpose**: Docs, CI, reference bounds, paper tag readiness
 
-- [ ] T050 [P] Update `docs/benchmark-reproduction.md` to point to `specs/012-research-repro-kit/quickstart.md` for paper-v1.0 per plan Phase E
-- [ ] T051 [P] Add README section for research reproduction (`agent-query repro run-all`) in `README.md` with time/compute bounds per FR-013
-- [ ] T052 Add CI job step running `uv run pytest tests/integration/test_repro_smoke.py -q` in `.github/workflows/ci.yml` per FR-014
-- [ ] T053 Document reference machine profile (8 vCPU, 32 GB, LFS size) in `specs/012-research-repro-kit/quickstart.md` per `research.md` R9
+- [X] T050 [P] Update `docs/benchmark-reproduction.md` to point to `specs/012-research-repro-kit/quickstart.md` for paper-v1.0 per plan Phase E
+- [X] T051 [P] Add README section for research reproduction (`agent-query repro run-all`) in `README.md` with time/compute bounds per FR-013
+- [X] T052 Add CI job step running `uv run pytest tests/integration/test_repro_smoke.py -q` in `.github/workflows/ci.yml` per FR-014
+- [X] T053 Document reference machine profile (8 vCPU, 32 GB, LFS size) in `specs/012-research-repro-kit/quickstart.md` per `research.md` R9
 - [ ] T054 Populate `releases/paper-v1.0/expected_checksums.json` when custom-judge v1.0.0 is published and baseline repro completes (operator task)
 
 ---

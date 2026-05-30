@@ -1,6 +1,8 @@
 # Benchmark Reproduction
 
-To reproduce an evaluation run:
+> **Paper reproduction (custom-judge, five variants, table export):** see **[research-reproduction.md](research-reproduction.md)** (full walkthrough) and **[specs/012-research-repro-kit/quickstart.md](../specs/012-research-repro-kit/quickstart.md)** (operator quickstart for `paper-v1.0`).
+
+Legacy single-suite benchmark notes:
 
 1. **Frozen graph snapshot** — record `snapshot_id` and `issuer_id` under `data/graphs/`
 2. **Dependency lock** — use `uv sync --locked` at the same commit SHA
