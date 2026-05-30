@@ -24,7 +24,7 @@ Build an **offline dataset generation pipeline** that (1) seed-samples issuers f
 
 **Target Platform**: Local CLI batch jobs (`agent-query benchmark-dataset …`); CI uses `USE_MOCK_JUDGE=1` + fixture bundle subset
 
-**Project Type**: CLI + library (`src/evaluation/generation/`, `src/cli/commands/benchmark_dataset.py`)
+**Project Type**: CLI + library (`src/evaluation/generation/`, `src/cli/benchmark_materialize.py`, `src/cli/commands/benchmark_dataset.py`)
 
 **Performance Goals**: Generation is batch/offline; checkpoint resume within 30s of interrupt; reproduce manifest hash in &lt;5 min on bundled corpus
 
@@ -80,7 +80,6 @@ src/
 ├── evaluation/
 │   ├── generation/                # NEW: offline generation (no retrieval imports)
 │   │   ├── sampler.py             # allowlist + seed issuer/filing selection
-│   │   ├── materialize_batch.py   # multi-issuer wrapper → cli.corpus_pipeline
 │   │   ├── judge_generator.py     # profile-specific Gemini prompts
 │   │   ├── item_validator.py      # section path + filing resolution
 │   │   ├── deduplicator.py
@@ -90,6 +89,7 @@ src/
 │   │   └── custom_judge.py        # NEW: BenchmarkDataset reading published bundle
 │   └── registry.py                # register "custom-judge"
 ├── cli/
+│   ├── benchmark_materialize.py     # multi-issuer materialize → cli.corpus_pipeline (CLI layer only)
 │   └── commands/
 │       └── benchmark_dataset.py     # generate | publish | reproduce | extend
 
@@ -119,7 +119,7 @@ tests/
 └── integration/test_custom_judge_offline_eval.py
 ```
 
-**Structure Decision**: Generation logic lives under `evaluation/generation/`; **orchestration that touches ingestion/graph** goes through **`cli.corpus_pipeline`** from the Typer command layer to avoid evaluation→retrieval coupling. Published data under `data/benchmarks/custom-judge/`.
+**Structure Decision**: Generation logic lives under `evaluation/generation/`; **materialization orchestration** lives in **`src/cli/benchmark_materialize.py`**, invoked only from `benchmark_dataset.py`, calling **`cli.corpus_pipeline.run_materialize_pipeline`** per `contracts/judge-generation-boundary.md`. Published data under `data/benchmarks/custom-judge/`.
 
 ## Complexity Tracking
 
@@ -155,7 +155,7 @@ tests/
 
 **Phase A — Scaffold & config**: Models, allowlist builder script, default YAML, LFS `.gitattributes`, governance module.
 
-**Phase B — Sampling & materialize**: Sampler tests; batch materialize via `run_materialize_pipeline`; sampling manifest hash.
+**Phase B — Sampling & materialize**: Sampler tests; `cli/benchmark_materialize.py` batch via `run_materialize_pipeline`; sampling manifest hash.
 
 **Phase C — Judge generation**: Three inspiration profile prompts; checkpointed Gemini calls; item validator + dedup.
 

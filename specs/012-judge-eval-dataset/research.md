@@ -21,11 +21,12 @@
 
 ## R2 — Materialization orchestration boundary
 
-**Decision**: `evaluation/generation/materialize_batch.py` accepts a list of `(ticker, corpus_definition)` pairs and invokes **`cli.corpus_pipeline.run_materialize_pipeline`** per issuer from the **CLI command** (`benchmark_dataset.py`), not from modules that import retrieval orchestration.
+**Decision**: **`src/cli/benchmark_materialize.py`** (CLI layer) accepts a sampling manifest and invokes **`cli.corpus_pipeline.run_materialize_pipeline`** per issuer; called only from `benchmark_dataset.py`. **`evaluation/generation/` MUST NOT** import `cli.corpus_pipeline` or `ingestion` fetch paths.
 
-**Rationale**: Constitution IV — evaluation must not own parsing/graph logic; existing materialize path preserves XBRL-first (Principle II).
+**Rationale**: Constitution IV and `contracts/judge-generation-boundary.md` — evaluation must not own parsing/graph logic; materialize stays in CLI facade; existing path preserves XBRL-first (Principle II).
 
 **Alternatives considered**:
+- `evaluation/generation/materialize_batch.py` calling corpus pipeline — **rejected** (violates layer boundary contract).
 - Direct `graph.builder` calls from evaluation — duplicates pipeline gates and bypasses ingestion validators.
 - Separate ad-hoc Docling invocation — violates production parity requirement (FR-002).
 

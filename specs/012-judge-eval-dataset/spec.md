@@ -18,6 +18,8 @@
 - Q: What is the default corpus bundle storage model for offline evaluation? → A: **Git LFS default** — corpus binaries stored in Git LFS; manifest records content-addressed hashes for verification.
 - Q: Must generation and evaluation share the same judge model version pin? → A: **Separate models allowed** — generation and evaluation record independent model pins; **v1 default config uses the same Gemini model** for both generation and evaluation.
 
+## User Scenarios & Testing *(mandatory)*
+
 ### User Story 1 - Reproducible Issuer and Filing Sampling (Priority: P1)
 
 An evaluation engineer defines a generation run by choosing how many issuers and filings to include, with a fixed random seed and documented sampling rules, so the same run configuration always selects the same issuer–filing set.

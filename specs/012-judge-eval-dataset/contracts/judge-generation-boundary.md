@@ -7,7 +7,8 @@
 | From | May import / call |
 |------|-------------------|
 | `evaluation/generation/*` | `models.*`, `evaluation/judges/*` (client only), `graph.store` (read-only index for validation), stdlib |
-| `cli/commands/benchmark_dataset.py` | `evaluation/generation/*`, **`cli.corpus_pipeline.run_materialize_pipeline`**, `ingestion.settings` |
+| `cli/commands/benchmark_dataset.py` | `evaluation/generation/*`, **`cli.benchmark_materialize`**, `ingestion.settings` |
+| `cli/benchmark_materialize.py` | **`cli.corpus_pipeline.run_materialize_pipeline`**, `graph.store` (read/export only), `models.benchmark_generation` |
 
 ## Forbidden imports (build failure in contract tests)
 
@@ -23,7 +24,7 @@ Modules under `src/evaluation/generation/` MUST NOT import:
 ```text
 benchmark_dataset.generate
   → evaluation.generation.sampler
-  → cli.corpus_pipeline.run_materialize_pipeline  (per issuer)
+  → cli.benchmark_materialize.materialize_sampled_corpus  (calls cli.corpus_pipeline per issuer)
   → evaluation.generation.judge_generator
   → evaluation.generation.item_validator
   → evaluation.generation.bundle
