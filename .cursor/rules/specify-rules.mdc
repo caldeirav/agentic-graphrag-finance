@@ -6,14 +6,14 @@ alwaysApply: true
 For additional context about technologies, project structure, shell commands, and
 pipeline segments, read the current implementation plan:
 
-**Plan**: `specs/011-judge-eval-dataset/plan.md` (active) | Prior: `specs/010-mlflow-trajectory-judge-eval/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
+**Plan**: `specs/012-research-repro-kit/plan.md` (active) | Prior: `specs/011-judge-eval-dataset/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
 
 Quick reference:
-- **Stack**: uv, EDGAR ingest, Docling/XBRL, docling-graph, LangGraph, MLflow Traces, Gemini 2.5 Pro (generation + judge), Git LFS corpus bundles
-- **Layers**: `src/ingestion/`, `src/parsing/`, `src/graph/`, `src/retrieval/`, `src/tracing/`, `src/evaluation/generation/` (dataset builder), `src/evaluation/` (registry + judge), `src/cli/`
-- **CLI**: `agent-query benchmark-dataset generate|publish|reproduce|extend` | eval: `custom-judge` registry dataset, offline via bundled snapshot
-- **Storage**: Published bundles `data/benchmarks/custom-judge/v{version}/`; LFS under `corpus/`; allowlist `configs/benchmarks/issuer_allowlist_v1.json`
-- **Configs**: `configs/benchmarks/custom_judge_v1.yaml`, inspiration profiles under `configs/benchmarks/inspiration_profiles/`
-- **Phases**: A scaffold → B sample+materialize → C judge generate → D bundle CLI → E registry+offline eval → F publish v1 (≥200 items)
-- **Design artifacts**: `specs/011-judge-eval-dataset/{research,data-model,quickstart}.md` and `contracts/`
+- **Stack**: uv, Docling/XBRL graph corpus (LFS), LangGraph agent, sentence-transformers (flat-chunk), MLflow, Gemini judge, LM Studio LLM
+- **Layers**: `src/evaluation/reproduction/` (repro kit), `src/evaluation/` (runner + custom-judge), `src/retrieval/` (ablation flags), `src/cli/commands/repro.py`
+- **CLI**: `agent-query repro run-all --manifest releases/paper-v1.0/manifest.yaml` | dataset: custom-judge dev split only for headline tables
+- **Storage**: Release manifests `releases/{tag}/`; bundles `data/benchmarks/custom-judge/v{version}/`; outputs `reports/repro-{tag}/tables/`
+- **Variants (paper-v1.0)**: graph-full, flat-chunk (dense embedding), ablation-no-macro, ablation-no-walker, ablation-xbrl-only
+- **Phases**: A manifest/verify → B relevance labels → C variant backends → D export/verify-tables → E paper tag + CI smoke
+- **Design artifacts**: `specs/012-research-repro-kit/{research,data-model,quickstart}.md` and `contracts/`
 <!-- SPECKIT END -->

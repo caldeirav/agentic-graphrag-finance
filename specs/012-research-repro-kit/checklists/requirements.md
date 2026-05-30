@@ -34,4 +34,4 @@
 - Validation iteration 1 (2026-05-30): All items pass. Domain terms (`custom-judge`, `inspiration_profile`, nDCG) are evaluation requirements, not implementation choices—consistent with features 001, 010, and 011.
 - Headline scope explicitly excludes upstream FinDER/FinanceBench/FinAgentBench adapters; custom-judge profile strata replace external benchmark comparisons.
 - Relevance label materialization (FR-006–FR-008) is a hard gate for paper reproduction releases.
-- Ready for `/speckit-plan` (clarify session 2026-05-30 complete: 5/5 questions answered).
+- Ready for `/speckit-tasks` (plan complete 2026-05-30).
