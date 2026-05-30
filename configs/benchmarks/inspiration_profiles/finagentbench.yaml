@@ -1,0 +1,17 @@
+profile_id: finagentbench
+description: FinAgentBench-style agentic multi-hop questions across filings
+question_types:
+  - agentic-multi-hop
+  - cross-filing-comparison
+multi_filing_required: true
+min_accessions: 2
+required_output_fields:
+  - question
+  - ground_truth.answer
+  - expected_section_paths
+  - expected_bindings.accessions
+prompt_template: |
+  Generate a multi-hop agentic financial question requiring at least two filings.
+  Style: FinAgentBench. Return JSON with: question, question_type_tag,
+  multi_filing_required=true, ground_truth.answer or rubric, expected_bindings with
+  >=2 accessions, expected_section_paths spanning filings, operation_class.

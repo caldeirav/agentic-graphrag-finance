@@ -1,0 +1,16 @@
+profile_id: finder
+description: FinDER-style retrieval QA with rubric-based evaluation
+question_types:
+  - retrieval-qa
+  - evidence-grounded
+multi_filing_required: false
+required_output_fields:
+  - question
+  - ground_truth.rubric
+  - expected_section_paths
+  - expected_bindings.accessions
+prompt_template: |
+  Generate a retrieval-focused financial disclosure question grounded in the corpus.
+  Style: FinDER retrieval QA. Return JSON with: question, question_type_tag,
+  ground_truth.rubric (scoring rubric), optional ground_truth.answer,
+  expected_bindings, expected_section_paths, operation_class.

@@ -4,6 +4,7 @@ import typer
 
 import cli.bootstrap  # noqa: F401  # load .env first
 from cli.commands.ask import ask
+from cli.commands.benchmark_dataset import app as benchmark_dataset_app
 from cli.commands.graph_audit import graph_audit
 from cli.commands.materialize import materialize
 from cli.commands.mlflow_clean import mlflow_clean
@@ -19,3 +20,4 @@ app.command("materialize")(materialize)
 app.command("graph-audit")(graph_audit)
 app.command("test")(test_cmd)
 app.command("mlflow-clean")(mlflow_clean)
+app.add_typer(benchmark_dataset_app, name="benchmark-dataset")

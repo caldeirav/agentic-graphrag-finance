@@ -569,6 +569,36 @@ USE_MOCK_LLM=1 USE_MOCK_JUDGE=1 uv run sec-benchmark \
 | `sec-graph-build` | `graph.cli` | `ParsedDocument` → `GraphSnapshot` |
 | `sec-query` | `retrieval.cli` | LangGraph on one snapshot |
 | `sec-benchmark` | `evaluation.cli` | FinDER / FinAgentBench / FinanceBench pilot |
+| `agent-query benchmark-dataset` | `cli.commands.benchmark_dataset` | Generate/publish **custom-judge** evaluation dataset (012) |
+
+### Custom-judge evaluation dataset (012)
+
+The project can **generate its own evaluation benchmark** (`custom-judge`) from live SEC filings instead of relying solely on external JSONL sets. A batch pipeline:
+
+1. **Samples** issuers/filings from a committed allowlist (seed-reproducible).
+2. **Materializes** XBRL + docling-graph snapshots via the same path as production `ask`.
+3. **Authors** Q&A items with **Gemini**, styled after FinanceBench / FinDER / FinAgentBench taxonomies.
+4. **Validates** items against the bundled graph (section paths, accessions, profile rules).
+5. **Bundles** a versioned draft for operator review → **`publish`** → registry plug-in for offline eval.
+
+**Detailed guide:** [docs/custom-judge-dataset-generation.md](docs/custom-judge-dataset-generation.md) (flow, configs, outputs, quality review checklist).
+
+**Operator quickstart:** [specs/012-judge-eval-dataset/quickstart.md](specs/012-judge-eval-dataset/quickstart.md)
+
+```bash
+# Live EDGAR + Gemini smoke (default local test)
+uv run agent-query benchmark-dataset generate \
+  -c configs/benchmarks/custom_judge_live.yaml \
+  --run-id live-edgar-smoke --target-items 2 --trace verbose
+```
+
+Requires `.env`: `SEC_EDGAR_USER_AGENT`, `GOOGLE_API_KEY`. Draft output: `data/benchmarks/custom-judge/drafts/{run_id}/` — start review with `items/dev.jsonl` and `generation_report.json` (see doc above).
+
+```bash
+# CI only: fixture EDGAR + mock judge
+USE_FIXTURE_INGESTION=1 USE_MOCK_JUDGE=1 uv run agent-query benchmark-dataset generate \
+  -c configs/benchmarks/custom_judge_ci.yaml --mock-judge --trace verbose
+```
 
 ---
 
@@ -580,7 +610,8 @@ USE_MOCK_LLM=1 USE_MOCK_JUDGE=1 uv run sec-benchmark \
 | `data/cache/edgar/` | Cached `company_tickers.json` |
 | `data/parsed/{ticker}/{accession}.json` | Docling `ParsedDocument` |
 | `data/graphs/{issuer}/` | GraphML, manifests, `index.json`, reachability reports |
-| `data/benchmarks/` | Benchmark JSONL inputs (local); CI uses `tests/fixtures/finagentbench/` |
+| `data/benchmarks/` | Benchmark JSONL; **custom-judge** drafts under `custom-judge/drafts/{run_id}/`, published under `custom-judge/v{version}/` |
+| `data/benchmarks/custom-judge/drafts/{run_id}/` | Draft bundle: `items/dev.jsonl`, `generation_report.json`, `corpus/`, manifests (see [custom-judge doc](docs/custom-judge-dataset-generation.md)) |
 | `tests/fixtures/sec_downloads/` | Offline XBRL for CI |
 | `mlflow.db` | SQLite tracking (gitignored) |
 
@@ -636,11 +667,13 @@ Feature work is tracked under `specs/{NNN-feature-name}/`. Each folder has a **s
 | 008 | Autonomous macro binding and validator | [spec](specs/008-autonomous-macro-routing/spec.md) | [plan](specs/008-autonomous-macro-routing/plan.md) |
 | 009 | Graph-native meso/micro navigation | [spec](specs/009-graph-native-meso-micro/spec.md) | [plan](specs/009-graph-native-meso-micro/plan.md) |
 | **010** | **MLflow trajectories, validator, blocking judge** | [spec](specs/010-mlflow-trajectory-judge-eval/spec.md) | [plan](specs/010-mlflow-trajectory-judge-eval/plan.md) |
+| **012** | **Judge-generated custom evaluation dataset (`custom-judge`)** | [spec](specs/012-judge-eval-dataset/spec.md) | [plan](specs/012-judge-eval-dataset/plan.md) |
 
-**Active implementation plan** (agent routing in Cursor): [002 plan](specs/002-live-disclosure-cli/plan.md) with extensions from 003–010.
+**Active implementation plan** (agent routing in Cursor): [002 plan](specs/002-live-disclosure-cli/plan.md) with extensions from 003–012.
 
 **Design notes (not feature specs):**
 
+- [Custom-judge dataset generation](docs/custom-judge-dataset-generation.md)
 - [XBRL-first retrieval research](specs/002-live-disclosure-cli/research-xbrl-retrieval.md)
 - [docling-graph edge catalog](specs/004-docling-graph-materialization/contracts/edge-catalog.md)
 - [Trajectory judge pipeline contract](specs/010-mlflow-trajectory-judge-eval/contracts/ask-pipeline-judge.md)

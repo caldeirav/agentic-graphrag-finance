@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass
@@ -53,6 +54,41 @@ class EvaluationRunner:
             parent_run = mlflow.active_run()
             parent_id = parent_run.info.run_id if parent_run else ""
 
+            effective_snapshot_id = snapshot_id
+            for ds_name in suite.datasets:
+                if ds_name == "custom-judge":
+                    os.environ.setdefault("OFFLINE_BENCHMARK", "1")
+                    dataset = self._registry.get(ds_name)
+                    from evaluation.datasets.custom_judge import CustomJudgeDataset
+
+                    if not isinstance(dataset, CustomJudgeDataset):
+                        raise TypeError("custom-judge registry entry must be CustomJudgeDataset")
+                    manifest = dataset.manifest()
+                    bundle = manifest.corpus_bundle
+                    if not (dataset._root / bundle.corpus_root).is_dir():
+                        msg = (
+                            f"Custom-judge corpus missing under {dataset._root / bundle.corpus_root}. "
+                            "Run `git lfs pull` for bundled corpus artifacts."
+                        )
+                        raise FileNotFoundError(msg)
+                    effective_snapshot_id = bundle.snapshot_id
+                    sampling_path = dataset._root / manifest.sampling_manifest_path
+                    generation_seed = ""
+                    if sampling_path.is_file():
+                        generation_seed = str(
+                            json.loads(sampling_path.read_text()).get("random_seed", "")
+                        )
+                    mlflow.log_params(
+                        {
+                            "custom_judge_version": manifest.version,
+                            "items_hash": manifest.items_hash,
+                            "snapshot_id": bundle.snapshot_id,
+                            "generation_seed": generation_seed,
+                            "generation_judge_version": manifest.generation_judge_version,
+                            "evaluation_judge_version": manifest.evaluation_judge_version,
+                        }
+                    )
+
             for ds_name in suite.datasets:
                 dataset = self._registry.get(ds_name)
                 items = dataset.load_split(suite.split)
@@ -74,7 +110,7 @@ class EvaluationRunner:
                         api = LocalGraphQueryAPI(
                             query_service._graph_base, issuer_id or "AAPL"
                         )
-                        snap = api.get_snapshot(snapshot_id)
+                        snap = api.get_snapshot(effective_snapshot_id)
                         acc_set = set(item.temporal_scope.accessions)
                         pre_bound = [
                             r for r in snap.manifest.filing_refs if r.accession in acc_set
@@ -82,7 +118,7 @@ class EvaluationRunner:
                     resp = query_service.answer(
                         QueryRequest(
                             query=item.question,
-                            snapshot_id=snapshot_id,
+                            snapshot_id=effective_snapshot_id,
                             pre_bound_filings=pre_bound,
                             metadata={"issuer_id": issuer_id, "benchmark_item": item.item_id},
                         )
@@ -164,7 +200,7 @@ class EvaluationRunner:
         eval_run = EvaluationRun(
             run_id=run_id,
             suite_name=suite.split,
-            snapshot_id=snapshot_id,
+            snapshot_id=effective_snapshot_id,
             judge_config_id="gemini_2_5_pro",
             items=results,
         )

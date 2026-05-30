@@ -35,6 +35,9 @@ class BenchmarkRegistry:
 
 
 def default_registry() -> BenchmarkRegistry:
+    import os
+
+    from evaluation.datasets.custom_judge import CustomJudgeDataset
     from evaluation.datasets.finagentbench import FinAgentBenchDataset
     from evaluation.datasets.financebench import FinanceBenchDataset
     from evaluation.datasets.finder import FinDERDataset
@@ -43,4 +46,8 @@ def default_registry() -> BenchmarkRegistry:
     reg.register("finder", FinDERDataset())
     reg.register("finagentbench", FinAgentBenchDataset())
     reg.register("financebench", FinanceBenchDataset())
+    reg.register(
+        "custom-judge",
+        CustomJudgeDataset(version=os.getenv("CUSTOM_JUDGE_VERSION", "0.0.0-draft")),
+    )
     return reg

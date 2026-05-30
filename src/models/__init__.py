@@ -1,5 +1,23 @@
 """Shared Pydantic data contracts."""
 
+from models.benchmark_generation import (
+    AccessionRecord,
+    AllowlistEntry,
+    BudgetSnapshot,
+    CorpusBundle,
+    DatasetManifest,
+    DatasetStatus,
+    FilingFilters,
+    GeneratedBenchmarkItem,
+    GenerationConfig,
+    GenerationReport,
+    GovernanceCaps,
+    IssuerAllowlist,
+    IssuerSnapshotRef,
+    OutputPaths,
+    SamplingManifest,
+    SelectedIssuer,
+)
 from models.corpus import (
     BoundFilingEntry,
     CorpusDefinition,
@@ -80,6 +98,22 @@ from models.trajectory import (
 )
 
 __all__ = [
+    "AccessionRecord",
+    "AllowlistEntry",
+    "BudgetSnapshot",
+    "CorpusBundle",
+    "DatasetManifest",
+    "DatasetStatus",
+    "FilingFilters",
+    "GeneratedBenchmarkItem",
+    "GenerationConfig",
+    "GenerationReport",
+    "GovernanceCaps",
+    "IssuerAllowlist",
+    "IssuerSnapshotRef",
+    "OutputPaths",
+    "SamplingManifest",
+    "SelectedIssuer",
     "EvidenceSourceType",
     "QueryIntent",
     "IntentSource",

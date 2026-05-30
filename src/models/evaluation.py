@@ -73,6 +73,7 @@ class BenchmarkItem(BaseModel):
     operation_class: OperationClass = OperationClass.QUALITATIVE
     temporal_scope: CorpusTemporalScope | None = None
     expected_bindings: ExpectedBindings | None = None
+    expected_section_paths: list[str] = Field(default_factory=list)
     multi_filing_required: bool = False
     expect_binding_failure: bool = False
 

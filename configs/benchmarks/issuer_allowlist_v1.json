@@ -1,0 +1,70 @@
+{
+  "allowlist_id": "issuer_allowlist_v1",
+  "content_hash": "sha256:37f1de2b6d4d30356b67fe589fb96e8f73f1c74597b0711ab41bbb8d402bff73",
+  "entries": [
+    {
+      "sources": [
+        "finagentbench",
+        "financebench",
+        "finder",
+        "fixture"
+      ],
+      "ticker": "AAPL"
+    },
+    {
+      "sources": [
+        "financebench"
+      ],
+      "ticker": "AMZN"
+    },
+    {
+      "sources": [
+        "finder"
+      ],
+      "ticker": "BAC"
+    },
+    {
+      "sources": [
+        "financebench"
+      ],
+      "ticker": "GOOGL"
+    },
+    {
+      "sources": [
+        "financebench"
+      ],
+      "ticker": "JPM"
+    },
+    {
+      "sources": [
+        "finder"
+      ],
+      "ticker": "KO"
+    },
+    {
+      "sources": [
+        "financebench"
+      ],
+      "ticker": "MSFT"
+    },
+    {
+      "sources": [
+        "financebench"
+      ],
+      "ticker": "NVDA"
+    },
+    {
+      "sources": [
+        "financebench"
+      ],
+      "ticker": "WMT"
+    },
+    {
+      "sources": [
+        "finder"
+      ],
+      "ticker": "XOM"
+    }
+  ],
+  "provenance": "Union of FinanceBench-style tickers, FinDER sample tickers, FinAgentBench/project fixtures, and tests/fixtures/sec_downloads"
+}

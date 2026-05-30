@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0.0",
+  "dataset_name": "custom-judge",
+  "version": "0.0.0-draft",
+  "status": "draft",
+  "parent_version": null,
+  "item_count": 3,
+  "items_hash": "sha256:359995e5ff0a65a21faea4375e933ae1649a7aacb26b233f137d468c57fec8e1",
+  "sampling_manifest_path": "sampling_manifest.json",
+  "generation_config_path": "generation_config.yaml",
+  "generation_report_path": "generation_report.json",
+  "generation_judge_version": "mock",
+  "evaluation_judge_version": "mock",
+  "profile_counts": {
+    "financebench": 1,
+    "finder": 1,
+    "finagentbench": 1
+  },
+  "corpus_bundle": {
+    "snapshot_id": "composite-ci-fixture",
+    "issuer_snapshots": [
+      {
+        "ticker": "AAPL",
+        "snapshot_id": "ci-aapl-snapshot",
+        "relative_path": "corpus/graphs/AAPL/ci-aapl-snapshot"
+      }
+    ],
+    "corpus_root": "corpus",
+    "graph_node_index_path": "corpus/graph_node_index.json",
+    "reachability_audit_path": null,
+    "total_bytes": 1024,
+    "artifact_hashes": {
+      "corpus/graph_node_index.json": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "published_at": null,
+  "published_by": null
+}

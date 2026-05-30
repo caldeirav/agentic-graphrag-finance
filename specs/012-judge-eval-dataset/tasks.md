@@ -28,13 +28,13 @@ description: "Task list for judge-generated custom evaluation dataset (012)"
 
 **Purpose**: Config stubs, package scaffold, LFS rules, allowlist builder
 
-- [ ] T001 Create `src/evaluation/generation/__init__.py` exporting public generation API stubs per `plan.md`
-- [ ] T002 [P] Add Git LFS rules for `data/benchmarks/custom-judge/**/corpus/**` in `.gitattributes` per `research.md` R6
-- [ ] T003 [P] Add `configs/benchmarks/custom_judge_v1.yaml` with equal-thirds quotas and governance defaults per `contracts/generation-config-schema.md`
-- [ ] T004 [P] Add inspiration profiles `configs/benchmarks/inspiration_profiles/financebench.yaml`, `finder.yaml`, `finagentbench.yaml` per `research.md` R4
-- [ ] T005 [P] Add `scripts/build_issuer_allowlist.py` writing `configs/benchmarks/issuer_allowlist_v1.json` per `research.md` R1
-- [ ] T006 [P] Add `configs/benchmarks/custom_judge_ci.yaml` tiny config for CI/mock generation in `tests/fixtures/custom_judge/`
-- [ ] T007 Register Typer command group stub `benchmark-dataset` in `src/cli/main.py` pointing to `src/cli/commands/benchmark_dataset.py`
+- [X] T001 Create `src/evaluation/generation/__init__.py` exporting public generation API stubs per `plan.md`
+- [X] T002 [P] Add Git LFS rules for `data/benchmarks/custom-judge/**/corpus/**` in `.gitattributes` per `research.md` R6
+- [X] T003 [P] Add `configs/benchmarks/custom_judge_v1.yaml` with equal-thirds quotas and governance defaults per `contracts/generation-config-schema.md`
+- [X] T004 [P] Add inspiration profiles `configs/benchmarks/inspiration_profiles/financebench.yaml`, `finder.yaml`, `finagentbench.yaml` per `research.md` R4
+- [X] T005 [P] Add `scripts/build_issuer_allowlist.py` writing `configs/benchmarks/issuer_allowlist_v1.json` per `research.md` R1
+- [X] T006 [P] Add `configs/benchmarks/custom_judge_ci.yaml` tiny config for CI/mock generation in `tests/fixtures/custom_judge/`
+- [X] T007 Register Typer command group stub `benchmark-dataset` in `src/cli/main.py` pointing to `src/cli/commands/benchmark_dataset.py`
 
 **Checkpoint**: `uv run agent-query benchmark-dataset --help` lists `generate`, `publish`, `reproduce`, `extend` (stubs OK)
 
@@ -46,16 +46,16 @@ description: "Task list for judge-generated custom evaluation dataset (012)"
 
 **⚠️ CRITICAL**: No user story work until this phase is complete
 
-- [ ] T008 [P] Add `GenerationConfig`, `GovernanceCaps`, `IssuerAllowlist`, `SamplingManifest`, `CorpusBundle`, `DatasetManifest`, `GenerationReport`, `GeneratedBenchmarkItem` in `src/models/benchmark_generation.py` per `data-model.md`
-- [ ] T009 [P] Extend `BenchmarkItem` with `expected_section_paths: list[str]` in `src/models/evaluation.py` per `contracts/custom-judge-dataset-adapter.md`
-- [ ] T010 [P] Implement `src/evaluation/generation/governance.py` with budget counters and fail-stop per FR-007
-- [ ] T011 [P] Implement `src/evaluation/generation/config_loader.py` loading YAML into `GenerationConfig` with quota-sum validation
-- [ ] T012 [P] Export new models from `src/models/__init__.py`
-- [ ] T013 [P] Add contract test `tests/contract/test_generation_import_boundary.py` forbidding retrieval imports in `src/evaluation/generation/` per `contracts/judge-generation-boundary.md`
-- [ ] T014 [P] Add contract test `tests/contract/test_custom_judge_manifest.py` validating golden manifest JSON against Pydantic models per `contracts/dataset-bundle-manifest.md`
-- [ ] T015 [P] Create `tests/fixtures/custom_judge/` with minimal draft manifest, 3-item JSONL, and mock `corpus/graph_node_index.json`
-- [ ] T016 [P] Add unit test `tests/unit/test_generation_config_loader.py` for quota validation and allowlist hash in `src/evaluation/generation/config_loader.py`
-- [ ] T017 [P] Implement production mock guard in `src/cli/commands/benchmark_dataset.py`: reject `--mock-judge` and `USE_MOCK_JUDGE=1` unless `GenerationConfig.config_id` is `custom_judge_ci` per FR-014
+- [X] T008 [P] Add `GenerationConfig`, `GovernanceCaps`, `IssuerAllowlist`, `SamplingManifest`, `CorpusBundle`, `DatasetManifest`, `GenerationReport`, `GeneratedBenchmarkItem` in `src/models/benchmark_generation.py` per `data-model.md`
+- [X] T009 [P] Extend `BenchmarkItem` with `expected_section_paths: list[str]` in `src/models/evaluation.py` per `contracts/custom-judge-dataset-adapter.md`
+- [X] T010 [P] Implement `src/evaluation/generation/governance.py` with budget counters and fail-stop per FR-007
+- [X] T011 [P] Implement `src/evaluation/generation/config_loader.py` loading YAML into `GenerationConfig` with quota-sum validation
+- [X] T012 [P] Export new models from `src/models/__init__.py`
+- [X] T013 [P] Add contract test `tests/contract/test_generation_import_boundary.py` forbidding retrieval imports in `src/evaluation/generation/` per `contracts/judge-generation-boundary.md`
+- [X] T014 [P] Add contract test `tests/contract/test_custom_judge_manifest.py` validating golden manifest JSON against Pydantic models per `contracts/dataset-bundle-manifest.md`
+- [X] T015 [P] Create `tests/fixtures/custom_judge/` with minimal draft manifest, 3-item JSONL, and mock `corpus/graph_node_index.json`
+- [X] T016 [P] Add unit test `tests/unit/test_generation_config_loader.py` for quota validation and allowlist hash in `src/evaluation/generation/config_loader.py`
+- [X] T017 [P] Implement production mock guard in `src/cli/commands/benchmark_dataset.py`: reject `--mock-judge` and `USE_MOCK_JUDGE=1` unless `GenerationConfig.config_id` is `custom_judge_ci` per FR-014
 
 **Checkpoint**: `uv run pytest tests/contract/test_generation_import_boundary.py tests/unit/test_generation_config_loader.py -q` passes
 
@@ -69,14 +69,14 @@ description: "Task list for judge-generated custom evaluation dataset (012)"
 
 ### Tests for User Story 1
 
-- [ ] T018 [P] [US1] Add unit tests `tests/unit/test_generation_sampler.py` for deterministic issuer draw, accession selection, and manifest hash stability
+- [X] T018 [P] [US1] Add unit tests `tests/unit/test_generation_sampler.py` for deterministic issuer draw, accession selection, and manifest hash stability
 
 ### Implementation for User Story 1
 
-- [ ] T019 [US1] Implement `src/evaluation/generation/sampler.py` with allowlist load, seed-random issuer sample, filing filters, and rationale tags per FR-001/FR-016
-- [ ] T020 [US1] Write canonical `sampling_manifest.json` (sorted keys, content hash) from sampler in `src/evaluation/generation/sampler.py`
-- [ ] T021 [US1] Integrate governance preflight in `src/evaluation/generation/sampler.py` to fail before ingestion when caps exceeded per US1 acceptance scenario 3
-- [ ] T022 [US1] Wire `generate` subcommand **phase 1 (sampling only)** in `src/cli/commands/benchmark_dataset.py` writing draft dir under `data/benchmarks/custom-judge/drafts/{run_id}/`; phases 2–3 complete full pipeline to draft in T028 and T037 (FR-011)
+- [X] T019 [US1] Implement `src/evaluation/generation/sampler.py` with allowlist load, seed-random issuer sample, filing filters, and rationale tags per FR-001/FR-016
+- [X] T020 [US1] Write canonical `sampling_manifest.json` (sorted keys, content hash) from sampler in `src/evaluation/generation/sampler.py`
+- [X] T021 [US1] Integrate governance preflight in `src/evaluation/generation/sampler.py` to fail before ingestion when caps exceeded per US1 acceptance scenario 3
+- [X] T022 [US1] Wire `generate` subcommand **phase 1 (sampling only)** in `src/cli/commands/benchmark_dataset.py` writing draft dir under `data/benchmarks/custom-judge/drafts/{run_id}/`; phases 2–3 complete full pipeline to draft in T028 and T037 (FR-011)
 
 **Checkpoint**: US1 unit tests pass; repeated sampling yields identical `sampling_manifest.json` hash (`generate` stops after phase 1 until T028/T037)
 
@@ -90,15 +90,15 @@ description: "Task list for judge-generated custom evaluation dataset (012)"
 
 ### Tests for User Story 2
 
-- [ ] T023 [P] [US2] Add unit test `tests/unit/test_benchmark_materialize.py` mocking `run_materialize_pipeline` and asserting per-issuer snapshot refs in `src/cli/benchmark_materialize.py`
+- [X] T023 [P] [US2] Add unit test `tests/unit/test_benchmark_materialize.py` mocking `run_materialize_pipeline` and asserting per-issuer snapshot refs in `src/cli/benchmark_materialize.py`
 
 ### Implementation for User Story 2
 
-- [ ] T024 [US2] Implement `src/cli/benchmark_materialize.py` with `materialize_sampled_corpus()` calling `cli.corpus_pipeline.run_materialize_pipeline` per issuer; invoked only from `src/cli/commands/benchmark_dataset.py` per `contracts/judge-generation-boundary.md`
-- [ ] T025 [US2] Copy/link graph snapshots and raw SEC packages into draft `corpus/` tree in `src/cli/benchmark_materialize.py` per `data-model.md` CorpusBundle layout
-- [ ] T026 [US2] Export `corpus/graph_node_index.json` from materialized snapshots in `src/cli/benchmark_materialize.py` for section-path validation
-- [ ] T027 [US2] Record ingestion failures in draft `generation_report.json` without producing items for failed accessions per US2 acceptance scenario 3
-- [ ] T028 [US2] Wire materialize as **`generate` phase 2** after sampling in `src/cli/commands/benchmark_dataset.py`
+- [X] T024 [US2] Implement `src/cli/benchmark_materialize.py` with `materialize_sampled_corpus()` calling `cli.corpus_pipeline.run_materialize_pipeline` per issuer; invoked only from `src/cli/commands/benchmark_dataset.py` per `contracts/judge-generation-boundary.md`
+- [X] T025 [US2] Copy/link graph snapshots and raw SEC packages into draft `corpus/` tree in `src/cli/benchmark_materialize.py` per `data-model.md` CorpusBundle layout
+- [X] T026 [US2] Export `corpus/graph_node_index.json` from materialized snapshots in `src/cli/benchmark_materialize.py` for section-path validation
+- [X] T027 [US2] Record ingestion failures in draft `generation_report.json` without producing items for failed accessions per US2 acceptance scenario 3
+- [X] T028 [US2] Wire materialize as **`generate` phase 2** after sampling in `src/cli/commands/benchmark_dataset.py`
 
 **Checkpoint**: Small mock/materialize integration produces draft dir with `corpus/` + `graph_node_index.json`
 
@@ -112,18 +112,18 @@ description: "Task list for judge-generated custom evaluation dataset (012)"
 
 ### Tests for User Story 3
 
-- [ ] T029 [P] [US3] Add unit tests `tests/unit/test_item_validator.py` for path resolution and profile-specific rules in `src/evaluation/generation/item_validator.py`
-- [ ] T030 [P] [US3] Add unit tests `tests/unit/test_deduplicator.py` for similarity threshold dedup in `src/evaluation/generation/deduplicator.py`
-- [ ] T031 [P] [US3] Add unit test `tests/unit/test_judge_generator_mock.py` with `USE_MOCK_JUDGE=1` asserting profile tags and JSON shape in `src/evaluation/generation/judge_generator.py`
+- [X] T029 [P] [US3] Add unit tests `tests/unit/test_item_validator.py` for path resolution and profile-specific rules in `src/evaluation/generation/item_validator.py`
+- [X] T030 [P] [US3] Add unit tests `tests/unit/test_deduplicator.py` for similarity threshold dedup in `src/evaluation/generation/deduplicator.py`
+- [X] T031 [P] [US3] Add unit test `tests/unit/test_judge_generator_mock.py` with `USE_MOCK_JUDGE=1` asserting profile tags and JSON shape in `src/evaluation/generation/judge_generator.py`
 
 ### Implementation for User Story 3
 
-- [ ] T032 [US3] Implement `src/evaluation/generation/judge_generator.py` using Gemini client from `src/evaluation/judges/gemini_panel.py` with separate prompts from `configs/benchmarks/inspiration_profiles/*.yaml` per FR-005
-- [ ] T033 [US3] Implement quota scheduler (equal-thirds default) selecting profile per candidate in `src/evaluation/generation/judge_generator.py`
-- [ ] T034 [US3] Implement `src/evaluation/generation/item_validator.py` resolving `expected_section_paths` against `graph_node_index.json` per FR-009
-- [ ] T035 [US3] Implement `src/evaluation/generation/deduplicator.py` with configurable similarity threshold from governance config
-- [ ] T036 [US3] Add checkpoint/resume state (`candidates.jsonl`, accepted ids) with judge API backoff in `src/evaluation/generation/judge_generator.py` per US5 acceptance scenario 3
-- [ ] T037 [US3] Wire judge+validate as **`generate` phase 3** in `src/cli/commands/benchmark_dataset.py`: write accepted items to `items/dev.jsonl`, update `generation_report.json` pass rate, finalize draft manifest — completes FR-011 full pipeline to draft
+- [X] T032 [US3] Implement `src/evaluation/generation/judge_generator.py` using Gemini client from `src/evaluation/judges/gemini_panel.py` with separate prompts from `configs/benchmarks/inspiration_profiles/*.yaml` per FR-005
+- [X] T033 [US3] Implement quota scheduler (equal-thirds default) selecting profile per candidate in `src/evaluation/generation/judge_generator.py`
+- [X] T034 [US3] Implement `src/evaluation/generation/item_validator.py` resolving `expected_section_paths` against `graph_node_index.json` per FR-009
+- [X] T035 [US3] Implement `src/evaluation/generation/deduplicator.py` with configurable similarity threshold from governance config
+- [X] T036 [US3] Add checkpoint/resume state (`candidates.jsonl`, accepted ids) with judge API backoff in `src/evaluation/generation/judge_generator.py` per US5 acceptance scenario 3
+- [X] T037 [US3] Wire judge+validate as **`generate` phase 3** in `src/cli/commands/benchmark_dataset.py`: write accepted items to `items/dev.jsonl`, update `generation_report.json` pass rate, finalize draft manifest — completes FR-011 full pipeline to draft
 
 **Checkpoint**: Mock judge `generate` produces ≥5 validated items in draft; validator rejects hallucinated paths; all three generate phases run end-to-end
 
@@ -137,18 +137,18 @@ description: "Task list for judge-generated custom evaluation dataset (012)"
 
 ### Tests for User Story 4
 
-- [ ] T038 [P] [US4] Add contract test `tests/contract/test_custom_judge_dataset_adapter.py` for JSONL→`BenchmarkItem` mapping and no synthetic fallback in `src/evaluation/datasets/custom_judge.py`
-- [ ] T039 [P] [US4] Add unit test `tests/unit/test_generation_bundle_hash.py` for deterministic `items_hash` in `src/evaluation/generation/bundle.py`
+- [X] T038 [P] [US4] Add contract test `tests/contract/test_custom_judge_dataset_adapter.py` for JSONL→`BenchmarkItem` mapping and no synthetic fallback in `src/evaluation/datasets/custom_judge.py`
+- [X] T039 [P] [US4] Add unit test `tests/unit/test_generation_bundle_hash.py` for deterministic `items_hash` in `src/evaluation/generation/bundle.py`
 
 ### Implementation for User Story 4
 
-- [ ] T040 [US4] Implement draft assembly and manifest writer (`status: draft`) in `src/evaluation/generation/bundle.py` per `contracts/dataset-bundle-manifest.md`
-- [ ] T041 [US4] Implement `publish` promoting draft to `data/benchmarks/custom-judge/v{version}/` with `status: published` and both judge pins in `src/cli/commands/benchmark_dataset.py`
-- [ ] T042 [US4] Enforce publish gates (≥95% pass rate, ≥200 items for v1) in `src/evaluation/generation/bundle.py` before promotion per FR-014
-- [ ] T043 [US4] Implement `src/evaluation/datasets/custom_judge.py` loading published bundle with LFS path resolution per `contracts/custom-judge-dataset-adapter.md`
-- [ ] T044 [US4] Register `custom-judge` in `src/evaluation/registry.py` `default_registry()` with `CUSTOM_JUDGE_VERSION` env override
-- [ ] T045 [US4] Extend `src/evaluation/runner.py` to accept bundled graph root override and set `OFFLINE_BENCHMARK=1` preflight when dataset is `custom-judge`
-- [ ] T046 [US4] Log MLflow benchmark params `custom_judge_version`, `items_hash`, `snapshot_id`, `generation_seed`, `generation_judge_version`, and `evaluation_judge_version` on parent run in `src/evaluation/runner.py` per FR-015
+- [X] T040 [US4] Implement draft assembly and manifest writer (`status: draft`) in `src/evaluation/generation/bundle.py` per `contracts/dataset-bundle-manifest.md`
+- [X] T041 [US4] Implement `publish` promoting draft to `data/benchmarks/custom-judge/v{version}/` with `status: published` and both judge pins in `src/cli/commands/benchmark_dataset.py`
+- [X] T042 [US4] Enforce publish gates (≥95% pass rate, ≥200 items for v1) in `src/evaluation/generation/bundle.py` before promotion per FR-014
+- [X] T043 [US4] Implement `src/evaluation/datasets/custom_judge.py` loading published bundle with LFS path resolution per `contracts/custom-judge-dataset-adapter.md`
+- [X] T044 [US4] Register `custom-judge` in `src/evaluation/registry.py` `default_registry()` with `CUSTOM_JUDGE_VERSION` env override
+- [X] T045 [US4] Extend `src/evaluation/runner.py` to accept bundled graph root override and set `OFFLINE_BENCHMARK=1` preflight when dataset is `custom-judge`
+- [X] T046 [US4] Log MLflow benchmark params `custom_judge_version`, `items_hash`, `snapshot_id`, `generation_seed`, `generation_judge_version`, and `evaluation_judge_version` on parent run in `src/evaluation/runner.py` per FR-015
 
 **Checkpoint**: Registry loads published fixture; runner refuses EDGAR when offline flag set
 
@@ -162,13 +162,13 @@ description: "Task list for judge-generated custom evaluation dataset (012)"
 
 ### Tests for User Story 5
 
-- [ ] T047 [P] [US5] Add integration test `tests/integration/test_custom_judge_reproduce_hash.py` verifying hash match on fixture bundle without network
+- [X] T047 [P] [US5] Add integration test `tests/integration/test_custom_judge_reproduce_hash.py` verifying hash match on fixture bundle without network
 
 ### Implementation for User Story 5
 
-- [ ] T048 [US5] Implement `reproduce` subcommand recomputing `items_hash` and verifying LFS `artifact_hashes` in `src/cli/commands/benchmark_dataset.py` per `contracts/dataset-generation-cli.md`
-- [ ] T049 [US5] Implement `extend` subcommand copying parent items and merging delta sampling in `src/cli/commands/benchmark_dataset.py` with `parent_version` in manifest per `research.md` R8
-- [ ] T050 [US5] Document snapshot reuse vs new composite snapshot rules for extend in `src/evaluation/generation/bundle.py` per edge case in spec
+- [X] T048 [US5] Implement `reproduce` subcommand recomputing `items_hash` and verifying LFS `artifact_hashes` in `src/cli/commands/benchmark_dataset.py` per `contracts/dataset-generation-cli.md`
+- [X] T049 [US5] Implement `extend` subcommand copying parent items and merging delta sampling in `src/cli/commands/benchmark_dataset.py` with `parent_version` in manifest per `research.md` R8
+- [X] T050 [US5] Document snapshot reuse vs new composite snapshot rules for extend in `src/evaluation/generation/bundle.py` per edge case in spec
 
 **Checkpoint**: US5 integration test passes on committed fixture; extend draft shows parent linkage
 
@@ -179,8 +179,8 @@ description: "Task list for judge-generated custom evaluation dataset (012)"
 **Purpose**: End-to-end smoke, docs, operator publish gate
 
 - [ ] T051 [P] Add integration test `tests/integration/test_custom_judge_offline_eval.py` running ≥20 items with `USE_MOCK_LLM=1` `USE_MOCK_JUDGE=1` per SC-006
-- [ ] T052 [P] Add `configs/benchmarks/custom_judge_v1_extend.yaml` example for extend workflow in `specs/012-judge-eval-dataset/quickstart.md`
-- [ ] T053 [P] Add README subsection linking to `specs/012-judge-eval-dataset/quickstart.md` under benchmark/evaluation docs in `README.md`
+- [X] T052 [P] Add `configs/benchmarks/custom_judge_v1_extend.yaml` example for extend workflow in `specs/012-judge-eval-dataset/quickstart.md`
+- [X] T053 [P] Add README subsection linking to `specs/012-judge-eval-dataset/quickstart.md` under benchmark/evaluation docs in `README.md`
 - [ ] T054 Run full `specs/012-judge-eval-dataset/quickstart.md` validation on fixture bundle (reproduce + smoke eval steps)
 - [ ] T055 **Operator gate**: Run full `generate` + operator `publish --version 1.0.0` with real Gemini/EDGAR; confirm ≥200 items and commit LFS corpus (manual, documented in quickstart)
 

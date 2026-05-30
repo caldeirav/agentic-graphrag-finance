@@ -1,0 +1,46 @@
+# Live EDGAR + Gemini smoke — 1 issuer (AAPL), 2 items (012)
+config_id: custom_judge_live
+random_seed: 42
+
+allowlist_id: issuer_allowlist_ci
+allowlist_path: tests/fixtures/custom_judge/issuer_allowlist_ci.json
+
+issuer_sample_count: 1
+
+filing_filters:
+  form_types:
+    - 10-K
+  min_fiscal_year: 2023
+  max_fiscal_year: 2024
+  max_filings_per_issuer: 2
+
+profile_quotas:
+  financebench: 0.5
+  finder: 0.5
+  finagentbench: 0.0
+
+inspiration_profiles:
+  financebench: configs/benchmarks/inspiration_profiles/financebench.yaml
+  finder: configs/benchmarks/inspiration_profiles/finder.yaml
+  finagentbench: configs/benchmarks/inspiration_profiles/finagentbench.yaml
+
+generation_judge_version: gemini-2.5-pro
+generation_judge_config: configs/judges/gemini_2_5_pro.yaml
+
+evaluation_judge_version: gemini-2.5-pro
+evaluation_judge_config: configs/judges/gemini_2_5_pro.yaml
+
+governance:
+  max_issuers: 1
+  max_filings_per_issuer: 2
+  max_items: 2
+  max_judge_api_calls: 6
+  max_storage_bytes: 524288000
+  max_wall_clock_seconds: 900
+  validation_pass_rate: 0.5
+  dedup_similarity_threshold: 0.85
+  judge_retries_per_item: 2
+
+output:
+  drafts_root: data/benchmarks/custom-judge/drafts
+  published_root: data/benchmarks/custom-judge

@@ -1,0 +1,16 @@
+{
+  "allowlist_id": "issuer_allowlist_ci",
+  "content_hash": "sha256:3b1edaab99fa2600940d7471d40e0c3a2e63b43a3e5778bd81df5daff80a4a29",
+  "entries": [
+    {
+      "ticker": "AAPL",
+      "sources": [
+        "fixture",
+        "financebench",
+        "finder",
+        "finagentbench"
+      ]
+    }
+  ],
+  "provenance": "CI fixture single issuer"
+}

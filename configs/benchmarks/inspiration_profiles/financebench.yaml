@@ -1,0 +1,18 @@
+profile_id: financebench
+description: FinanceBench-style metrics, domain-relevant, and novel-generated questions
+question_types:
+  - metrics-generated
+  - domain-relevant
+  - novel-generated
+multi_filing_required: false
+required_output_fields:
+  - question
+  - ground_truth.answer
+  - expected_section_paths
+  - expected_bindings.accessions
+prompt_template: |
+  Generate a single-filing financial disclosure QA item grounded in the provided
+  SEC/XBRL corpus snapshot. Style: FinanceBench ({question_type}).
+  Return JSON with: question, question_type_tag, ground_truth.answer (numeric or
+  short text), expected_bindings (accessions, fiscal_periods), expected_section_paths
+  (graph-resolvable paths as accession/section_slug), operation_class.
