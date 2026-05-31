@@ -60,6 +60,25 @@ def test_finder_accepts_rubric_only_ground_truth():
     assert validated.validation_status == "accepted"
 
 
+def test_validator_accepts_resolvable_suffix_path():
+    item = GeneratedBenchmarkItem(
+        item_id="t5",
+        question="What are the risk factors?",
+        question_type_tag="retrieval-qa",
+        inspiration_profile="finder",
+        ground_truth=GroundTruth(rubric="Ground in Item 1A."),
+        expected_bindings=ExpectedBindings(accessions=["acc-1"], fiscal_periods=[]),
+        expected_section_paths=["acc-1/Item 1A. Risk Factors"],
+    )
+    validated = validate_item(
+        item,
+        graph_paths={"acc-1/Item 1A."},
+        snapshot_accessions={"acc-1"},
+    )
+    assert validated.validation_status == "accepted"
+    assert validated.expected_section_paths == ["acc-1/Item 1A."]
+
+
 def test_financebench_rejects_null_answer():
     item = GeneratedBenchmarkItem(
         item_id="t4",
