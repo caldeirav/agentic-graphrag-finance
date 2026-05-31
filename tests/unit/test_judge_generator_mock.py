@@ -33,3 +33,28 @@ def test_mock_judge_generates_profile_tags(tmp_path: Path, monkeypatch):
     profiles = {item.inspiration_profile for item in accepted}
     assert profiles  # at least one accepted
     assert report.judge_api_calls >= 1
+    assert report.candidates_total == 3
+
+
+def test_default_target_count_uses_governance_max_items(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("USE_MOCK_JUDGE", "1")
+    config = load_generation_config(REPO / "configs/benchmarks/custom_judge_ci.yaml", base=REPO)
+    sampling = SamplingManifest(
+        manifest_id="m",
+        config_hash="sha256:x",
+        allowlist_hash="sha256:y",
+        random_seed=0,
+        selected_issuers=[
+            SelectedIssuer(
+                ticker="AAPL",
+                accessions=["0000320193-24-000123"],
+                selection_rationale=["fixture"],
+            )
+        ],
+    )
+    (tmp_path / "corpus").mkdir()
+    (tmp_path / "corpus" / "graph_node_index.json").write_text(
+        '{"paths": ["0000320193-24-000123/Item7"]}'
+    )
+    _, report = generate_items(config, sampling, tmp_path)
+    assert report.candidates_total == config.governance.max_items

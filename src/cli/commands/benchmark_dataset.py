@@ -67,6 +67,11 @@ def _prefer_fixtures(config_id: str) -> bool:
     return config_id == CI_CONFIG_ID
 
 
+def _phase_needs_accession_catalog(phase: str) -> bool:
+    """Live EDGAR catalog is only required for sampling (not judge/materialize resume)."""
+    return phase in {"sampling", "all"}
+
+
 @app.command("generate")
 def generate(
     config: Path = typer.Option(
@@ -118,14 +123,17 @@ def generate(
         ],
     )
 
-    catalog = build_accession_catalog(
-        cfg,
-        allowlist,
-        repo_root=REPO_ROOT,
-        prefer_fixtures=_prefer_fixtures(cfg.config_id),
-    )
+    catalog = None
+    if _phase_needs_accession_catalog(phase):
+        catalog = build_accession_catalog(
+            cfg,
+            allowlist,
+            repo_root=REPO_ROOT,
+            prefer_fixtures=_prefer_fixtures(cfg.config_id),
+        )
 
     if phase in {"sampling", "all"}:
+        assert catalog is not None
         reporter.phase_start("sampling", f"issuers={cfg.issuer_sample_count} seed={cfg.random_seed}")
         manifest = run_sampling(config, draft, catalog, repo_root=REPO_ROOT)
         manifest_hash = sampling_manifest_hash(manifest)

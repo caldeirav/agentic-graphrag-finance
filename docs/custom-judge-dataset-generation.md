@@ -175,6 +175,28 @@ uv run agent-query benchmark-dataset generate \
 
 Review `generation_report.json` (`pass_rate` ≥ 0.95, `accepted_count` ≥ 200) before publish.
 
+The judge phase generates **`governance.max_items`** candidates by default (220 for `custom_judge_v1.yaml`). Use `--target-items N` only to override for smoke runs (e.g. `--target-items 2`). Sampling and materialize are **not** re-run when you resume with `--phase judge`.
+
+### Resume judge phase only (corpus already materialized)
+
+If sampling/materialize finished but the judge phase stopped early (network error, Ctrl+C, etc.), **re-run the same command**. Progress is checkpointed in `{draft}/candidates.jsonl` after **each** item; the next run continues from item **N+1** automatically (same `--run-id`, `--phase judge`).
+
+```bash
+uv run agent-query benchmark-dataset generate \
+  -c configs/benchmarks/custom_judge_v1.yaml \
+  --run-id paper-v1-build \
+  --phase judge \
+  --trace verbose
+```
+
+Check progress:
+
+```bash
+wc -l data/benchmarks/custom-judge/drafts/paper-v1-build/candidates.jsonl
+```
+
+Gemini calls retry transient disconnects (`RemoteProtocolError`) up to 5 times with backoff before failing an item. Expect ~220 Gemini calls total and several hours wall-clock. To smoke-test item authoring without replacing a large draft, pass `--target-items 2` explicitly.
+
 ### Phased runs
 
 ```bash
@@ -362,6 +384,19 @@ Run agent against the bundle (see [011 quickstart](../specs/011-judge-eval-datas
 | `USE_FIXTURE_INGESTION=1` | CI fixtures only | — |
 | `USE_MOCK_JUDGE=1` | CI + `custom_judge_ci` only | CI |
 | `OFFLINE_BENCHMARK=1` | — | Blocks EDGAR during eval |
+| `EDGAR_REQUESTS_PER_SECOND` | Optional (default 8); lower to 5 if you see transport disconnects during long generates |
+
+**Judge phase and EDGAR:** `--phase judge` uses **Gemini + the frozen draft corpus only** (local `graph_node_index.json`). It does not download filings. EDGAR is used in **sampling** (catalog) and **materialize** only. If you saw EDGAR disconnects while resuming judge, an earlier CLI rebuilt the live accession catalog at the start of every `generate` call — that is fixed; use `--phase judge` after updating.
+
+---
+
+## Troubleshooting
+
+| Issue | Action |
+|-------|--------|
+| `RemoteProtocolError: Server disconnected without sending a response` | Transient fault during **materialize** (EDGAR) or **judge** (Gemini). Automatic retries (5× backoff). Re-run `--phase judge` with the same `--run-id` to resume from `candidates.jsonl`. |
+| Judge stopped mid-run (e.g. 112/220 items) | `wc -l …/candidates.jsonl` then re-run `--phase judge` — continues at item 113. |
+| Rate limit / 429 | Reduce `EDGAR_REQUESTS_PER_SECOND`; wait and resume phased run (`--phase materialize` or `--phase judge`) |
 
 ---
 

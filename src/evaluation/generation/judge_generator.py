@@ -9,6 +9,8 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
+import httpx
+
 from evaluation.generation.deduplicator import deduplicate_items
 from evaluation.generation.gemini_item_generator import GeminiItemGenerator
 from evaluation.generation.governance import BudgetTracker
@@ -40,6 +42,7 @@ class ItemGenerationTracer(Protocol):
         preview: str = "",
     ) -> None: ...
     def budget(self, message: str) -> None: ...
+    def log(self, message: str) -> None: ...
 
 
 def _profile_schedule(config: GenerationConfig, count: int, seed: int) -> list[str]:
@@ -85,6 +88,29 @@ def _use_mock_judge() -> bool:
     return os.environ.get("USE_MOCK_JUDGE", "0").strip().lower() in {"1", "true", "yes"}
 
 
+def _load_checkpoint(checkpoint_path: Path) -> list[GeneratedBenchmarkItem]:
+    if not checkpoint_path.is_file():
+        return []
+    rows: list[GeneratedBenchmarkItem] = []
+    for line in checkpoint_path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            rows.append(GeneratedBenchmarkItem.model_validate(json.loads(line)))
+    return rows
+
+
+def _rewrite_checkpoint(checkpoint_path: Path, items: list[GeneratedBenchmarkItem]) -> None:
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    with checkpoint_path.open("w", encoding="utf-8") as handle:
+        for item in items:
+            handle.write(item.model_dump_json() + "\n")
+
+
+def _append_checkpoint(checkpoint_path: Path, item: GeneratedBenchmarkItem) -> None:
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    with checkpoint_path.open("a", encoding="utf-8") as handle:
+        handle.write(item.model_dump_json() + "\n")
+
+
 def generate_items(
     config: GenerationConfig,
     sampling: SamplingManifest,
@@ -103,23 +129,45 @@ def generate_items(
     if not graph_paths and snapshot_accessions:
         graph_paths = {f"{acc}/Item7" for acc in snapshot_accessions}
 
-    count = target_count or min(config.governance.max_items, 5)
+    count = (
+        config.governance.max_items
+        if target_count is None
+        else min(target_count, config.governance.max_items)
+    )
     schedule = _profile_schedule(config, count, config.random_seed + 1)
     budget = BudgetTracker(config.governance)
-    candidates: list[GeneratedBenchmarkItem] = []
     use_mock = _use_mock_judge()
     live_generator = None if use_mock else GeminiItemGenerator(config, repo_root=repo_root)
 
     checkpoint_path = draft_dir / "candidates.jsonl"
-    accepted_ids: set[str] = set()
-    if checkpoint_path.is_file():
-        for line in checkpoint_path.read_text().splitlines():
-            if line.strip():
-                row = GeneratedBenchmarkItem.model_validate(json.loads(line))
-                if row.validation_status == "accepted":
-                    accepted_ids.add(row.item_id)
+    existing = _load_checkpoint(checkpoint_path)
+    resumed = len(existing)
+    if resumed >= count:
+        if tracer:
+            tracer.budget(f"checkpoint complete ({resumed}/{count}); skipping generation")
+        accepted, rejected = deduplicate_items(
+            existing,
+            threshold=config.governance.dedup_similarity_threshold,
+        )
+        _rewrite_checkpoint(checkpoint_path, accepted + rejected)
+        total = len(existing)
+        accepted_count = len(accepted)
+        return accepted, GenerationReport(
+            run_id=draft_dir.name,
+            candidates_total=total,
+            accepted_count=accepted_count,
+            rejected_count=len(rejected),
+            pass_rate=accepted_count / total if total else 0.0,
+            rejections_by_reason={},
+            judge_api_calls=0,
+            storage_bytes_used=0,
+            duration_seconds=time.perf_counter() - started,
+            budget_exceeded=False,
+        )
 
-    seq = len(accepted_ids) + 1
+    remaining_schedule = schedule[resumed:]
+    candidates: list[GeneratedBenchmarkItem] = list(existing)
+    seq = resumed + 1
     sorted_paths = sorted(graph_paths)
     accessions: list[str] = []
     for issuer in sampling.selected_issuers:
@@ -127,9 +175,14 @@ def generate_items(
 
     if tracer:
         mode = "mock" if use_mock else (live_generator.model_name if live_generator else "live")
-        tracer.budget(f"mode={mode} planned_items={count} graph_paths={len(graph_paths)}")
+        resume_note = f" resume_from={resumed + 1}" if resumed else ""
+        tracer.budget(
+            f"mode={mode} planned_items={count} remaining={len(remaining_schedule)}"
+            f"{resume_note} graph_paths={len(graph_paths)}"
+        )
 
-    for profile in schedule:
+    generated_this_run = 0
+    for profile in remaining_schedule:
         budget.record_judge_call()
         budget.record_item()
         if tracer:
@@ -148,6 +201,7 @@ def generate_items(
                         accessions=accessions,
                         section_paths=sorted_paths,
                     )
+                    duration_ms = 0
                 else:
                     assert live_generator is not None
                     item, duration_ms = live_generator.generate_one(
@@ -172,7 +226,7 @@ def generate_items(
                 if validated.validation_status == "accepted":
                     break
                 feedback = "; ".join(validated.validation_errors)
-            except (JudgeParseError, RuntimeError, ValueError) as exc:
+            except (JudgeParseError, RuntimeError, ValueError, httpx.HTTPError) as exc:
                 feedback = str(exc)
                 if attempt + 1 >= max_attempts:
                     validated = GeneratedBenchmarkItem(
@@ -197,15 +251,15 @@ def generate_items(
             if validated.question:
                 tracer.log(f"    Q: {validated.question[:120]}")
         candidates.append(validated)
+        _append_checkpoint(checkpoint_path, validated)
+        generated_this_run += 1
         seq += 1
 
     accepted, rejected = deduplicate_items(
         candidates,
         threshold=config.governance.dedup_similarity_threshold,
     )
-    with checkpoint_path.open("w", encoding="utf-8") as handle:
-        for item in accepted + rejected:
-            handle.write(item.model_dump_json() + "\n")
+    _rewrite_checkpoint(checkpoint_path, accepted + rejected)
 
     total = len(candidates)
     accepted_count = len(accepted)
@@ -228,6 +282,10 @@ def generate_items(
         duration_seconds=time.perf_counter() - started,
         budget_exceeded=False,
     )
+    if tracer and resumed:
+        tracer.budget(
+            f"resumed={resumed} generated_this_run={generated_this_run} total={total}"
+        )
     return accepted, report
 
 

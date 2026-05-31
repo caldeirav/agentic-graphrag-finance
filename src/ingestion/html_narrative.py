@@ -10,9 +10,9 @@ from pathlib import Path
 import httpx
 import yaml
 
+from ingestion.edgar_http import edgar_headers, with_edgar_retry
 from ingestion.edgar_xbrl import (
     edgar_file_url,
-    edgar_user_agent,
     fetch_edgar_index,
     is_xbrl_package_file,
 )
@@ -92,10 +92,14 @@ def _download_primary_htm(resolution: FilingResolution, dest: Path) -> Path | No
         return None
     url = edgar_file_url(resolution.cik, resolution.accession, primary)
     out = dest / primary
-    with httpx.Client(headers={"User-Agent": edgar_user_agent()}, timeout=120.0) as client:
-        resp = client.get(url)
-        resp.raise_for_status()
-        out.write_bytes(resp.content)
+    with httpx.Client(headers=edgar_headers(), timeout=120.0) as client:
+
+        def _fetch() -> None:
+            resp = client.get(url)
+            resp.raise_for_status()
+            out.write_bytes(resp.content)
+
+        with_edgar_retry(_fetch)
     return out
 
 
