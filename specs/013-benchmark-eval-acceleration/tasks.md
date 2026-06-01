@@ -30,8 +30,8 @@ description: "Task list for benchmark evaluation acceleration (013)"
 
 **Purpose**: Repro acceleration module scaffold and typed errors
 
-- [ ] T001 Create `src/evaluation/reproduction/errors.py` with `MissingBindingsError` and `MissingAccessionsError(item_id, accessions)` per `contracts/item-subgraph.md`
-- [ ] T002 [P] Export new public symbols from `src/evaluation/reproduction/__init__.py` per `plan.md` project structure
+- [x] T001 Create `src/evaluation/reproduction/errors.py` with `MissingBindingsError` and `MissingAccessionsError(item_id, accessions)` per `contracts/item-subgraph.md`
+- [x] T002 [P] Export new public symbols from `src/evaluation/reproduction/__init__.py` per `plan.md` project structure
 
 **Checkpoint**: Imports from `evaluation.reproduction.errors` resolve
 
@@ -43,13 +43,13 @@ description: "Task list for benchmark evaluation acceleration (013)"
 
 **⚠️ CRITICAL**: No user story work until this phase is complete
 
-- [ ] T003 Add `JudgeStatus.PENDING = "pending"` in `src/models/evaluation.py` per `data-model.md`
-- [ ] T004 Extend `BenchmarkResult` with optional `trajectory_snapshot: dict` and `generation_mlflow_run_id: str` in `src/models/evaluation.py` per `contracts/defer-judge.md`
-- [ ] T005 Extend `ReproRun` with `current_variant`, `completed_variants`, `items_completed`, `defer_judge`, `judge_phase_status`, `last_error` in `src/models/reproduction.py` per `data-model.md`
-- [ ] T006 [P] Add `DeferJudgeConfig` model (`enabled`, `judge_after`, `concurrency`, `allow_pending_export`) in `src/models/reproduction.py` per `data-model.md`
-- [ ] T007 Implement `write_json_atomic(path, data)` in `src/evaluation/reproduction/io.py` (temp file + rename) per `contracts/repro-resume-cli.md` and spec edge cases
-- [ ] T008 [P] Add unit test `tests/unit/test_repro_atomic_write.py` for atomic `results.json` and `repro_run.json` updates
-- [ ] T009 [P] Add unit test `tests/unit/test_benchmark_result_pending.py` validating `judge_status=pending` serialization in `src/models/evaluation.py`
+- [x] T003 Add `JudgeStatus.PENDING = "pending"` in `src/models/evaluation.py` per `data-model.md`
+- [x] T004 Extend `BenchmarkResult` with optional `trajectory_snapshot: dict` and `generation_mlflow_run_id: str` in `src/models/evaluation.py` per `contracts/defer-judge.md`
+- [x] T005 Extend `ReproRun` with `current_variant`, `completed_variants`, `items_completed`, `defer_judge`, `judge_phase_status`, `last_error` in `src/models/reproduction.py` per `data-model.md`
+- [x] T006 [P] Add `DeferJudgeConfig` model (`enabled`, `judge_after`, `concurrency`, `allow_pending_export`) in `src/models/reproduction.py` per `data-model.md`
+- [x] T007 Implement `write_json_atomic(path, data)` in `src/evaluation/reproduction/io.py` (temp file + rename) per `contracts/repro-resume-cli.md` and spec edge cases
+- [x] T008 [P] Add unit test `tests/unit/test_repro_atomic_write.py` for atomic `results.json` and `repro_run.json` updates
+- [x] T009 [P] Add unit test `tests/unit/test_benchmark_result_pending.py` validating `judge_status=pending` serialization in `src/models/evaluation.py`
 
 **Checkpoint**: `uv run pytest tests/unit/test_repro_atomic_write.py tests/unit/test_benchmark_result_pending.py -q` passes
 
@@ -63,26 +63,26 @@ description: "Task list for benchmark evaluation acceleration (013)"
 
 ### Tests for User Story 1
 
-- [ ] T010 [P] [US1] Add unit tests `tests/unit/test_defer_judge.py` for `QueryService` skip-audit guard (`defer_judge` + `benchmark_item` metadata) per `contracts/defer-judge.md`
-- [ ] T011 [P] [US1] Add unit tests `tests/unit/test_judge_batch.py` for idempotent skip of final `judge_status` and merge into `results.json` in `src/evaluation/reproduction/judge_batch.py`
-- [ ] T012 [P] [US1] Add unit tests `tests/unit/test_export_pending_judge.py` for headline exclusion of `pending` rows in `src/evaluation/reproduction/export.py`
+- [x] T010 [P] [US1] Add unit tests `tests/unit/test_defer_judge.py` for `QueryService` skip-audit guard (`defer_judge` + `benchmark_item` metadata) per `contracts/defer-judge.md`
+- [x] T011 [P] [US1] Add unit tests `tests/unit/test_judge_batch.py` for idempotent skip of final `judge_status` and merge into `results.json` in `src/evaluation/reproduction/judge_batch.py`
+- [x] T012 [P] [US1] Add unit tests `tests/unit/test_export_pending_judge.py` for headline exclusion of `pending` rows in `src/evaluation/reproduction/export.py`
 
 ### Implementation for User Story 1
 
-- [ ] T013 [US1] Add `defer_judge` session config resolver (env `REPRO_DEFER_JUDGE`, CLI `--defer-judge`) in `src/evaluation/reproduction/runner.py` per `research.md` R1
-- [ ] T014 [US1] Implement defer guard in `src/retrieval/service.py`: skip `run_post_query_audit` when defer + `benchmark_item` metadata; return `judge_status=pending` per `research.md` R9
-- [ ] T015 [US1] Persist `trajectory_snapshot` and `generation_mlflow_run_id` on deferred `QueryResponse` / `BenchmarkResult` in `src/retrieval/service.py` and `src/evaluation/reproduction/runner.py` per `contracts/defer-judge.md`
-- [ ] T016 [US1] Update `_score_graph_item` in `src/evaluation/reproduction/runner.py` to set metadata `defer_judge=true`, skip inline `GeminiJudgePanel.judge` when defer enabled
-- [ ] T017 [US1] Update `_score_flat_chunk_item` in `src/evaluation/reproduction/runner.py` to skip inline judge when defer enabled per FR-001 story acceptance 4
-- [ ] T018 [US1] Implement `src/evaluation/reproduction/judge_batch.py` with `run_judge_batch(output_dir, variant_id?, concurrency)` using `with_transient_retry` per `research.md` R8
-- [ ] T019 [US1] Wire judge-batch after each variant (default) or after all variants via `REPRO_JUDGE_AFTER` in `src/evaluation/reproduction/runner.py` per `research.md` R2
-- [ ] T020 [US1] Use `write_json_atomic` for judge-batch `results.json` updates in `src/evaluation/reproduction/judge_batch.py`
-- [ ] T021 [US1] Extend `export_paper_tables` / `build_variant_summary` in `src/evaluation/reproduction/export.py` to exclude `judge_status=pending` and audit-count them per `research.md` R7
-- [ ] T022 [US1] Gate `run_all` table export until no pending judges unless `--allow-pending-export` in `src/evaluation/reproduction/runner.py`
-- [ ] T023 [US1] Add CLI flags `--defer-judge`, `--judge-only`, `--allow-pending-export`, `--judge-batch-after` on `run`, `run-all` in `src/cli/commands/repro.py` per `contracts/repro-resume-cli.md`
-- [ ] T024 [US1] Add `repro judge-batch` subcommand in `src/cli/commands/repro.py` with `--output`, `--variant`, `--concurrency` per `contracts/repro-resume-cli.md`
-- [ ] T025 [US1] Add `tests/integration/test_repro_defer_judge_smoke.py`: (a) `test_defer_judge_ci_smoke` — 5 items, mock judge/LLM, asserts zero `run_post_query_audit` / inline `GeminiJudgePanel.judge` during generation then batch completes (SC-001 CI gate); (b) `test_defer_judge_sc001_twenty_items` — `@pytest.mark.slow`, 20 items, same zero-inline-judge assertion (SC-001 release validation)
-- [ ] T026 [US1] Add `tests/integration/test_repro_judge_batch_restart.py`: seed 20-item `results.json` with `judge_status=pending`, run judge-batch through 10 items (mock judge recording call count), simulate crash (stop before 11–20), re-run batch; assert items 1–10 `judge_verdict` unchanged and items 11–20 judged exactly once (SC-002)
+- [x] T013 [US1] Add `defer_judge` session config resolver (env `REPRO_DEFER_JUDGE`, CLI `--defer-judge`) in `src/evaluation/reproduction/runner.py` per `research.md` R1
+- [x] T014 [US1] Implement defer guard in `src/retrieval/service.py`: skip `run_post_query_audit` when defer + `benchmark_item` metadata; return `judge_status=pending` per `research.md` R9
+- [x] T015 [US1] Persist `trajectory_snapshot` and `generation_mlflow_run_id` on deferred `QueryResponse` / `BenchmarkResult` in `src/retrieval/service.py` and `src/evaluation/reproduction/runner.py` per `contracts/defer-judge.md`
+- [x] T016 [US1] Update `_score_graph_item` in `src/evaluation/reproduction/runner.py` to set metadata `defer_judge=true`, skip inline `GeminiJudgePanel.judge` when defer enabled
+- [x] T017 [US1] Update `_score_flat_chunk_item` in `src/evaluation/reproduction/runner.py` to skip inline judge when defer enabled per FR-001 story acceptance 4
+- [x] T018 [US1] Implement `src/evaluation/reproduction/judge_batch.py` with `run_judge_batch(output_dir, variant_id?, concurrency)` using `with_transient_retry` per `research.md` R8
+- [x] T019 [US1] Wire judge-batch after each variant (default) or after all variants via `REPRO_JUDGE_AFTER` in `src/evaluation/reproduction/runner.py` per `research.md` R2
+- [x] T020 [US1] Use `write_json_atomic` for judge-batch `results.json` updates in `src/evaluation/reproduction/judge_batch.py`
+- [x] T021 [US1] Extend `export_paper_tables` / `build_variant_summary` in `src/evaluation/reproduction/export.py` to exclude `judge_status=pending` and audit-count them per `research.md` R7
+- [x] T022 [US1] Gate `run_all` table export until no pending judges unless `--allow-pending-export` in `src/evaluation/reproduction/runner.py`
+- [x] T023 [US1] Add CLI flags `--defer-judge`, `--judge-only`, `--allow-pending-export`, `--judge-batch-after` on `run`, `run-all` in `src/cli/commands/repro.py` per `contracts/repro-resume-cli.md`
+- [x] T024 [US1] Add `repro judge-batch` subcommand in `src/cli/commands/repro.py` with `--output`, `--variant`, `--concurrency` per `contracts/repro-resume-cli.md`
+- [x] T025 [US1] Add `tests/integration/test_repro_defer_judge_smoke.py`: (a) `test_defer_judge_ci_smoke` — 5 items, mock judge/LLM, asserts zero `run_post_query_audit` / inline `GeminiJudgePanel.judge` during generation then batch completes (SC-001 CI gate); (b) `test_defer_judge_sc001_twenty_items` — `@pytest.mark.slow`, 20 items, same zero-inline-judge assertion (SC-001 release validation)
+- [x] T026 [US1] Add `tests/integration/test_repro_judge_batch_restart.py`: seed 20-item `results.json` with `judge_status=pending`, run judge-batch through 10 items (mock judge recording call count), simulate crash (stop before 11–20), re-run batch; assert items 1–10 `judge_verdict` unchanged and items 11–20 judged exactly once (SC-002)
 
 **Checkpoint**: `uv run pytest tests/unit/test_defer_judge.py tests/unit/test_judge_batch.py tests/integration/test_repro_defer_judge_smoke.py tests/integration/test_repro_judge_batch_restart.py -q` passes; `uv run pytest -m slow tests/integration/test_repro_defer_judge_smoke.py -q` for SC-001 scale
 
@@ -96,22 +96,22 @@ description: "Task list for benchmark evaluation acceleration (013)"
 
 ### Tests for User Story 2
 
-- [ ] T027 [P] [US2] Add unit tests `tests/unit/test_accession_index.py` for accession→(ticker, snapshot_id) mapping and ambiguous/missing errors in `src/evaluation/reproduction/accession_index.py`
-- [ ] T028 [P] [US2] Add unit tests `tests/unit/test_item_subgraph.py` for `load_item_subgraph` merge and empty-bindings fail-fast in `src/evaluation/reproduction/snapshot_loader.py`
-- [ ] T029 [P] [US2] Add integration test `tests/integration/test_repro_item_subgraph.py` for single-issuer node cap and two-issuer evidence on smoke fixture per SC-003/SC-004
+- [x] T027 [P] [US2] Add unit tests `tests/unit/test_accession_index.py` for accession→(ticker, snapshot_id) mapping and ambiguous/missing errors in `src/evaluation/reproduction/accession_index.py`
+- [x] T028 [P] [US2] Add unit tests `tests/unit/test_item_subgraph.py` for `load_item_subgraph` merge and empty-bindings fail-fast in `src/evaluation/reproduction/snapshot_loader.py`
+- [x] T029 [P] [US2] Add integration test `tests/integration/test_repro_item_subgraph.py` for single-issuer node cap and two-issuer evidence on smoke fixture per SC-003/SC-004
 
 ### Implementation for User Story 2
 
-- [ ] T030 [US2] Implement `AccessionIndex.build(bundle_root)` in `src/evaluation/reproduction/accession_index.py` per `contracts/item-subgraph.md`
-- [ ] T031 [US2] Add `load_item_subgraph(bundle_root, accessions, index)` returning `(slice_id, GraphSnapshot)` in `src/evaluation/reproduction/snapshot_loader.py`; keep `load_bundle_snapshot` for relevance only per `research.md` R4
-- [ ] T032 [US2] Add slice cache `dict[frozenset[str], GraphSnapshot]` on `ReproRunner` in `src/evaluation/reproduction/runner.py` per `research.md` R5
-- [ ] T033 [US2] Refactor graph variant loop to build per-item `InMemoryGraphQueryAPI(slice)` and `QueryService(graph_api=..., issuer_id=slice.issuer_id)` in `src/evaluation/reproduction/runner.py` per FR-008
-- [ ] T034 [US2] Filter `pre_bound_filings` from slice manifest (not composite) in `_score_graph_item` in `src/evaluation/reproduction/runner.py`
-- [ ] T035 [US2] Fail fast on empty `expected_bindings.accessions` with `MissingBindingsError` in `src/evaluation/reproduction/runner.py` per spec edge cases
-- [ ] T036 [US2] Fail fast on unknown accessions with `MissingAccessionsError` in `src/evaluation/reproduction/accession_index.py` per FR-009
-- [ ] T037 [US2] Log per-item progress line with issuers, node count, filing count in `src/evaluation/reproduction/runner.py` per FR-011
-- [ ] T038 [US2] Restrict `FlatChunkBaseline` chunk corpus to slice snapshots (cache key includes accession set) in `src/evaluation/reproduction/flat_chunk.py` per `contracts/item-subgraph.md`
-- [ ] T039 [US2] Add optional benchmark script or documented `scripts/repro_subgraph_bench.sh` comparing 10-item median time composite vs slice per SC-003 (CI optional)
+- [x] T030 [US2] Implement `AccessionIndex.build(bundle_root)` in `src/evaluation/reproduction/accession_index.py` per `contracts/item-subgraph.md`
+- [x] T031 [US2] Add `load_item_subgraph(bundle_root, accessions, index)` returning `(slice_id, GraphSnapshot)` in `src/evaluation/reproduction/snapshot_loader.py`; keep `load_bundle_snapshot` for relevance only per `research.md` R4
+- [x] T032 [US2] Add slice cache `dict[frozenset[str], GraphSnapshot]` on `ReproRunner` in `src/evaluation/reproduction/runner.py` per `research.md` R5
+- [x] T033 [US2] Refactor graph variant loop to build per-item `InMemoryGraphQueryAPI(slice)` and `QueryService(graph_api=..., issuer_id=slice.issuer_id)` in `src/evaluation/reproduction/runner.py` per FR-008
+- [x] T034 [US2] Filter `pre_bound_filings` from slice manifest (not composite) in `_score_graph_item` in `src/evaluation/reproduction/runner.py`
+- [x] T035 [US2] Fail fast on empty `expected_bindings.accessions` with `MissingBindingsError` in `src/evaluation/reproduction/runner.py` per spec edge cases
+- [x] T036 [US2] Fail fast on unknown accessions with `MissingAccessionsError` in `src/evaluation/reproduction/accession_index.py` per FR-009
+- [x] T037 [US2] Log per-item progress line with issuers, node count, filing count in `src/evaluation/reproduction/runner.py` per FR-011
+- [x] T038 [US2] Restrict `FlatChunkBaseline` chunk corpus to slice snapshots (cache key includes accession set) in `src/evaluation/reproduction/flat_chunk.py` per `contracts/item-subgraph.md`
+- [x] T039 [US2] Add optional benchmark script or documented `scripts/repro_subgraph_bench.sh` comparing 10-item median time composite vs slice per SC-003 (CI optional)
 
 **Checkpoint**: Subgraph unit/integration tests pass; progress logs show single-ticker loads for single-issuer items
 
@@ -125,21 +125,21 @@ description: "Task list for benchmark evaluation acceleration (013)"
 
 ### Tests for User Story 3
 
-- [ ] T040 [P] [US3] Add unit tests `tests/unit/test_repro_variant_skip.py` for variant complete detection (item count + no pending judge when defer) in `src/evaluation/reproduction/runner.py`
-- [ ] T041 [P] [US3] Add integration test `tests/integration/test_repro_resume.py` for item-level and variant-level resume per SC-005/SC-006
-- [ ] T042 [P] [US3] Add integration test `tests/integration/test_repro_export_only.py` for partial variant export with audit rows per SC-007
+- [x] T040 [P] [US3] Add unit tests `tests/unit/test_repro_variant_skip.py` for variant complete detection (item count + no pending judge when defer) in `src/evaluation/reproduction/runner.py`
+- [x] T041 [P] [US3] Add integration test `tests/integration/test_repro_resume.py` for item-level and variant-level resume per SC-005/SC-006
+- [x] T042 [P] [US3] Add integration test `tests/integration/test_repro_export_only.py` for partial variant export with audit rows per SC-007
 
 ### Implementation for User Story 3
 
-- [ ] T043 [US3] Load and update `repro_run.json` atomically after each item and variant boundary in `src/evaluation/reproduction/runner.py` per FR-015
-- [ ] T044 [US3] Implement variant-level skip in `run_all` / `run_variant` when variant `results.json` complete and judge phase done in `src/evaluation/reproduction/runner.py` per FR-013
-- [ ] T045 [US3] Add `--resume` (default true) and `--no-resume` flags on `run-all` and `run` in `src/cli/commands/repro.py` per `contracts/repro-resume-cli.md`
-- [ ] T046 [US3] Document `--no-resume` wipe policy (delete output dir or variant subdirs) in `docs/research-reproduction.md` per FR-017
-- [ ] T047 [US3] Implement `export_tables_from_disk(manifest, input_dir)` replacing stub in `src/evaluation/reproduction/runner.py` and wire `repro export-tables` in `src/cli/commands/repro.py` per FR-016
-- [ ] T048 [US3] Add `run-all --export-only` path skipping corpus verify and variant execution in `src/evaluation/reproduction/runner.py`
-- [ ] T049 [US3] Formalize relevance skip when sidecar coverage ≥90% with regression test in `tests/unit/test_relevance_skip_gate.py` referencing `src/evaluation/reproduction/runner.py` per spec US3 acceptance 4
-- [ ] T050 [US3] Add recovery playbook section to `docs/research-reproduction.md` (interrupt, verify `jq length`, resume, judge-batch, reset variant dir) per FR-017 and `quickstart.md`
-- [ ] T051 [US3] Update `specs/013-benchmark-eval-acceleration/quickstart.md` cross-links if CLI flag names differ after implementation
+- [x] T043 [US3] Load and update `repro_run.json` atomically after each item and variant boundary in `src/evaluation/reproduction/runner.py` per FR-015
+- [x] T044 [US3] Implement variant-level skip in `run_all` / `run_variant` when variant `results.json` complete and judge phase done in `src/evaluation/reproduction/runner.py` per FR-013
+- [x] T045 [US3] Add `--resume` (default true) and `--no-resume` flags on `run-all` and `run` in `src/cli/commands/repro.py` per `contracts/repro-resume-cli.md`
+- [x] T046 [US3] Document `--no-resume` wipe policy (delete output dir or variant subdirs) in `docs/research-reproduction.md` per FR-017
+- [x] T047 [US3] Implement `export_tables_from_disk(manifest, input_dir)` replacing stub in `src/evaluation/reproduction/runner.py` and wire `repro export-tables` in `src/cli/commands/repro.py` per FR-016
+- [x] T048 [US3] Add `run-all --export-only` path skipping corpus verify and variant execution in `src/evaluation/reproduction/runner.py`
+- [x] T049 [US3] Formalize relevance skip when sidecar coverage ≥90% with regression test in `tests/unit/test_relevance_skip_gate.py` referencing `src/evaluation/reproduction/runner.py` per spec US3 acceptance 4
+- [x] T050 [US3] Add recovery playbook section to `docs/research-reproduction.md` (interrupt, verify `jq length`, resume, judge-batch, reset variant dir) per FR-017 and `quickstart.md`
+- [x] T051 [US3] Update `specs/013-benchmark-eval-acceleration/quickstart.md` cross-links if CLI flag names differ after implementation
 
 **Checkpoint**: Resume and export-only integration tests pass; operator can follow docs to recover a partial `reports/repro-paper-v1.0/` run
 
@@ -149,11 +149,11 @@ description: "Task list for benchmark evaluation acceleration (013)"
 
 **Purpose**: End-to-end smoke, CI, README
 
-- [ ] T052 [P] Add integration test `tests/integration/test_repro_acceleration_smoke.py` combining defer + subgraph + resume on `releases/paper-smoke` (≤5 items, mocks) per plan testing strategy
-- [ ] T053 [P] Extend `.github/workflows/ci.yml` to run new 013 unit tests, `test_repro_defer_judge_smoke.py`, and `test_repro_judge_batch_restart.py` in reproduction job (exclude `@pytest.mark.slow` by default)
-- [ ] T054 [P] Register `slow` marker in `pyproject.toml` for SC-001 20-item test; document `pytest -m slow` in `quickstart.md`
-- [ ] T055 [P] Update `README.md` research reproduction section with `--defer-judge`, `--resume`, and expected wall-clock improvements pointer to `docs/research-reproduction.md`
-- [ ] T056 Run `uv run pytest tests/unit/test_*repro* tests/integration/test_repro_* -q` and fix any regressions against 012 smoke paths
+- [x] T052 [P] Add integration test `tests/integration/test_repro_acceleration_smoke.py` combining defer + subgraph + resume on `releases/paper-smoke` (≤5 items, mocks) per plan testing strategy
+- [x] T053 [P] Extend `.github/workflows/ci.yml` to run new 013 unit tests, `test_repro_defer_judge_smoke.py`, and `test_repro_judge_batch_restart.py` in reproduction job (exclude `@pytest.mark.slow` by default)
+- [x] T054 [P] Register `slow` marker in `pyproject.toml` for SC-001 20-item test; document `pytest -m slow` in `quickstart.md`
+- [x] T055 [P] Update `README.md` research reproduction section with `--defer-judge`, `--resume`, and expected wall-clock improvements pointer to `docs/research-reproduction.md`
+- [x] T056 Run `uv run pytest tests/unit/test_*repro* tests/integration/test_repro_* -q` and fix any regressions against 012 smoke paths
 
 ---
 

@@ -21,3 +21,4 @@ class QueryResponse(BaseModel):
     validation_status: str = ""
     judge_status: str = ""
     judge_scores: dict[str, float] = Field(default_factory=dict)
+    trajectory_snapshot: dict | None = None

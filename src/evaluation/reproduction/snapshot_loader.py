@@ -1,10 +1,13 @@
-"""Shared snapshot loading helpers for reproduction (012)."""
+"""Shared snapshot loading helpers for reproduction (012/013)."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
+from evaluation.reproduction.accession_index import AccessionIndex
+from evaluation.reproduction.errors import MissingBindingsError
 from graph.store import load_snapshot
 from models.graph import GraphManifest, GraphSnapshot
 
@@ -73,3 +76,24 @@ def load_bundle_snapshot(bundle_root: Path) -> tuple[str, GraphSnapshot]:
         snapshots.append(load_snapshot(ticker, snapshot_id, base_dir))
 
     return composite_id, _merge_snapshots(snapshots, composite_id)
+
+
+def load_item_subgraph(
+    bundle_root: Path,
+    accessions: list[str],
+    index: AccessionIndex,
+    *,
+    item_id: str = "",
+) -> tuple[str, GraphSnapshot]:
+    """Load and merge only issuer snapshots required for the given accessions."""
+    if not accessions:
+        raise MissingBindingsError(item_id or "unknown")
+    refs = index.resolve_accessions(item_id or "unknown", accessions)
+    base_dir = index.graphs_dir
+    snapshots = [
+        load_snapshot(ref.ticker, ref.snapshot_id, base_dir) for ref in refs
+    ]
+    acc_key = "|".join(sorted(accessions))
+    digest = hashlib.sha256(acc_key.encode()).hexdigest()[:12]
+    slice_id = f"slice-{digest}"
+    return slice_id, _merge_snapshots(snapshots, slice_id)

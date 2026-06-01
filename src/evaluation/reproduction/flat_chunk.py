@@ -68,9 +68,13 @@ class FlatChunkBaseline:
         *,
         bundle_root: Path,
         variant: SystemVariantConfig,
+        snapshot: GraphSnapshot | None = None,
     ) -> None:
         self._variant = variant
-        _, self._snapshot = load_bundle_snapshot(bundle_root)
+        if snapshot is not None:
+            self._snapshot = snapshot
+        else:
+            _, self._snapshot = load_bundle_snapshot(bundle_root)
         self._records = self._load_records(self._snapshot)
         self._cache_dir = bundle_root / "corpus" / "chunk_embeddings" / (
             variant.embedding_cache_subdir or "hash-fallback"

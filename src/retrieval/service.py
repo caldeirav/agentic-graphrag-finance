@@ -8,8 +8,10 @@ from pathlib import Path
 
 from contracts.query import QueryRequest, QueryResponse
 from evaluation.ask_judge import run_post_query_audit
+from evaluation.reproduction.defer_config import should_skip_post_query_audit
 from graph.query_api import GraphQueryAPI, LocalGraphQueryAPI
 from models.enums import QueryStatus
+from models.evaluation import JudgeStatus
 from models.reproduction import VariantCapabilities
 from retrieval.orchestration.graph import build_agent_graph
 from tracing.console_trace.audit import emit_trajectory_audit_footer
@@ -97,12 +99,14 @@ class QueryService:
             "expected_section_paths_json": request.metadata.get("expected_section_paths", "[]"),
         }
 
+        defer_judge = should_skip_post_query_audit(request.metadata)
         nested = __import__("mlflow").active_run() is not None
         t0 = time.perf_counter()
         run_id = ""
         result: dict = {}
         traj_uri = ""
         audit = None
+        snapshot = None
         with traced_query_run(request.query, request.snapshot_id, nested=nested) as rid:
             run_id = rid or ""
             result = compiled.invoke(initial)
@@ -127,12 +131,14 @@ class QueryService:
                 traj_uri = log_agent_trajectory(run_id, snapshot)
                 log_trajectory(run_id, trajectory)
 
-            audit = run_post_query_audit(
-                snapshot,
-                result.get("answer"),
-                question=request.query,
-                mlflow_run_id=run_id,
-            )
+            audit = None
+            if not defer_judge:
+                audit = run_post_query_audit(
+                    snapshot,
+                    result.get("answer"),
+                    question=request.query,
+                    mlflow_run_id=run_id,
+                )
         if audit is not None and audit.judge_summary is not None:
             emit_trajectory_audit_footer(reporter, audit)
 
@@ -148,6 +154,10 @@ class QueryService:
         judge_scores = {}
         if audit is not None and audit.judge_summary:
             judge_scores = {c.criterion_id: c.score for c in audit.judge_summary.criteria}
+        traj_snapshot = None
+        traj_snapshot = None
+        if defer_judge and snapshot is not None:
+            traj_snapshot = snapshot.model_dump(mode="json")
         return QueryResponse(
             answer=result.get("answer"),
             status=status,
@@ -158,9 +168,14 @@ class QueryService:
                 audit.validation_status.value if audit is not None else ""
             ),
             judge_status=(
-                audit.judge_summary.judge_status.value
-                if audit is not None and audit.judge_summary
-                else ""
+                JudgeStatus.PENDING.value
+                if defer_judge
+                else (
+                    audit.judge_summary.judge_status.value
+                    if audit is not None and audit.judge_summary
+                    else ""
+                )
             ),
             judge_scores=judge_scores,
+            trajectory_snapshot=traj_snapshot,
         )

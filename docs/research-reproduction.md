@@ -257,6 +257,11 @@ uv run agent-query repro verify-tables \
 | `repro materialize-relevance` | Derive `relevant_chunk_ids` |
 | `repro run` | Run selected variants |
 | `repro run-all` | Full phase-2 workflow (recommended) |
+| `repro run-all --defer-judge` | Generation without per-item Gemini; judge-batch after each variant |
+| `repro judge-batch` | Score pending items in existing `results.json` |
+| `repro run-all --judge-only` | Judge batch only (skip agent generation) |
+| `repro run-all --export-only` | Export tables from checkpoints |
+| `repro run-all --resume/--no-resume` | Resume partial runs (default: resume) |
 | `repro verify-tables` | Compare exports to expected checksums |
 
 ```bash
@@ -279,6 +284,18 @@ reports/repro-paper-v1.0/
     ├── variant_delta.csv
     └── trajectory_audit.csv
 ```
+
+## Recovery playbook (013)
+
+Long `paper-v1.0` runs can be interrupted. Checkpoints live under `reports/repro-paper-v1.0/`.
+
+1. **Check progress**: `jq length reports/repro-paper-v1.0/graph-full/results.json` and `cat reports/repro-paper-v1.0/repro_run.json`
+2. **Resume generation** (default): re-run the same `repro run-all` command with `--defer-judge` if used initially; completed `item_id` rows are skipped
+3. **Judge only** (defer mode): `uv run agent-query repro judge-batch --manifest releases/paper-v1.0/manifest.yaml --output reports/repro-paper-v1.0`
+4. **Export only**: `uv run agent-query repro run-all --manifest releases/paper-v1.0/manifest.yaml --output reports/repro-paper-v1.0 --export-only`
+5. **Reset one variant**: `rm -rf reports/repro-paper-v1.0/graph-full` and remove that variant from `completed_variants` in `repro_run.json`, or use `--no-resume` on a fresh `--output` directory
+
+**Faster eval (013)**: use `--defer-judge` (or `REPRO_DEFER_JUDGE=1`) to batch Gemini judging after each variant; `REPRO_JUDGE_CONCURRENCY=2` controls judge-batch parallelism. Per-item graph scope loads only issuers from `expected_bindings` (smaller graphs, faster agent runs).
 
 ## Troubleshooting
 

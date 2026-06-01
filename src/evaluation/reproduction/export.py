@@ -15,6 +15,7 @@ from models.reproduction import (
     MetricRow,
     PaperTableExport,
     ProfileMetricRow,
+    ReleaseManifest,
 )
 
 
@@ -34,6 +35,7 @@ class VariantRunSummary:
     records: list[VariantItemRecord] = field(default_factory=list)
     excluded_incomplete: int = 0
     excluded_degraded: int = 0
+    excluded_pending_judge: int = 0
 
 
 def _headline_eligible(record: VariantItemRecord) -> bool:
@@ -41,6 +43,8 @@ def _headline_eligible(record: VariantItemRecord) -> bool:
     if status in {"incomplete", "non_reproducible"}:
         return False
     if record.result.judge_status == "degraded":
+        return False
+    if record.result.judge_status == "pending":
         return False
     return True
 
@@ -65,6 +69,7 @@ def build_variant_summary(
     records: list[VariantItemRecord] = []
     excluded_incomplete = 0
     excluded_degraded = 0
+    excluded_pending_judge = 0
     for result in results:
         gt = ground_truth_by_item.get(result.item_id, {})
         record = VariantItemRecord(
@@ -81,11 +86,14 @@ def build_variant_summary(
             excluded_incomplete += 1
         if result.judge_status == "degraded":
             excluded_degraded += 1
+        if result.judge_status == "pending":
+            excluded_pending_judge += 1
     return VariantRunSummary(
         variant_id=variant_id,
         records=records,
         excluded_incomplete=excluded_incomplete,
         excluded_degraded=excluded_degraded,
+        excluded_pending_judge=excluded_pending_judge,
     )
 
 
@@ -201,6 +209,7 @@ def export_paper_tables(
                 variant_id=summary.variant_id,
                 excluded_incomplete=summary.excluded_incomplete,
                 excluded_degraded=summary.excluded_degraded,
+                excluded_pending_judge=summary.excluded_pending_judge,
                 included_in_headline=eligible_count,
             )
         )
@@ -301,18 +310,43 @@ def write_paper_tables(export: PaperTableExport, output_dir: Path) -> None:
             "variant_id",
             "excluded_incomplete",
             "excluded_degraded",
+            "excluded_pending_judge",
             "included_in_headline",
         ],
     )
-    _write_headline_tex(tables / "headline.tex", export.headline_rows)
-    (output_dir / "export_manifest.json").write_text(
-        json.dumps(
-            {
-                "release_tag": export.release_tag,
-                "exported_at": export.exported_at.isoformat(),
-                "headline_rows": len(export.headline_rows),
-            },
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
+
+
+def export_tables_from_disk(
+    output_dir: Path,
+    *,
+    release_tag: str,
+    manifest: ReleaseManifest | None = None,
+) -> PaperTableExport:
+    """Build paper tables from existing per-variant results.json checkpoints."""
+    from evaluation.reproduction.manifest import resolve_variant_configs
+
+    summaries: list[VariantRunSummary] = []
+    variant_ids: list[str] = []
+    if manifest is not None:
+        variant_ids = [v.variant_id for v in resolve_variant_configs(manifest)]
+    else:
+        variant_ids = sorted(
+            p.name for p in output_dir.iterdir() if p.is_dir() and (p / "results.json").is_file()
+        )
+
+    for variant_id in variant_ids:
+        results_path = output_dir / variant_id / "results.json"
+        if not results_path.is_file():
+            continue
+        rows = json.loads(results_path.read_text(encoding="utf-8"))
+        results = [BenchmarkResult.model_validate(row) for row in rows]
+        summaries.append(
+            build_variant_summary(
+                variant_id,
+                results,
+                profiles_by_item={},
+                relevance_by_item={},
+                ground_truth_by_item={},
+            )
+        )
+    return export_paper_tables(summaries, release_tag=release_tag)

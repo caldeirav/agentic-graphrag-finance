@@ -18,6 +18,7 @@ class JudgeStatus(StrEnum):
     OK = "ok"
     DEGRADED = "degraded"
     NOT_EVALUABLE = "not_evaluable"
+    PENDING = "pending"
 
 
 class ValidationReason(BaseModel):
@@ -110,6 +111,8 @@ class BenchmarkResult(BaseModel):
     item_id: str
     answer: AnswerPackage | None = None
     mlflow_run_id: str = ""
+    generation_mlflow_run_id: str = ""
+    trajectory_snapshot: dict | None = None
     validation_status: str = ""
     judge_status: str = ""
     outcome_score: float = 0.0

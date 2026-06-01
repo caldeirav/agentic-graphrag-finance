@@ -66,5 +66,6 @@ def test_paper_table_csv_columns_match_contract(tmp_path: Path) -> None:
             "variant_id",
             "excluded_incomplete",
             "excluded_degraded",
+            "excluded_pending_judge",
             "included_in_headline",
         ]
