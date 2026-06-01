@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -30,8 +31,11 @@ from evaluation.reproduction.manifest import (
     sha256_file,
 )
 from evaluation.reproduction.relevance import materialize_relevance_labels
+from evaluation.reproduction.snapshot_loader import load_bundle_snapshot
 from evaluation.reproduction.verify_tables import verify_tables
+from graph.query_api import InMemoryGraphQueryAPI
 from models.evaluation import BenchmarkItem, BenchmarkResult
+from models.graph import GraphSnapshot
 from models.reproduction import (
     EvalRunRef,
     ReleaseManifest,
@@ -73,6 +77,18 @@ class ItemContext:
     relevant_chunk_ids: list[str]
 
 
+def _progress(message: str) -> None:
+    print(message, flush=True)
+
+
+def _write_variant_results(path: Path, results: list[BenchmarkResult]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps([r.model_dump(mode="json") for r in results], indent=2, default=str),
+        encoding="utf-8",
+    )
+
+
 class ReproRunner:
     def __init__(
         self,
@@ -85,6 +101,8 @@ class ReproRunner:
         self._manifest_path = manifest_path
         self._manifest = load_release_manifest(manifest_path)
         self._judge = judge or GeminiJudgePanel()
+        self._composite_snapshot: GraphSnapshot | None = None
+        self._composite_snapshot_id: str | None = None
 
     @property
     def manifest(self) -> ReleaseManifest:
@@ -103,6 +121,27 @@ class ReproRunner:
         bundle = self._repo_root / self._manifest.custom_judge_bundle_path
         materialize_relevance_labels(bundle, split=self._manifest.eval_split)
 
+    def _relevance_ready(self, bundle_root: Path) -> bool:
+        sidecar = bundle_root / "relevance_labels.json"
+        if not sidecar.is_file():
+            return False
+        try:
+            data = json.loads(sidecar.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return False
+        return float(data.get("coverage_rate") or 0.0) >= 0.9
+
+    def _load_composite_snapshot(self, bundle_root: Path) -> tuple[str, GraphSnapshot]:
+        if self._composite_snapshot is None or self._composite_snapshot_id is None:
+            snapshot_id, snapshot = load_bundle_snapshot(bundle_root)
+            self._composite_snapshot_id = snapshot_id
+            self._composite_snapshot = snapshot
+            _progress(
+                f"Loaded composite corpus graph ({len(snapshot.nodes)} nodes, "
+                f"{len(snapshot.manifest.filing_refs)} filings)"
+            )
+        return self._composite_snapshot_id, self._composite_snapshot
+
     def run_variant(
         self,
         variant: SystemVariantConfig,
@@ -120,14 +159,29 @@ class ReproRunner:
         if max_items:
             items = items[:max_items]
 
-        corpus = ds.corpus_bundle()
-        issuer = corpus.issuer_snapshots[0].ticker if corpus.issuer_snapshots else "AAPL"
-        snapshot_id = corpus.issuer_snapshots[0].snapshot_id if corpus.issuer_snapshots else corpus.snapshot_id
-        graph_base = bundle_root / corpus.corpus_root / "graphs"
+        snapshot_id, composite = self._load_composite_snapshot(bundle_root)
+        variant_dir = output_dir / variant.variant_id
+        variant_dir.mkdir(parents=True, exist_ok=True)
+        results_path = variant_dir / "results.json"
 
         results: list[BenchmarkResult] = []
+        completed_ids: set[str] = set()
+        if results_path.is_file():
+            for row in json.loads(results_path.read_text(encoding="utf-8")):
+                results.append(BenchmarkResult.model_validate(row))
+                completed_ids.add(row["item_id"])
+            if completed_ids:
+                _progress(
+                    f"Resuming {variant.variant_id}: {len(completed_ids)} items already scored"
+                )
+        pending_items = [item for item in items if item.item_id not in completed_ids]
         setup_mlflow()
         run_name = f"repro-{variant.variant_id}-{uuid.uuid4().hex[:8]}"
+        variant_started = time.perf_counter()
+        _progress(
+            f"Starting variant {variant.variant_id}: {len(pending_items)} pending / "
+            f"{len(items)} total (snapshot={snapshot_id})"
+        )
         with mlflow.start_run(run_name=run_name):
             mlflow.log_params(
                 {
@@ -143,27 +197,38 @@ class ReproRunner:
                     bundle_root=bundle_root,
                     variant=variant,
                 )
-                for item in items:
+                for idx, item in enumerate(pending_items, start=len(completed_ids) + 1):
+                    item_started = time.perf_counter()
+                    _progress(f"  [{variant.variant_id}] {idx}/{len(items)} {item.item_id}")
                     results.append(
                         self._score_flat_chunk_item(item, baseline, contexts.get(item.item_id))
                     )
+                    _write_variant_results(results_path, results)
+                    elapsed = time.perf_counter() - item_started
+                    _progress(f"    done in {elapsed:.0f}s")
             else:
-                svc = QueryService(graph_base_dir=graph_base, issuer_id=issuer)
+                graph_api = InMemoryGraphQueryAPI(composite)
+                svc = QueryService(graph_api=graph_api, issuer_id=composite.issuer_id)
                 caps = variant.capabilities
-                for item in items:
+                for idx, item in enumerate(pending_items, start=len(completed_ids) + 1):
+                    item_started = time.perf_counter()
+                    _progress(f"  [{variant.variant_id}] {idx}/{len(items)} {item.item_id}")
                     results.append(
                         self._score_graph_item(
                             item,
                             svc,
                             snapshot_id,
-                            issuer,
+                            composite.issuer_id,
                             caps,
                             contexts.get(item.item_id),
+                            composite=composite,
                         )
                     )
+                    _write_variant_results(results_path, results)
+                    elapsed = time.perf_counter() - item_started
+                    _progress(f"    done in {elapsed:.0f}s")
 
         variant_dir = output_dir / variant.variant_id
-        variant_dir.mkdir(parents=True, exist_ok=True)
         report_dir = variant_dir / f"benchmark-{uuid.uuid4().hex[:8]}"
         report_dir.mkdir(parents=True, exist_ok=True)
         summary = {
@@ -186,9 +251,11 @@ class ReproRunner:
             items_excluded_incomplete=incomplete,
             items_excluded_degraded=degraded,
         )
-        (variant_dir / "results.json").write_text(
-            json.dumps([r.model_dump(mode="json") for r in results], indent=2, default=str),
-            encoding="utf-8",
+        _write_variant_results(results_path, results)
+        variant_elapsed = time.perf_counter() - variant_started
+        _progress(
+            f"Finished variant {variant.variant_id}: {len(results)} items in "
+            f"{variant_elapsed / 60:.1f} min"
         )
         return results, ref
 
@@ -226,15 +293,15 @@ class ReproRunner:
         issuer: str,
         caps,
         ctx: ItemContext | None,
+        *,
+        composite: GraphSnapshot,
     ) -> BenchmarkResult:
         pre_bound = []
         if item.expected_bindings and item.expected_bindings.accessions:
-            from graph.query_api import LocalGraphQueryAPI
-
-            api = LocalGraphQueryAPI(svc._graph_base, issuer)
-            snap = api.get_snapshot(snapshot_id)
             acc_set = set(item.expected_bindings.accessions)
-            pre_bound = [r for r in snap.manifest.filing_refs if r.accession in acc_set]
+            pre_bound = [
+                r for r in composite.manifest.filing_refs if r.accession in acc_set
+            ]
 
         metadata = {
             "issuer_id": issuer,
@@ -244,6 +311,7 @@ class ReproRunner:
             "variant_disable_graph_walker": str(caps.disable_graph_walker).lower(),
             "variant_xbrl_only": str(caps.xbrl_only).lower(),
             "cli_prebound": "true" if caps.disable_macro_router and pre_bound else "false",
+            "trace_level": "quiet",
         }
         resp = svc.answer(
             QueryRequest(
@@ -312,13 +380,12 @@ class ReproRunner:
 
         self.verify_corpus()
         bundle = self._repo_root / self._manifest.custom_judge_bundle_path
-        if not skip_relevance:
-            if self._manifest.relevance_labels_hash:
-                sidecar = bundle / "relevance_labels.json"
-                if not sidecar.is_file():
-                    self.materialize_relevance()
-            else:
-                self.materialize_relevance()
+        output_dir.mkdir(parents=True, exist_ok=True)
+        if not skip_relevance and not self._relevance_ready(bundle):
+            _progress("Materializing relevance labels...")
+            self.materialize_relevance()
+        elif self._relevance_ready(bundle):
+            _progress("Relevance labels already present; skipping materialize")
 
         repro = ReproRun(
             repro_run_id=str(uuid.uuid4()),

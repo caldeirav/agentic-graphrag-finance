@@ -40,3 +40,19 @@ def test_resolves_item_1a_path_with_spaces() -> None:
     )
     assert not unresolved, unresolved
     assert chunks
+
+
+def test_composite_bundle_resolves_cross_issuer_paths() -> None:
+    bundle = Path("data/benchmarks/custom-judge/v1.0.0")
+    if not (bundle / "manifest.json").is_file():
+        return
+    _, snapshot = load_bundle_snapshot(bundle)
+    chunks, unresolved = resolve_item_chunk_ids(
+        snapshot,
+        [
+            "0000018230-26-000008/Item 1A. Risk Factors",
+            "0000034088-26-000045/ITEM 1A. RISK FACTORS",
+        ],
+    )
+    assert not unresolved, unresolved
+    assert chunks

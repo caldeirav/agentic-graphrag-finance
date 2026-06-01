@@ -6,6 +6,13 @@ import json
 from collections import deque
 from pathlib import Path
 
+from evaluation.generation.item_validator import load_graph_paths
+from evaluation.generation.section_paths import (
+    item_number_key,
+    normalize_section_key,
+    parse_section_path,
+    resolve_section_paths,
+)
 from evaluation.reproduction.manifest import sha256_text
 from evaluation.reproduction.snapshot_loader import load_bundle_snapshot
 from models.enums import GraphEdgeType, GraphNodeType
@@ -18,6 +25,13 @@ EVIDENCE_CHUNK_TYPES = frozenset(
         GraphNodeType.CHUNK_XBRL_FACT,
         GraphNodeType.CHUNK_TABLE,
         GraphNodeType.CHUNK_ROW,
+    }
+)
+
+RESOLVABLE_NODE_TYPES = frozenset(
+    {
+        GraphNodeType.SECTION,
+        GraphNodeType.DOCUMENT,
     }
 )
 
@@ -36,14 +50,11 @@ def compute_labels_hash(labels_by_item_id: dict[str, list[str]]) -> str:
 
 def _normalize_section_key(value: str) -> str:
     """Collapse 'Item 1A.' / 'Item1A' / 'item-1a' to comparable token."""
-    return "".join(ch for ch in value.lower() if ch.isalnum())
+    return normalize_section_key(value)
 
 
 def _parse_section_path(section_path: str) -> tuple[str, str]:
-    if "/" in section_path:
-        accession, tail = section_path.split("/", 1)
-        return accession.strip(), tail.strip()
-    return "", section_path.strip()
+    return parse_section_path(section_path)
 
 
 def _accession_matches(node: GraphNode, accession: str) -> bool:
@@ -67,27 +78,72 @@ def _section_keys_for_node(node: GraphNode) -> set[str]:
     return {k for k in keys if k}
 
 
+def _section_matches(node: GraphNode, *, tail: str, tail_key: str, item_key: str | None) -> bool:
+    node_label = node.label or ""
+    node_label_key = _normalize_section_key(node_label)
+    node_keys = _section_keys_for_node(node)
+
+    if tail and tail in node_label:
+        return True
+    if tail_key and node_label_key and (
+        tail_key == node_label_key
+        or tail_key.startswith(node_label_key)
+        or node_label_key.startswith(tail_key)
+    ):
+        return True
+    if item_key and item_key in node_keys:
+        return True
+    if item_key and any(
+        key.startswith("item") and (key.startswith(item_key) or item_key.startswith(key))
+        for key in node_keys
+    ):
+        return True
+    return bool(tail_key and tail_key in node_keys)
+
+
 def _section_node_ids(snapshot: GraphSnapshot, section_path: str) -> list[str]:
     accession, tail = _parse_section_path(section_path)
     tail_key = _normalize_section_key(tail)
-    matches: list[str] = []
+    item_key = item_number_key(tail_key)
+    filing_accessions = {ref.accession for ref in snapshot.manifest.filing_refs}
+    candidates: list[tuple[int, str]] = []
 
     for node in snapshot.nodes:
-        if node.node_type != GraphNodeType.SECTION:
+        if node.node_type not in RESOLVABLE_NODE_TYPES:
             continue
-        if tail_key and tail_key in _section_keys_for_node(node) and _accession_matches(node, accession):
-            matches.append(node.node_id)
+        if not _section_matches(node, tail=tail, tail_key=tail_key, item_key=item_key):
             continue
         if node.node_id == section_path or node.properties.get("section_path") == section_path:
-            matches.append(node.node_id)
-        elif tail and _accession_matches(node, accession) and (
-            node.node_id.endswith(tail) or tail in (node.label or "")
-        ):
-            matches.append(node.node_id)
+            candidates.append((200, node.node_id))
+            continue
 
-    if not matches and section_path in {n.node_id for n in snapshot.nodes}:
-        matches.append(section_path)
-    return matches
+        score = 0
+        if accession and _accession_matches(node, accession):
+            score += 100
+        elif accession and accession in filing_accessions:
+            score += 10
+        elif not accession:
+            score += 5
+        else:
+            continue
+
+        node_label_key = _normalize_section_key(node.label or "")
+        if tail_key and tail_key == node_label_key:
+            score += 20
+        elif item_key and item_key in _section_keys_for_node(node):
+            score += 15
+        elif tail and tail in (node.label or ""):
+            score += 12
+        else:
+            score += 5
+        candidates.append((score, node.node_id))
+
+    if not candidates and section_path in {n.node_id for n in snapshot.nodes}:
+        return [section_path]
+    if not candidates:
+        return []
+    best = max(score for score, _ in candidates)
+    return sorted({node_id for score, node_id in candidates if score == best})
 
 
 def collect_chunks_under_section(
@@ -143,6 +199,9 @@ def materialize_relevance_labels(
     min_coverage: float = 0.9,
 ) -> RelevanceLabelSet:
     snapshot_id, snapshot = load_bundle_snapshots(bundle_root)
+    index_path = bundle_root / "corpus" / "graph_node_index.json"
+    graph_paths = load_graph_paths(index_path) if index_path.is_file() else set()
+    snapshot_accessions = {ref.accession for ref in snapshot.manifest.filing_refs}
     items_path = bundle_root / "items" / f"{split}.jsonl"
     rows: list[dict] = []
     labels_by_item_id: dict[str, list[str]] = {}
@@ -157,6 +216,12 @@ def materialize_relevance_labels(
             continue
         item_id = row["item_id"]
         paths = row.get("expected_section_paths") or []
+        if graph_paths:
+            paths, _ = resolve_section_paths(
+                paths,
+                graph_paths,
+                snapshot_accessions=snapshot_accessions,
+            )
         chunk_ids, unresolved = resolve_item_chunk_ids(snapshot, paths)
         labels_by_item_id[item_id] = chunk_ids
         row["relevant_chunk_ids"] = chunk_ids

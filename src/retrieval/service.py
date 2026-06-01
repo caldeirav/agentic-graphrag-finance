@@ -8,7 +8,7 @@ from pathlib import Path
 
 from contracts.query import QueryRequest, QueryResponse
 from evaluation.ask_judge import run_post_query_audit
-from graph.query_api import LocalGraphQueryAPI
+from graph.query_api import GraphQueryAPI, LocalGraphQueryAPI
 from models.enums import QueryStatus
 from models.reproduction import VariantCapabilities
 from retrieval.orchestration.graph import build_agent_graph
@@ -34,9 +34,11 @@ class QueryService:
         self,
         graph_base_dir: Path | None = None,
         issuer_id: str | None = None,
+        graph_api: GraphQueryAPI | None = None,
     ) -> None:
         self._graph_base = graph_base_dir or Path("data/graphs")
         self._issuer_id = issuer_id
+        self._graph_api = graph_api
 
     def answer(self, request: QueryRequest) -> QueryResponse:
         issuer = self._issuer_id or request.metadata.get("issuer_id", "")
@@ -45,7 +47,7 @@ class QueryService:
             issuers = [p.name for p in snap_path.iterdir() if p.is_dir()]
             issuer = issuers[0] if issuers else "unknown"
 
-        graph_api = LocalGraphQueryAPI(self._graph_base, issuer)
+        graph_api = self._graph_api or LocalGraphQueryAPI(self._graph_base, issuer)
         variant_profile = VariantCapabilities(
             disable_macro_router=request.metadata.get("variant_disable_macro_router", "")
             .lower()
