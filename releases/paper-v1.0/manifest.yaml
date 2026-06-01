@@ -1,0 +1,39 @@
+schema_version: "1.0.0"
+release_tag: paper-v1.0
+git_sha: TBD
+custom_judge_version: "1.0.0"
+custom_judge_bundle_path: data/benchmarks/custom-judge/v1.0.0
+eval_split: dev
+reproduction_mode: live_reexecution
+
+corpus_hashes:
+  corpus/graph_node_index.json: "sha256:TBD"
+
+relevance_labels_hash: ""
+relevance_coverage_rate: 0.0
+
+variant_ids:
+  - graph-full
+  - flat-chunk
+  - ablation-no-macro
+  - ablation-no-walker
+  - ablation-xbrl-only
+
+model_pins:
+  llm_config_path: configs/llm/lm_studio_qwen.yaml
+  llm_config_hash: "sha256:TBD"
+  judge_config_path: configs/judges/gemini_2_5_pro.yaml
+  judge_config_hash: "sha256:TBD"
+  embedding_model_id: sentence-transformers/all-MiniLM-L6-v2
+  embedding_model_revision: TBD
+  embedding_config_path: configs/reproduction/embeddings/all_minilm_l6_v2.yaml
+  embedding_config_hash: "sha256:TBD"
+
+tolerance_bands:
+  mean_outcome_accuracy: 0.02
+  mean_rubric_alignment: 0.02
+  mean_trajectory_fidelity: 0.02
+  ranking_metrics_exact: true
+  structural_metrics_exact: true
+
+expected_checksums_path: expected_checksums.json

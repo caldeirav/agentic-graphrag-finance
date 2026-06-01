@@ -32,5 +32,6 @@ jobs:
           USE_MOCK_LLM: "1"
           USE_MOCK_JUDGE: "1"
           USE_FIXTURE_INGESTION: "1"
+          OFFLINE_BENCHMARK: "1"
           SEC_EDGAR_USER_AGENT: "agentic-graphrag-finance-ci test@example.com"
         run: uv run pytest tests/integration -q

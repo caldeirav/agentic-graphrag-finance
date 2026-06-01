@@ -7,19 +7,22 @@ See specs/002-live-disclosure-cli/research-xbrl-retrieval.md.
 from __future__ import annotations
 
 import logging
-import os
 import time
 import zipfile
 from pathlib import Path
 
 import httpx
 
+from ingestion.edgar_http import (
+    edgar_headers,
+    edgar_throttle,
+    with_edgar_retry,
+)
 from models.ingestion import FilingResolution, XBRLArtifact, XBRLArtifactManifest, XBRLArtifactRole
 
 logger = logging.getLogger(__name__)
 
 SEC_ARCHIVES = "https://www.sec.gov/Archives/edgar/data"
-DEFAULT_USER_AGENT = "agentic-graphrag-finance contact@example.com"
 
 _XBRL_LINKBASE_SUFFIXES = {
     "_cal.xml": XBRLArtifactRole.CALCULATION,
@@ -27,10 +30,6 @@ _XBRL_LINKBASE_SUFFIXES = {
     "_lab.xml": XBRLArtifactRole.LABEL,
     "_pre.xml": XBRLArtifactRole.PRESENTATION,
 }
-
-
-def edgar_user_agent() -> str:
-    return os.environ.get("SEC_EDGAR_USER_AGENT", DEFAULT_USER_AGENT)
 
 
 def _cik_path(cik: str) -> str:
@@ -103,13 +102,18 @@ def fetch_edgar_index(
     url = edgar_index_url(resolution.cik, resolution.accession)
     owns = client is None
     http = client or httpx.Client(
-        headers={"User-Agent": edgar_user_agent(), "Accept": "application/json"},
+        headers=edgar_headers(json_accept=True),
         timeout=60.0,
     )
     try:
-        resp = http.get(url)
-        resp.raise_for_status()
-        data = resp.json()
+
+        def _fetch() -> dict:
+            edgar_throttle()
+            resp = http.get(url)
+            resp.raise_for_status()
+            return resp.json()
+
+        data = with_edgar_retry(_fetch)
     finally:
         if owns:
             http.close()
@@ -127,10 +131,14 @@ def _download_file(
     *,
     client: httpx.Client,
 ) -> None:
-    resp = client.get(url)
-    resp.raise_for_status()
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(resp.content)
+    def _fetch() -> None:
+        edgar_throttle()
+        resp = client.get(url)
+        resp.raise_for_status()
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(resp.content)
+
+    with_edgar_retry(_fetch)
 
 
 def _extract_xbrl_zip(zip_path: Path, dest: Path) -> list[str]:
@@ -162,7 +170,7 @@ def download_edgar_xbrl_package(
     dest.mkdir(parents=True, exist_ok=True)
     owns = client is None
     http = client or httpx.Client(
-        headers={"User-Agent": edgar_user_agent()},
+        headers=edgar_headers(),
         timeout=120.0,
     )
     artifacts: list[XBRLArtifact] = []

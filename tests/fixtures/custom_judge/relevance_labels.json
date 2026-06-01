@@ -1,0 +1,19 @@
+{
+  "labels_hash": "sha256:a5aa6f48ffb678ed596cd0decc591c3cfae11d8a310c125862c7686da44cc7d7",
+  "snapshot_id": "composite-ci-fixture",
+  "coverage_rate": 1.0,
+  "items_labeled": 3,
+  "items_failed": [],
+  "labels_by_item_id": {
+    "0.0.0-financebench-001": [
+      "chunk-item7-p1"
+    ],
+    "0.0.0-finder-001": [
+      "chunk-item1a-p1"
+    ],
+    "0.0.0-finagentbench-001": [
+      "chunk-item7-old-p1",
+      "chunk-item7-p1"
+    ]
+  }
+}

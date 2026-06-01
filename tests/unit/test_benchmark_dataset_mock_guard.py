@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 import typer
 
-from cli.commands.benchmark_dataset import enforce_mock_judge_policy
+from cli.commands.benchmark_dataset import _phase_needs_accession_catalog, enforce_mock_judge_policy
 
 REPO = Path(__file__).resolve().parents[2]
 V1_CONFIG = REPO / "configs/benchmarks/custom_judge_v1.yaml"
@@ -26,3 +26,10 @@ def test_use_mock_judge_env_rejected_for_production_config(monkeypatch: pytest.M
     with pytest.raises(typer.BadParameter, match="custom_judge_ci"):
         enforce_mock_judge_policy(V1_CONFIG, mock_judge=False)
     monkeypatch.delenv("USE_MOCK_JUDGE", raising=False)
+
+
+def test_judge_phase_does_not_require_edgar_catalog():
+    assert _phase_needs_accession_catalog("judge") is False
+    assert _phase_needs_accession_catalog("materialize") is False
+    assert _phase_needs_accession_catalog("sampling") is True
+    assert _phase_needs_accession_catalog("all") is True

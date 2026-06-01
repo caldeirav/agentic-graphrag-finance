@@ -55,4 +55,8 @@ class AgentState(TypedDict, total=False):
     cli_prebound: bool | None
     binding_deferred: bool | None
     synthesis_retry_budget: bool | None
+    variant_disable_macro_router: bool | None
+    variant_disable_graph_walker: bool | None
+    variant_xbrl_only: bool | None
+    expected_section_paths_json: str | None
     navigation_trace: Any | None

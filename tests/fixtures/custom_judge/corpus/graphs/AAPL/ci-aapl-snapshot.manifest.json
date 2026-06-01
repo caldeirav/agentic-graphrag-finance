@@ -1,0 +1,29 @@
+{
+  "created_at": "2026-01-01T00:00:00",
+  "filing_refs": [
+    {
+      "cik": "320193",
+      "accession": "0000320193-24-000123",
+      "form_type": "10-K",
+      "filed_at": "2024-11-01",
+      "period_end": "2024-09-28",
+      "source_uri": ""
+    },
+    {
+      "cik": "320193",
+      "accession": "0000320193-24-000076",
+      "form_type": "10-K",
+      "filed_at": "2023-11-01",
+      "period_end": "2023-09-30",
+      "source_uri": ""
+    }
+  ],
+  "parser_version": "test",
+  "graph_builder_version": "test",
+  "storage_path": ".",
+  "node_count": 0,
+  "edge_count": 0,
+  "audit_ready": null,
+  "audit_pass_rate": null,
+  "reachability_artifact": ""
+}

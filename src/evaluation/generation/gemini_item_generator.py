@@ -11,6 +11,7 @@ import yaml
 from langchain_core.messages import HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+from evaluation.generation.api_retry import with_transient_retry
 from evaluation.judges.gemini_panel import JudgeParseError, _extract_json
 from models.benchmark_generation import GeneratedBenchmarkItem, GenerationConfig, SamplingManifest
 from models.enums import OperationClass
@@ -125,7 +126,11 @@ class GeminiItemGenerator:
         )
         llm = ChatGoogleGenerativeAI(model=self._model, temperature=self._temperature)
         started = time.perf_counter()
-        resp = llm.invoke([HumanMessage(content=prompt)])
+
+        def _invoke():
+            return llm.invoke([HumanMessage(content=prompt)])
+
+        resp = with_transient_retry(_invoke, label="Gemini")
         duration_ms = int((time.perf_counter() - started) * 1000)
         text = resp.content if isinstance(resp.content, str) else str(resp.content)
         item = self._parse_item(text, profile=profile, seq=seq)

@@ -30,7 +30,7 @@
     "reachability_audit_path": null,
     "total_bytes": 1024,
     "artifact_hashes": {
-      "corpus/graph_node_index.json": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "corpus/graph_node_index.json": "sha256:d4f3fc8fd31d06e4a2a8d29dcb6d728c166bb9aae47a9707072d278b7f0d9620"
     }
   },
   "published_at": null,

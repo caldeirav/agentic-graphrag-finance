@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from evaluation.generation.section_paths import resolve_section_paths
 from models.benchmark_generation import GeneratedBenchmarkItem
 
 
@@ -21,6 +22,7 @@ def validate_item(
     snapshot_accessions: set[str],
 ) -> GeneratedBenchmarkItem:
     errors: list[str] = []
+    canonical_paths = list(item.expected_section_paths)
     if not item.question.strip():
         errors.append("empty_question")
     bindings = item.expected_bindings.accessions
@@ -33,9 +35,13 @@ def validate_item(
     if not item.expected_section_paths:
         errors.append("missing_section_paths")
     else:
-        for path in item.expected_section_paths:
-            if path not in graph_paths:
-                errors.append(f"unknown_section_path:{path}")
+        canonical_paths, unresolved = resolve_section_paths(
+            item.expected_section_paths,
+            graph_paths,
+            snapshot_accessions=snapshot_accessions,
+        )
+        for path in unresolved:
+            errors.append(f"unknown_section_path:{path}")
     gt = item.ground_truth
     if not (gt.answer or gt.rubric):
         errors.append("missing_ground_truth")
@@ -49,4 +55,10 @@ def validate_item(
         if not ((gt.answer and gt.answer.strip()) or (gt.rubric and gt.rubric.strip())):
             errors.append("finagentbench_requires_answer_or_rubric")
     status = "accepted" if not errors else "rejected"
-    return item.model_copy(update={"validation_status": status, "validation_errors": errors})
+    return item.model_copy(
+        update={
+            "validation_status": status,
+            "validation_errors": errors,
+            "expected_section_paths": canonical_paths,
+        }
+    )

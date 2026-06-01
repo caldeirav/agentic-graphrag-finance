@@ -8,8 +8,9 @@ from pathlib import Path
 
 from contracts.query import QueryRequest, QueryResponse
 from evaluation.ask_judge import run_post_query_audit
-from graph.query_api import LocalGraphQueryAPI
+from graph.query_api import GraphQueryAPI, LocalGraphQueryAPI
 from models.enums import QueryStatus
+from models.reproduction import VariantCapabilities
 from retrieval.orchestration.graph import build_agent_graph
 from tracing.console_trace.audit import emit_trajectory_audit_footer
 from tracing.console_trace.config import build_trace_run_config
@@ -33,9 +34,11 @@ class QueryService:
         self,
         graph_base_dir: Path | None = None,
         issuer_id: str | None = None,
+        graph_api: GraphQueryAPI | None = None,
     ) -> None:
         self._graph_base = graph_base_dir or Path("data/graphs")
         self._issuer_id = issuer_id
+        self._graph_api = graph_api
 
     def answer(self, request: QueryRequest) -> QueryResponse:
         issuer = self._issuer_id or request.metadata.get("issuer_id", "")
@@ -44,8 +47,18 @@ class QueryService:
             issuers = [p.name for p in snap_path.iterdir() if p.is_dir()]
             issuer = issuers[0] if issuers else "unknown"
 
-        graph_api = LocalGraphQueryAPI(self._graph_base, issuer)
-        compiled = build_agent_graph(graph_api)
+        graph_api = self._graph_api or LocalGraphQueryAPI(self._graph_base, issuer)
+        variant_profile = VariantCapabilities(
+            disable_macro_router=request.metadata.get("variant_disable_macro_router", "")
+            .lower()
+            in ("1", "true", "yes"),
+            disable_graph_walker=request.metadata.get("variant_disable_graph_walker", "")
+            .lower()
+            in ("1", "true", "yes"),
+            xbrl_only=request.metadata.get("variant_xbrl_only", "").lower()
+            in ("1", "true", "yes"),
+        )
+        compiled = build_agent_graph(graph_api, variant_profile=variant_profile)
 
         trace_level_raw = request.metadata.get("trace_level", "")
         trace_level = TraceLevel(trace_level_raw) if trace_level_raw else TraceLevel.QUIET
@@ -71,6 +84,17 @@ class QueryService:
             "evidence_chunks": [],
             "graph_traversal": [],
             "trace_config": trace_config,
+            "variant_disable_macro_router": request.metadata.get(
+                "variant_disable_macro_router", ""
+            ).lower()
+            in ("1", "true", "yes"),
+            "variant_disable_graph_walker": request.metadata.get(
+                "variant_disable_graph_walker", ""
+            ).lower()
+            in ("1", "true", "yes"),
+            "variant_xbrl_only": request.metadata.get("variant_xbrl_only", "").lower()
+            in ("1", "true", "yes"),
+            "expected_section_paths_json": request.metadata.get("expected_section_paths", "[]"),
         }
 
         nested = __import__("mlflow").active_run() is not None

@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import json
 import logging
-import time
 from datetime import date
 
 import httpx
 
-from ingestion.edgar_xbrl import edgar_user_agent
-from ingestion.settings import get_settings, is_fixture_ingestion, require_edgar_user_agent
+from ingestion.edgar_http import edgar_headers, edgar_throttle, with_edgar_retry
+from ingestion.settings import get_settings, is_fixture_ingestion
 from models.ingestion import FilingResolution, IssuerIdentifierInput
 
 logger = logging.getLogger(__name__)
@@ -52,55 +51,20 @@ def _save_ticker_map(mapping: dict[str, str]) -> None:
     path.write_text(json.dumps(mapping, indent=2))
 
 
-def _edgar_headers() -> dict[str, str]:
-    require_edgar_user_agent()
-    return {"User-Agent": edgar_user_agent(), "Accept": "application/json"}
-
-
-def with_retry(func, *, max_attempts: int = 3):
-    """Retry EDGAR HTTP calls on rate-limit and server errors."""
-    delay = 1.0
-    last_exc: Exception | None = None
-    for attempt in range(max_attempts):
-        try:
-            return func()
-        except httpx.HTTPStatusError as exc:
-            last_exc = exc
-            if exc.response.status_code in (429, 500, 502, 503, 504):
-                logger.warning("EDGAR retry %s/%s: %s", attempt + 1, max_attempts, exc)
-                time.sleep(delay)
-                delay *= 2
-                continue
-            raise
-        except Exception as exc:
-            last_exc = exc
-            raise
-    raise last_exc  # type: ignore[misc]
-
-
-_last_request = 0.0
-
-
-def _throttle() -> None:
-    global _last_request
-    settings = get_settings()
-    min_interval = 1.0 / max(settings.edgar_requests_per_second, 0.1)
-    now = time.time()
-    elapsed = now - _last_request
-    if elapsed < min_interval:
-        time.sleep(min_interval - elapsed)
-    _last_request = time.time()
+def with_retry(func, *, max_attempts: int = 5):
+    """Backward-compatible alias for ``with_edgar_retry``."""
+    return with_edgar_retry(func, max_attempts=max_attempts)
 
 
 def _fetch_json(url: str) -> dict | list:
     def _get():
-        _throttle()
-        with httpx.Client(headers=_edgar_headers(), timeout=60.0) as client:
+        edgar_throttle()
+        with httpx.Client(headers=edgar_headers(json_accept=True), timeout=60.0) as client:
             resp = client.get(url)
             resp.raise_for_status()
             return resp.json()
 
-    return with_retry(_get)
+    return with_edgar_retry(_get)
 
 
 def _resolve_ticker_via_edgar(ticker: str, mapping: dict[str, str]) -> dict[str, str]:

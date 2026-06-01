@@ -1,0 +1,7 @@
+variant_id: ablation-no-macro
+description: Graph agent without macro router (pre-bound filings only)
+backend: langgraph
+capabilities:
+  disable_macro_router: true
+  disable_graph_walker: false
+  xbrl_only: false
