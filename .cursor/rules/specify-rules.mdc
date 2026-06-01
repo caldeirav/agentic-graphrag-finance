@@ -6,14 +6,14 @@ alwaysApply: true
 For additional context about technologies, project structure, shell commands, and
 pipeline segments, read the current implementation plan:
 
-**Plan**: `specs/012-research-repro-kit/plan.md` (active) | Prior: `specs/011-judge-eval-dataset/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
+**Plan**: `specs/013-benchmark-eval-acceleration/plan.md` (active) | Prior: `specs/012-research-repro-kit/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
 
 Quick reference:
-- **Stack**: uv, Docling/XBRL graph corpus (LFS), LangGraph agent, sentence-transformers (flat-chunk), MLflow, Gemini judge, LM Studio LLM
-- **Layers**: `src/evaluation/reproduction/` (repro kit), `src/evaluation/` (runner + custom-judge), `src/retrieval/` (ablation flags), `src/cli/commands/repro.py`
-- **CLI**: `agent-query repro run-all --manifest releases/paper-v1.0/manifest.yaml` | dataset: custom-judge dev split only for headline tables
-- **Storage**: Release manifests `releases/{tag}/`; bundles `data/benchmarks/custom-judge/v{version}/`; outputs `reports/repro-{tag}/tables/`
-- **Variants (paper-v1.0)**: graph-full, flat-chunk (dense embedding), ablation-no-macro, ablation-no-walker, ablation-xbrl-only
-- **Phases**: A manifest/verify → B relevance labels → C variant backends → D export/verify-tables → E paper tag + CI smoke
-- **Design artifacts**: `specs/012-research-repro-kit/{research,data-model,quickstart}.md` and `contracts/`
+- **Stack**: uv, custom-judge LFS corpus, LangGraph agent, sentence-transformers (flat-chunk), MLflow, Gemini judge (batched when deferred), LM Studio LLM
+- **Layers**: `src/evaluation/reproduction/` (defer judge, item subgraph, resume), `src/retrieval/service.py` (defer guard), `src/cli/commands/repro.py`
+- **CLI**: `agent-query repro run-all --defer-judge --resume` | `repro judge-batch` | `repro export-tables`
+- **Storage**: `reports/repro-{tag}/repro_run.json`, `{variant}/results.json`, `tables/`
+- **Flags**: `REPRO_DEFER_JUDGE`, `REPRO_JUDGE_CONCURRENCY`; per-item graph slice from `expected_bindings`
+- **Phases**: A defer judge + judge-batch → B per-item subgraph → C variant resume + recovery docs
+- **Design artifacts**: `specs/013-benchmark-eval-acceleration/{research,data-model,quickstart}.md` and `contracts/`
 <!-- SPECKIT END -->
