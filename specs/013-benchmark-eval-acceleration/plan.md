@@ -19,7 +19,7 @@ Accelerate paper-v1.0 reproduction (~200 items × 5 variants) by (1) **decouplin
 - Extended `reports/repro-{tag}/repro_run.json`
 - No new LFS artifacts
 
-**Testing**: pytest — unit (accession index, slice load, defer metadata, judge-batch idempotency, atomic write); integration (20-item defer smoke, 5-item resume, single-issuer node count); optional benchmark script for 25% speedup claim
+**Testing**: pytest — unit (accession index, slice load, defer metadata, judge-batch idempotency, atomic write); integration (SC-001: 5-item CI + 20-item `@slow` defer smoke; SC-002: judge-batch restart at item 10/20; 5-item resume; single-issuer node count); optional benchmark script for 25% speedup claim
 
 **Target Platform**: Local CLI batch (`agent-query repro`); CI with mocks for defer + resume paths
 
@@ -155,4 +155,4 @@ Completed in [research.md](./research.md) — decisions R1–R9 (defer control, 
 
 ## Phase 2
 
-Task breakdown: run `/speckit-tasks` (not created by this command).
+Task breakdown: [tasks.md](./tasks.md) (56 tasks; SC-001 CI + 20-item slow + SC-002 judge-batch restart integration).

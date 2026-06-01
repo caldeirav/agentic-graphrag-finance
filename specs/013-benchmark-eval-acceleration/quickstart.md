@@ -88,6 +88,18 @@ uv run agent-query repro run-all \
   --defer-judge
 ```
 
+**SC-001 release validation** (20 items, slower — run before paper repro):
+
+```bash
+uv run pytest -m slow tests/integration/test_repro_defer_judge_smoke.py -q
+```
+
+**SC-002 judge-batch restart** (integration):
+
+```bash
+uv run pytest tests/integration/test_repro_judge_batch_restart.py -q
+```
+
 ## Verify progress
 
 ```bash

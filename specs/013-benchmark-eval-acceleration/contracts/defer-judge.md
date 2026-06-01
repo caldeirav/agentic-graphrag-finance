@@ -53,4 +53,11 @@ Flat-chunk baseline MUST NOT call `GeminiJudgePanel.judge` during `answer()` whe
 
 ## MLflow verification (SC-001)
 
-During generation loop with defer, active run tags MUST NOT include judge audit child runs. Test: count runs with `judge` tag in item loop == 0.
+During generation loop with defer, active run tags MUST NOT include judge audit child runs. Tests:
+
+- **CI** (`test_repro_defer_judge_smoke.py`, 5 items): count judge audit calls in generation loop == 0.
+- **Release** (`test_repro_defer_judge_sc001`, 20 items, `@pytest.mark.slow`): same assertion at scale.
+
+## Judge-batch restart verification (SC-002)
+
+Integration test `test_repro_judge_batch_restart.py`: seed 20 `pending` rows, judge 10, simulate crash, re-run batch; assert items 11–20 judged once and items 1–10 `judge_verdict` unchanged.

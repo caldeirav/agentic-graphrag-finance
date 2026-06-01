@@ -21,7 +21,7 @@ An evaluation engineer running full paper reproduction wants agent variants to p
 **Acceptance Scenarios**:
 
 1. **Given** deferred judging is enabled for reproduction, **When** a graph-grounded variant scores an item, **Then** the system records answers and trajectories without invoking external judge scoring during answer generation, and item results show judge status as pending until batch judging completes.
-2. **Given** all items for a variant have answers stored, **When** the judge batch phase runs, **Then** exactly one external judge evaluation per item is performed using the same criteria as production trajectory judging, results are merged into per-variant outputs, and judge status becomes completed or degraded.
+2. **Given** all items for a variant have answers stored, **When** the judge batch phase runs, **Then** exactly one external judge evaluation per item is performed using the same criteria as production trajectory judging, results are merged into per-variant outputs, and judge status becomes `ok`, `degraded`, or `not_evaluable` (never left `pending`).
 3. **Given** judge batch fails after processing half the items, **When** the operator re-runs judge batch only, **Then** only items without final judge scores are evaluated; already-judged items are not re-scored.
 4. **Given** deferred judging is enabled, **When** the flat-chunk baseline runs, **Then** judging is also deferred during chunk retrieval and answer generation (no duplicate judge during generation).
 5. **Given** deferred judging is disabled (default for interactive single-question use), **When** an operator asks a question through the standard query interface, **Then** post-query judge audit behavior is unchanged from current production.
@@ -106,8 +106,8 @@ An operator running overnight paper reproduction wants to resume after interrupt
 
 ### Measurable Outcomes
 
-- **SC-001**: On a 20-item reproduction smoke with deferred judging, the generation phase completes with zero external judge API calls during the per-item loop (verifiable via run logs or tracing).
-- **SC-002**: Judge-batch restart after simulated mid-run failure processes only remaining items; no duplicate judge scores for already-completed items.
+- **SC-001**: On a reproduction smoke with deferred judging, the generation phase completes with zero external judge API calls during the per-item loop (verifiable via run logs or tracing). **CI gate**: 5 items on `paper-smoke` (default pytest). **Release validation**: 20 items (`pytest -m slow` or operator script).
+- **SC-002**: Given a fixture with 20 pending items, when judge-batch completes 10 items then fails, re-running judge-batch processes only items 11–20; items 1–10 retain prior `judge_verdict` hashes (no duplicate judge calls).
 - **SC-003**: On a 10-item smoke, median per-item time for graph-grounded variants improves by at least 25% with per-item graph scope versus full multi-issuer corpus load (same model pins, documented measurement procedure).
 - **SC-004**: Cross-issuer multi-filing smoke items produce non-empty retrieved evidence when expected sections exist in both issuer graphs.
 - **SC-005**: Interrupting reproduction after 5 items and resuming completes the remaining items without duplicate item ids in per-variant results.
