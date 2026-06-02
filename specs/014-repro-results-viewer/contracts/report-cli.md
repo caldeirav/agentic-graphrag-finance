@@ -20,7 +20,7 @@ uv run agent-query repro report \
 | `--table` | no | all paper tables | Repeatable: `headline`, `by_profile`, `variant_delta`, `trajectory_audit` |
 | `--max-item-rows` | no | project default | Soft cap for drill-down rendering |
 | `--manifest` | no | auto-discover | Optional release manifest path for provenance |
-| `--delta-threshold` | no | project default | Highlight threshold vs `graph-full` |
+| `--delta-threshold` | no | `0.10` | Absolute metric gap vs `graph-full` per item (FR-014); see `research.md` R6 |
 
 ## Behavior
 

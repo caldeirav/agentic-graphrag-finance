@@ -53,4 +53,5 @@ Rows must be parseable as benchmark result records including:
 2. Missing optional files -> warning surfaced in report summary.
 3. Unknown variants in results directories -> include as extra variants without failing.
 4. CSV header mismatch against contract -> hard error with offending file and column list.
+5. Missing `{variant}/results.json` -> warning and incomplete variant in summary; do not abort (research R7). Drill-down renders only for variants with checkpoints.
 

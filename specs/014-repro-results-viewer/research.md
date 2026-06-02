@@ -65,6 +65,8 @@
 
 **Decision**: Include variant-level summary cards, primary metric comparisons (`outcome_accuracy`, `ndcg_at_10`, `trajectory_fidelity`), and item drill-down with status filters (`ok`, `degraded`, `pending`, `not_evaluable`) plus flags for structural misses and large deltas vs `graph-full`.
 
+**Defaults**: `--delta-threshold` = `0.10` (absolute primary-metric difference vs `graph-full` for the same item triggers an FR-014 investigation flag).
+
 **Rationale**: Directly answers “which variant won, which items failed, and why” from one page.
 
 **Alternatives considered**:

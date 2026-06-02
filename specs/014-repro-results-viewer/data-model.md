@@ -50,7 +50,7 @@ Top-level loaded report context.
 | `items_total` | int |
 | `excluded_incomplete` | int |
 | `excluded_degraded` | int |
-| `excluded_pending` | int |
+| `excluded_pending_judge` | int |
 
 ## PaperTableView
 

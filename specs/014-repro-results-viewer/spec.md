@@ -89,10 +89,10 @@ A researcher working on a laptop without network access after a long repro wants
 
 - **FR-001**: The system MUST provide a reproduction subcommand that accepts a completed repro output directory path and generates a static HTML report.
 - **FR-002**: The command MUST read only existing reproduction artifacts; it MUST NOT re-run agents, judges, or table export.
-- **FR-003**: Required inputs MUST include: run state at output root, exported table CSVs (`headline`, `by_profile`, `variant_delta`, `trajectory_audit`), and per-variant item result checkpoints.
+- **FR-003**: Required inputs MUST include run state at output root (`repro_run.json`) and exported table CSVs (`headline`, `by_profile`, `variant_delta`, `trajectory_audit`). Per-variant item result checkpoints (`{variant}/results.json`) are required for full item drill-down; missing variant checkpoints MUST NOT fail report generation—those variants appear as incomplete with warnings (per research R7).
 - **FR-004**: Optional inputs MUST be supported when present: pre-generated LaTeX headline, export manifest, release manifest metadata, MLflow parent run identifiers.
 - **FR-005**: The report MUST include a run summary section with release tag, run identifier, duration, reproduction mode flags (defer judge, resume) when recorded, and per-variant item and exclusion counts.
-- **FR-006**: The report MUST render paper tables (`headline`, `by_profile`, `variant_delta`) as styled HTML tables consistent with the 012 paper-table-export metric catalog and rounding conventions.
+- **FR-006**: The report MUST render paper tables (`headline`, `by_profile`, `variant_delta`, `trajectory_audit`) as styled HTML tables consistent with the 012 paper-table-export metric catalog and rounding conventions.
 - **FR-007**: Each rendered paper table MUST offer one-click copy in LaTeX (publication tabular style), CSV, and Markdown formats.
 - **FR-008**: LaTeX snippets MUST be paste-ready for arXiv manuscripts: tabular structure suitable for standard academic packages, numeric formatting compatible with common LaTeX number columns, and caption comments documenting release tag and item counts.
 - **FR-009**: The command MUST support a LaTeX-only output mode that writes selected table LaTeX to standard output for automation.
