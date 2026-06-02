@@ -276,10 +276,28 @@ uv run agent-query repro verify-tables \
 | `repro run-all --export-only` | Export tables from checkpoints |
 | `repro run-all --resume/--no-resume` | Resume partial runs (default: resume) |
 | `repro verify-tables` | Compare exports to expected checksums |
+| `repro report` | Static HTML investigation report + LaTeX/CSV/Markdown table copy (014) |
 
 ```bash
 uv run agent-query repro --help
 ```
+
+## Results viewer (014)
+
+After phase 2 completes, generate a read-only HTML report for run investigation and arXiv table copy:
+
+```bash
+uv run agent-query repro report \
+  --input reports/repro-live-smoke \
+  --output reports/repro-live-smoke/report.html
+
+# Paste-ready headline table for LaTeX manuscripts:
+uv run agent-query repro report \
+  --input reports/repro-live-smoke \
+  --format latex-only --table headline
+```
+
+The report consumes existing artifacts only (`repro_run.json`, `tables/*.csv`, optional `{variant}/results.json`); it does not re-run agents or judges. Operator quickstart: [014 quickstart](../specs/014-repro-results-viewer/quickstart.md). Troubleshooting partial runs: missing variant checkpoints produce warnings, not hard failures.
 
 ## Output layout
 

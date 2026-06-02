@@ -31,9 +31,9 @@ description: "Task list for research reproduction results viewer (014)"
 
 **Purpose**: Report module scaffold and shared errors
 
-- [ ] T001 Create `src/evaluation/reproduction/report_errors.py` with `ReportInputError` and `ReportRenderError` carrying file paths per `contracts/report-input-schema.md`
-- [ ] T002 [P] Create `templates/reproduction_report.html` static shell with placeholder sections (summary, tables, comparison, drill-down) per `contracts/report-output.md`
-- [ ] T003 [P] Export report public entrypoints from `src/evaluation/reproduction/__init__.py` per `plan.md` project structure
+- [x] T001 Create `src/evaluation/reproduction/report_errors.py` with `ReportInputError` and `ReportRenderError` carrying file paths per `contracts/report-input-schema.md`
+- [x] T002 [P] Create `templates/reproduction_report.html` static shell with placeholder sections (summary, tables, comparison, drill-down) per `contracts/report-output.md`
+- [x] T003 [P] Export report public entrypoints from `src/evaluation/reproduction/__init__.py` per `plan.md` project structure
 
 **Checkpoint**: `from evaluation.reproduction.report_errors import ReportInputError` resolves
 
@@ -45,10 +45,10 @@ description: "Task list for research reproduction results viewer (014)"
 
 **⚠️ CRITICAL**: No user story work until this phase is complete
 
-- [ ] T004 Implement Pydantic report view models (`ReproOutputBundle`, `RunSummaryView`, `PaperTableView`, `VariantComparisonView`, `ItemResultRecord`, `ReportArtifact`) in `src/evaluation/reproduction/report_models.py` per `data-model.md`
-- [ ] T005 [P] Implement metric display formatters and LaTeX numeric escaping helpers in `src/evaluation/reproduction/report_formatters.py` per `research.md` R4–R5
-- [ ] T006 Implement `load_repro_report_bundle(input_dir, *, manifest_path=None)` in `src/evaluation/reproduction/report_loader.py`: hard-fail on missing `repro_run.json` or required CSVs; treat missing `{variant}/results.json` as warnings with incomplete variant markers per `research.md` R7 and `contracts/report-input-schema.md`; load optional artifacts when present
-- [ ] T007 [P] Add unit tests `tests/unit/test_repro_report_loader.py` for required-file errors, optional-file warnings, CSV header validation against 012 paper-table-export columns, and partial-run behavior when `{variant}/results.json` is missing (warning, not exit 2) per `research.md` R7
+- [x] T004 Implement Pydantic report view models (`ReproOutputBundle`, `RunSummaryView`, `PaperTableView`, `VariantComparisonView`, `ItemResultRecord`, `ReportArtifact`) in `src/evaluation/reproduction/report_models.py` per `data-model.md`
+- [x] T005 [P] Implement metric display formatters and LaTeX numeric escaping helpers in `src/evaluation/reproduction/report_formatters.py` per `research.md` R4–R5
+- [x] T006 Implement `load_repro_report_bundle(input_dir, *, manifest_path=None)` in `src/evaluation/reproduction/report_loader.py`: hard-fail on missing `repro_run.json` or required CSVs; treat missing `{variant}/results.json` as warnings with incomplete variant markers per `research.md` R7 and `contracts/report-input-schema.md`; load optional artifacts when present
+- [x] T007 [P] Add unit tests `tests/unit/test_repro_report_loader.py` for required-file errors, optional-file warnings, CSV header validation against 012 paper-table-export columns, and partial-run behavior when `{variant}/results.json` is missing (warning, not exit 2) per `research.md` R7
 
 **Checkpoint**: `uv run pytest tests/unit/test_repro_report_loader.py -q` passes
 
@@ -62,17 +62,17 @@ description: "Task list for research reproduction results viewer (014)"
 
 ### Tests for User Story 1
 
-- [ ] T008 [P] [US1] Add unit tests `tests/unit/test_repro_report_latex_copy.py` for booktabs LaTeX snippet generation, provenance comments, and CSV value fidelity per `contracts/report-output.md`
-- [ ] T009 [P] [US1] Add contract test `tests/contract/test_repro_report_cli.py` for `--format latex-only --table headline` stdout shape and exit codes per `contracts/report-cli.md`
+- [x] T008 [P] [US1] Add unit tests `tests/unit/test_repro_report_latex_copy.py` for booktabs LaTeX snippet generation, provenance comments, and CSV value fidelity per `contracts/report-output.md`
+- [x] T009 [P] [US1] Add contract test `tests/contract/test_repro_report_cli.py` for `--format latex-only --table headline` stdout shape and exit codes per `contracts/report-cli.md`
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Implement `build_paper_table_views(bundle)` returning `PaperTableView[]` with embedded `latex_copy`, `csv_copy`, `markdown_copy` in `src/evaluation/reproduction/report_render.py` per FR-006–FR-008
-- [ ] T011 [US1] Implement LaTeX booktabs table builder in `src/evaluation/reproduction/report_formatters.py` with caption comments (`release_tag`, item counts, exclusions) per `research.md` R4
-- [ ] T012 [US1] Add HTML paper-table section renderer with copy buttons (inline JS, no network) in `src/evaluation/reproduction/report_render.py` using `templates/reproduction_report.html`
-- [ ] T013 [US1] Add `repro report` subcommand stub in `src/cli/commands/repro.py` with `--input`, `--output`, `--format`, `--table` flags; wire `latex-only` stdout path per `contracts/report-cli.md`
-- [ ] T014 [US1] Implement `--table` filter (repeatable) limiting rendered/copied tables to `headline`, `by_profile`, `variant_delta`, `trajectory_audit` in `src/cli/commands/repro.py`
-- [ ] T015 [US1] Render optional `tables/headline.tex` compare panel (read-only hint vs generated LaTeX) when present; omit section when absent per FR-004 in `src/evaluation/reproduction/report_render.py`
+- [x] T010 [US1] Implement `build_paper_table_views(bundle)` returning `PaperTableView[]` with embedded `latex_copy`, `csv_copy`, `markdown_copy` in `src/evaluation/reproduction/report_render.py` per FR-006–FR-008
+- [x] T011 [US1] Implement LaTeX booktabs table builder in `src/evaluation/reproduction/report_formatters.py` with caption comments (`release_tag`, item counts, exclusions) per `research.md` R4
+- [x] T012 [US1] Add HTML paper-table section renderer with copy buttons (inline JS, no network) in `src/evaluation/reproduction/report_render.py` using `templates/reproduction_report.html`
+- [x] T013 [US1] Add `repro report` subcommand stub in `src/cli/commands/repro.py` with `--input`, `--output`, `--format`, `--table` flags; wire `latex-only` stdout path per `contracts/report-cli.md`
+- [x] T014 [US1] Implement `--table` filter (repeatable) limiting rendered/copied tables to `headline`, `by_profile`, `variant_delta`, `trajectory_audit` in `src/cli/commands/repro.py`
+- [x] T015 [US1] Render optional `tables/headline.tex` compare panel (read-only hint vs generated LaTeX) when present; omit section when absent per FR-004 in `src/evaluation/reproduction/report_render.py`
 
 **Checkpoint**: `uv run agent-query repro report --input reports/repro-paper-smoke --format latex-only --table headline` emits paste-ready LaTeX; unit/contract tests pass
 
@@ -86,15 +86,15 @@ description: "Task list for research reproduction results viewer (014)"
 
 ### Tests for User Story 2
 
-- [ ] T016 [P] [US2] Add unit tests `tests/unit/test_repro_report_summary.py` for `RunSummaryView` and `VariantComparisonView` derivation from fixture bundle in `src/evaluation/reproduction/report_render.py`
+- [x] T016 [P] [US2] Add unit tests `tests/unit/test_repro_report_summary.py` for `RunSummaryView` and `VariantComparisonView` derivation from fixture bundle in `src/evaluation/reproduction/report_render.py`
 
 ### Implementation for User Story 2
 
-- [ ] T017 [US2] Implement `build_run_summary(bundle)` aggregating release tag, duration, defer/resume flags, per-variant counts (`excluded_incomplete`, `excluded_degraded`, `excluded_pending_judge`) in `src/evaluation/reproduction/report_render.py` per FR-005 and `data-model.md`
-- [ ] T018 [US2] Implement `build_variant_comparison(bundle)` from `headline.csv` for primary metrics across standard five variants in `src/evaluation/reproduction/report_render.py` per FR-010
-- [ ] T019 [US2] Render run summary and variant comparison sections (inline SVG/CSS bars, offline-safe) into `templates/reproduction_report.html` via `src/evaluation/reproduction/report_render.py`
-- [ ] T020 [US2] Wire full `--format html` default path in `src/cli/commands/repro.py` writing `<input>/report.html` (or `--output`) with summary + tables + comparison sections
-- [ ] T021 [US2] Render optional `export_manifest.json` metadata section in run summary when present; omit when absent per FR-004 in `src/evaluation/reproduction/report_render.py`
+- [x] T017 [US2] Implement `build_run_summary(bundle)` aggregating release tag, duration, defer/resume flags, per-variant counts (`excluded_incomplete`, `excluded_degraded`, `excluded_pending_judge`) in `src/evaluation/reproduction/report_render.py` per FR-005 and `data-model.md`
+- [x] T018 [US2] Implement `build_variant_comparison(bundle)` from `headline.csv` for primary metrics across standard five variants in `src/evaluation/reproduction/report_render.py` per FR-010
+- [x] T019 [US2] Render run summary and variant comparison sections (inline SVG/CSS bars, offline-safe) into `templates/reproduction_report.html` via `src/evaluation/reproduction/report_render.py`
+- [x] T020 [US2] Wire full `--format html` default path in `src/cli/commands/repro.py` writing `<input>/report.html` (or `--output`) with summary + tables + comparison sections
+- [x] T021 [US2] Render optional `export_manifest.json` metadata section in run summary when present; omit when absent per FR-004 in `src/evaluation/reproduction/report_render.py`
 
 **Checkpoint**: HTML report from smoke output shows summary cards and metric comparison without manual CSV/JSON inspection
 
@@ -108,15 +108,15 @@ description: "Task list for research reproduction results viewer (014)"
 
 ### Tests for User Story 3
 
-- [ ] T022 [P] [US3] Add unit tests `tests/unit/test_repro_report_items.py` mapping `BenchmarkResult` rows to `ItemResultRecord` with truncated answer, citation counts, and status highlight classes for `degraded`/`pending`/`not_evaluable` per FR-013 in `src/evaluation/reproduction/report_loader.py` or `report_render.py`
+- [x] T022 [P] [US3] Add unit tests `tests/unit/test_repro_report_items.py` mapping `BenchmarkResult` rows to `ItemResultRecord` with truncated answer, citation counts, and status highlight classes for `degraded`/`pending`/`not_evaluable` per FR-013 in `src/evaluation/reproduction/report_loader.py` or `report_render.py`
 
 ### Implementation for User Story 3
 
-- [ ] T023 [US3] Implement `load_variant_item_records(bundle)` parsing per-variant `results.json` when present into `ItemResultRecord[]` in `src/evaluation/reproduction/report_loader.py` per `contracts/report-input-schema.md` (skip drill-down for variants without checkpoints)
-- [ ] T024 [US3] Render item drill-down tables per variant with client-side filters (variant, profile, judge status) in `src/evaluation/reproduction/report_render.py` and `templates/reproduction_report.html` per FR-011
-- [ ] T025 [US3] Add visual row highlighting and quick-filter chips for `degraded`, `pending`, and `not_evaluable` in `templates/reproduction_report.html` (inline CSS/JS only) per FR-013
-- [ ] T026 [US3] Add expandable row detail (answer excerpt, citation summary, trajectory pointer to source JSON path) in `templates/reproduction_report.html` per FR-012
-- [ ] T027 [US3] Add `--max-item-rows` soft cap in `src/cli/commands/repro.py` per `contracts/report-cli.md`
+- [x] T023 [US3] Implement `load_variant_item_records(bundle)` parsing per-variant `results.json` when present into `ItemResultRecord[]` in `src/evaluation/reproduction/report_loader.py` per `contracts/report-input-schema.md` (skip drill-down for variants without checkpoints)
+- [x] T024 [US3] Render item drill-down tables per variant with client-side filters (variant, profile, judge status) in `src/evaluation/reproduction/report_render.py` and `templates/reproduction_report.html` per FR-011
+- [x] T025 [US3] Add visual row highlighting and quick-filter chips for `degraded`, `pending`, and `not_evaluable` in `templates/reproduction_report.html` (inline CSS/JS only) per FR-013
+- [x] T026 [US3] Add expandable row detail (answer excerpt, citation summary, trajectory pointer to source JSON path) in `templates/reproduction_report.html` per FR-012
+- [x] T027 [US3] Add `--max-item-rows` soft cap in `src/cli/commands/repro.py` per `contracts/report-cli.md`
 
 **Checkpoint**: Drill-down filterable with status highlights; expanded rows show truncated answers matching source JSON
 
@@ -130,15 +130,15 @@ description: "Task list for research reproduction results viewer (014)"
 
 ### Tests for User Story 4
 
-- [ ] T028 [P] [US4] Add unit tests `tests/unit/test_repro_report_flags.py` for binding-miss and high-delta-vs-`graph-full` flag rules in `src/evaluation/reproduction/report_render.py` per FR-014
+- [x] T028 [P] [US4] Add unit tests `tests/unit/test_repro_report_flags.py` for binding-miss and high-delta-vs-`graph-full` flag rules in `src/evaluation/reproduction/report_render.py` per FR-014
 
 ### Implementation for User Story 4
 
-- [ ] T029 [US4] Implement investigation flag computation (structural binding miss, metric delta vs `graph-full`) with configurable `--delta-threshold` (default `0.10` per `research.md` R6) in `src/evaluation/reproduction/report_render.py` per FR-014
-- [ ] T030 [US4] Render optional MLflow parent run links in run summary when ids present in `repro_run.json` (external href only, not embedded UI) per FR-004 and spec US4
-- [ ] T031 [US4] Ensure report output is self-contained: inline assets, no CDN scripts, relative paths only in `src/evaluation/reproduction/report_render.py` per FR-015 and `research.md` R3
-- [ ] T032 [US4] Add optional `--manifest` provenance block loader in `src/evaluation/reproduction/report_loader.py` and summary display per `contracts/report-cli.md`
-- [ ] T033 [US4] Add integration test `tests/integration/test_repro_report_smoke.py`: render HTML from `reports/repro-paper-smoke` or fixture copy offline; assert file exists, contains headline table and summary (SC-004)
+- [x] T029 [US4] Implement investigation flag computation (structural binding miss, metric delta vs `graph-full`) with configurable `--delta-threshold` (default `0.10` per `research.md` R6) in `src/evaluation/reproduction/report_render.py` per FR-014
+- [x] T030 [US4] Render optional MLflow parent run links in run summary when ids present in `repro_run.json` (external href only, not embedded UI) per FR-004 and spec US4
+- [x] T031 [US4] Ensure report output is self-contained: inline assets, no CDN scripts, relative paths only in `src/evaluation/reproduction/report_render.py` per FR-015 and `research.md` R3
+- [x] T032 [US4] Add optional `--manifest` provenance block loader in `src/evaluation/reproduction/report_loader.py` and summary display per `contracts/report-cli.md`
+- [x] T033 [US4] Add integration test `tests/integration/test_repro_report_smoke.py`: render HTML from `reports/repro-paper-smoke` or fixture copy offline; assert file exists, contains headline table and summary (SC-004)
 
 **Checkpoint**: `uv run pytest tests/integration/test_repro_report_smoke.py -q` passes; report opens offline in browser
 
@@ -148,11 +148,11 @@ description: "Task list for research reproduction results viewer (014)"
 
 **Purpose**: Docs, contract coverage, and regression validation
 
-- [ ] T034 [P] Extend `tests/contract/test_repro_report_cli.py` for missing required input exit code 2 and invalid CSV exit behavior per `contracts/report-cli.md`
-- [ ] T035 [P] Update `docs/research-reproduction.md` with `repro report` workflow, LaTeX copy, and troubleshooting cross-link to `specs/014-repro-results-viewer/quickstart.md`
-- [ ] T036 [P] Update `README.md` Path B section with one-line `repro report` example after reproduction completes
-- [ ] T037 Run full repro-report pytest sweep: `uv run pytest tests/unit/test_repro_report_* tests/contract/test_repro_report_cli.py tests/integration/test_repro_report_smoke.py -q`
-- [ ] T038 Validate quickstart commands in `specs/014-repro-results-viewer/quickstart.md` against local smoke output directory
+- [x] T034 [P] Extend `tests/contract/test_repro_report_cli.py` for missing required input exit code 2 and invalid CSV exit behavior per `contracts/report-cli.md`
+- [x] T035 [P] Update `docs/research-reproduction.md` with `repro report` workflow, LaTeX copy, and troubleshooting cross-link to `specs/014-repro-results-viewer/quickstart.md`
+- [x] T036 [P] Update `README.md` Path B section with one-line `repro report` example after reproduction completes
+- [x] T037 Run full repro-report pytest sweep: `uv run pytest tests/unit/test_repro_report_* tests/contract/test_repro_report_cli.py tests/integration/test_repro_report_smoke.py -q`
+- [x] T038 Validate quickstart commands in `specs/014-repro-results-viewer/quickstart.md` against local smoke output directory
 
 ---
 

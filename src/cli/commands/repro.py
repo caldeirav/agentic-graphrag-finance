@@ -12,6 +12,10 @@ from evaluation.reproduction.export import export_tables_from_disk, write_paper_
 from evaluation.reproduction.judge_batch import run_judge_batch
 from evaluation.reproduction.manifest import load_expected_checksums, load_release_manifest
 from evaluation.reproduction.relevance import materialize_relevance_labels
+from evaluation.reproduction.report_errors import ReportInputError, ReportRenderError
+from evaluation.reproduction.report_loader import load_repro_report_bundle
+from evaluation.reproduction.report_models import PaperTableId
+from evaluation.reproduction.report_render import render_html_report, render_latex_only
 from evaluation.reproduction.runner import ReproRunner
 from evaluation.reproduction.verify_tables import verify_tables
 
@@ -186,3 +190,57 @@ def run_all(
         cli_defer=defer_judge,
     )
     typer.echo(f"Reproduction complete: {repro.status} -> {out}")
+
+
+DEFAULT_MAX_ITEM_ROWS = 500
+DEFAULT_DELTA_THRESHOLD = 0.10
+_TABLE_ID_MAP = {t.value: t for t in PaperTableId}
+
+
+@app.command("report")
+def report_cmd(
+    input_dir: Path = typer.Option(..., "--input", help="Existing repro output directory"),
+    output: Path | None = typer.Option(None, "--output", help="HTML output path"),
+    format: str = typer.Option("html", "--format", help="html or latex-only"),
+    table: list[str] = typer.Option([], "--table", help="Limit tables (repeatable)"),
+    max_item_rows: int = typer.Option(DEFAULT_MAX_ITEM_ROWS, "--max-item-rows"),
+    manifest: Path | None = typer.Option(None, "--manifest", help="Release manifest path"),
+    delta_threshold: float = typer.Option(DEFAULT_DELTA_THRESHOLD, "--delta-threshold"),
+) -> None:
+    """Generate static HTML report or LaTeX table snippets from repro artifacts."""
+    try:
+        bundle = load_repro_report_bundle(input_dir, manifest_path=manifest)
+    except ReportInputError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=2) from exc
+
+    table_ids: list[PaperTableId] | None = None
+    if table:
+        unknown = [t for t in table if t not in _TABLE_ID_MAP]
+        if unknown:
+            typer.echo(f"Unknown --table value(s): {', '.join(unknown)}", err=True)
+            raise typer.Exit(code=2)
+        table_ids = [_TABLE_ID_MAP[t] for t in table]
+
+    if format == "latex-only":
+        typer.echo(render_latex_only(bundle, table_ids=table_ids), nl=False)
+        return
+
+    if format != "html":
+        typer.echo(f"Unsupported --format {format!r}; use html or latex-only", err=True)
+        raise typer.Exit(code=2)
+
+    out_path = output or (input_dir / "report.html")
+    try:
+        artifact = render_html_report(
+            bundle,
+            out_path,
+            table_ids=table_ids,
+            max_item_rows=max_item_rows,
+            delta_threshold=delta_threshold,
+        )
+    except ReportRenderError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=3) from exc
+
+    typer.echo(f"Report written to {artifact.html_path}")
