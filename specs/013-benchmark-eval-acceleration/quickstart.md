@@ -34,6 +34,7 @@ Interrupt anytime (Ctrl+C); re-run the **same command** to resume items/variants
 export OFFLINE_BENCHMARK=1
 
 uv run agent-query repro judge-batch \
+  --manifest releases/paper-v1.0/manifest.yaml \
   --output reports/repro-paper-v1.0 \
   --concurrency 2
 ```

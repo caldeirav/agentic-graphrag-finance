@@ -1,8 +1,13 @@
 # Research Reproduction Guide
 
-End-to-end walkthrough for reproducing **Graph-Grounded Agentic Retrieval** paper benchmark tables on the **custom-judge** evaluation dataset (feature 012).
+End-to-end walkthrough for reproducing **Graph-Grounded Agentic Retrieval** paper benchmark tables on the **custom-judge** evaluation dataset (features **012** + **013**).
 
-For dataset generation (building custom-judge), see [custom-judge-dataset-generation.md](custom-judge-dataset-generation.md).
+| Feature | What it adds |
+|---------|----------------|
+| **012** | Five variants, frozen corpus, table export, release manifests |
+| **013** | `--defer-judge`, `judge-batch`, per-item graph slices, `--resume` checkpoints |
+
+For dataset generation (building custom-judge), see [custom-judge-dataset-generation.md](custom-judge-dataset-generation.md). Operator quickstarts: [012 quickstart](../specs/012-research-repro-kit/quickstart.md) · [013 quickstart](../specs/013-benchmark-eval-acceleration/quickstart.md).
 
 ## How live EDGAR, live judge, and offline eval fit together
 
@@ -225,6 +230,8 @@ Derives `relevant_chunk_ids` from chunk nodes under each item's `expected_sectio
 
 ### 4. Run all variants and export tables (live judge + LLM)
 
+**Recommended (013):** defer judging and enable resume so generation and Gemini scoring are decoupled and interruptible.
+
 ```bash
 export OFFLINE_BENCHMARK=1
 export USE_MOCK_JUDGE=0
@@ -232,10 +239,16 @@ export USE_MOCK_LLM=0
 
 uv run agent-query repro run-all \
   --manifest releases/paper-v1.0/manifest.yaml \
-  --output reports/repro-paper-v1.0
+  --output reports/repro-paper-v1.0 \
+  --defer-judge \
+  --resume
 ```
 
-No `--max-items` on `paper-v1.0` (full `dev` split). Live judge and LLM are **enforced** for this release tag.
+Equivalent env toggle: `REPRO_DEFER_JUDGE=1` instead of `--defer-judge`. Optional: `REPRO_JUDGE_CONCURRENCY=2` (default) for parallel judge-batch calls.
+
+**Classic (012 inline judge):** omit `--defer-judge` — Gemini runs after every item during generation (slower, harder to resume mid-variant).
+
+No `--max-items` on `paper-v1.0` (full `dev` split). Live judge and LLM are **enforced** for this release tag when defer is off.
 
 ### 5. Verify against release checksums
 
@@ -291,7 +304,15 @@ Long `paper-v1.0` runs can be interrupted. Checkpoints live under `reports/repro
 
 1. **Check progress**: `jq length reports/repro-paper-v1.0/graph-full/results.json` and `cat reports/repro-paper-v1.0/repro_run.json`
 2. **Resume generation** (default): re-run the same `repro run-all` command with `--defer-judge` if used initially; completed `item_id` rows are skipped
-3. **Judge only** (defer mode): `uv run agent-query repro judge-batch --manifest releases/paper-v1.0/manifest.yaml --output reports/repro-paper-v1.0`
+3. **Judge only** (defer mode):
+
+   ```bash
+   uv run agent-query repro judge-batch \
+     --manifest releases/paper-v1.0/manifest.yaml \
+     --output reports/repro-paper-v1.0
+   ```
+
+   Or: `repro run-all ... --judge-only` with the same manifest and output directory.
 4. **Export only**: `uv run agent-query repro run-all --manifest releases/paper-v1.0/manifest.yaml --output reports/repro-paper-v1.0 --export-only`
 5. **Reset one variant**: `rm -rf reports/repro-paper-v1.0/graph-full` and remove that variant from `completed_variants` in `repro_run.json`, or use `--no-resume` on a fresh `--output` directory
 
@@ -314,6 +335,7 @@ Long `paper-v1.0` runs can be interrupted. Checkpoints live under `reports/repro
 
 ## Design references
 
-- Spec: `specs/012-research-repro-kit/spec.md`
-- Quickstart (operator): `specs/012-research-repro-kit/quickstart.md`
+- Spec: [012](../specs/012-research-repro-kit/spec.md) · [013](../specs/013-benchmark-eval-acceleration/spec.md)
+- Quickstart: [012](../specs/012-research-repro-kit/quickstart.md) · [013](../specs/013-benchmark-eval-acceleration/quickstart.md)
 - Variant configs: `configs/reproduction/variants/`
+- Item subgraph contract: [contracts/item-subgraph.md](../specs/013-benchmark-eval-acceleration/contracts/item-subgraph.md)
