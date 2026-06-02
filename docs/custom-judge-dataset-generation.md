@@ -406,11 +406,22 @@ Generation code under `src/evaluation/generation/` must **not** import retrieval
 
 ---
 
+## Next step: paper reproduction
+
+After you **publish** a bundle (or keep a draft for smoke), run phase 2 on the frozen corpus:
+
+- **[Research reproduction guide](research-reproduction.md)** — `repro run-all`, five variants, live judge + LM Studio
+- **`releases/paper-live-smoke`** — 2-item live smoke (draft from `--run-id live-repro-smoke`)
+- **`releases/paper-v1.0`** — full published split (LFS corpus)
+
+---
+
 ## Further reading
 
 | Topic | Location |
 |-------|----------|
 | Feature requirements and success criteria | [spec.md](../specs/011-judge-eval-dataset/spec.md) |
+| Paper table reproduction (phase 2) | [research-reproduction.md](research-reproduction.md) |
 | Allowlist, materialization boundary, governance decisions | [research.md](../specs/011-judge-eval-dataset/research.md) |
 | Generation config schema | [generation-config-schema](../specs/011-judge-eval-dataset/contracts/generation-config-schema.md) |
 | Dataset bundle manifest | [dataset-bundle-manifest](../specs/011-judge-eval-dataset/contracts/dataset-bundle-manifest.md) |

@@ -26,7 +26,7 @@ jobs:
           USE_MOCK_JUDGE: "1"
           USE_FIXTURE_INGESTION: "1"
           SEC_EDGAR_USER_AGENT: "agentic-graphrag-finance-ci test@example.com"
-        run: uv run pytest tests/unit tests/contract -q
+        run: uv run pytest tests/unit tests/contract -m "not slow" -q
       - name: Integration tests
         env:
           USE_MOCK_LLM: "1"
@@ -34,4 +34,4 @@ jobs:
           USE_FIXTURE_INGESTION: "1"
           OFFLINE_BENCHMARK: "1"
           SEC_EDGAR_USER_AGENT: "agentic-graphrag-finance-ci test@example.com"
-        run: uv run pytest tests/integration -q
+        run: uv run pytest tests/integration -m "not slow" -q

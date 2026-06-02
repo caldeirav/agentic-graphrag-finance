@@ -119,6 +119,13 @@ class EvalRunRef(BaseModel):
     structural_metrics: StructuralMetrics = Field(default_factory=StructuralMetrics)
 
 
+class DeferJudgeConfig(BaseModel):
+    enabled: bool = False
+    judge_after: Literal["each_variant", "all_variants"] = "each_variant"
+    concurrency: int = 2
+    allow_pending_export: bool = False
+
+
 class ReproRun(BaseModel):
     repro_run_id: str
     release_tag: str
@@ -128,6 +135,12 @@ class ReproRun(BaseModel):
     variant_runs: list[EvalRunRef] = Field(default_factory=list)
     offline_mode: bool = True
     status: Literal["running", "completed", "failed"] = "running"
+    defer_judge: bool = False
+    current_variant: str = ""
+    completed_variants: list[str] = Field(default_factory=list)
+    items_completed: dict[str, int] = Field(default_factory=dict)
+    judge_phase_status: Literal["not_started", "partial", "complete"] = "not_started"
+    last_error: str | None = None
 
 
 class MetricRow(BaseModel):
@@ -155,6 +168,7 @@ class AuditRow(BaseModel):
     variant_id: str
     excluded_incomplete: int
     excluded_degraded: int
+    excluded_pending_judge: int = 0
     included_in_headline: int
 
 

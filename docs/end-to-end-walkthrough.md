@@ -528,7 +528,9 @@ Open the latest **`ask`** run:
 
 ## Related docs
 
-- [README](../README.md) — setup and CLI reference
+- [README](../README.md) — two workflows (interactive `ask` vs paper `repro`)
+- [Research reproduction](research-reproduction.md) — custom-judge benchmark, five variants, defer-judge
+- [Documentation index](README.md)
 - [Navigation trace checklist](navigation-trace-usability-checklist.md)
 - [Feature 010 spec](../specs/010-mlflow-trajectory-judge-eval/spec.md) — trajectory and judge requirements
 - [XBRL retrieval research](../specs/002-live-disclosure-cli/research-xbrl-retrieval.md) — design rationale for XBRL-first routing

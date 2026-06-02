@@ -51,7 +51,10 @@ packages = [
 pythonpath = ["src"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-markers = ["integration: integration tests (may need LM Studio or mocks)"]
+markers = [
+    "integration: integration tests (may need LM Studio or mocks)",
+    "slow: longer reproduction smokes (e.g. 20-item defer SC-001)",
+]
 
 [tool.ruff]
 line-length = 100

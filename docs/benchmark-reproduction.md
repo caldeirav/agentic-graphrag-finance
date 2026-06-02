@@ -1,6 +1,6 @@
 # Benchmark Reproduction
 
-> **Paper reproduction (custom-judge, five variants, table export):** see **[research-reproduction.md](research-reproduction.md)** (full walkthrough) and **[specs/012-research-repro-kit/quickstart.md](../specs/012-research-repro-kit/quickstart.md)** (operator quickstart for `paper-v1.0`).
+> **Paper reproduction (custom-judge, five variants, table export):** see **[research-reproduction.md](research-reproduction.md)** (full walkthrough). Quickstarts: [012](../specs/012-research-repro-kit/quickstart.md) · [013 defer-judge + resume](../specs/013-benchmark-eval-acceleration/quickstart.md).
 
 Legacy single-suite benchmark notes:
 
