@@ -21,6 +21,18 @@ section { background:var(--card); border-radius:8px; padding:1.25rem; margin-bot
 table { width:100%; border-collapse:collapse; font-size:.875rem; }
 th,td { border:1px solid #e2e8f0; padding:.4rem .6rem; text-align:left; }
 th { background:#f1f5f9; }
+.score-table { font-size:.82rem; }
+.score-table th.num, .score-table td.num { text-align:right; font-variant-numeric:tabular-nums; }
+.score-table th.label, .score-table td.label { white-space:nowrap; }
+.score-table tr.baseline-row { background:#eff6ff; font-weight:600; }
+.score-table-wrap { overflow-x:auto; }
+.metric-glossary { margin-top:1rem; font-size:.875rem; }
+.metric-glossary summary { cursor:pointer; font-weight:600; margin-bottom:.5rem; }
+.anomaly-list { margin:.5rem 0 0; padding-left:1.25rem; }
+.anomaly-list li { margin-bottom:.5rem; }
+.anomaly-warning { color:#b45309; }
+.anomaly-info { color:#475569; }
+.anomaly-critical { color:#be123c; }
 .copy-row { margin:.5rem 0 1rem; }
 .copy-row button { margin-right:.5rem; padding:.35rem .75rem; cursor:pointer;
   border:1px solid #cbd5e1; border-radius:4px; background:#fff; }
@@ -53,6 +65,7 @@ details summary { cursor:pointer; color:var(--accent); }
 {{EXPORT_MANIFEST}}
 {{HEADLINE_TEX}}
 {{COMPARISON}}
+{{ANOMALIES}}
 {{TABLES}}
 {{DRILLDOWN}}
 <script>

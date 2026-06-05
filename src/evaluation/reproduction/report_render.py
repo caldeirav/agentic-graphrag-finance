@@ -10,12 +10,16 @@ from pathlib import Path
 from evaluation.reproduction.report_formatters import (
     build_booktabs_latex,
     format_display_number,
+    is_numeric_column,
+    pivot_headline_table,
     rows_to_csv,
     rows_to_markdown,
     table_provenance,
 )
 from evaluation.reproduction.report_loader import bundle_source_hashes
 from evaluation.reproduction.report_models import (
+    AUDIT_COLUMN_LABELS,
+    METRIC_CATALOG,
     PRIMARY_METRICS,
     STANDARD_VARIANTS,
     ItemResultRecord,
@@ -23,7 +27,9 @@ from evaluation.reproduction.report_models import (
     PaperTableView,
     ReproOutputBundle,
     ReportArtifact,
+    RunAnomaly,
     RunSummaryView,
+    SMOKE_ITEM_THRESHOLD,
     VariantComparisonView,
     VariantCount,
     VariantMetricSeries,
@@ -72,7 +78,16 @@ def build_run_summary(bundle: ReproOutputBundle) -> RunSummaryView:
 
     variant_counts: list[VariantCount] = []
     seen: set[str] = set()
+    deduped_runs: dict[str, object] = {}
     for vr in repro.variant_runs:
+        prev = deduped_runs.get(vr.variant_id)
+        if prev is None or (vr.mlflow_parent_run_id and not prev.mlflow_parent_run_id):
+            deduped_runs[vr.variant_id] = vr
+
+    if len(deduped_runs) < len({vr.variant_id for vr in repro.variant_runs}):
+        pass  # flagged in detect_run_anomalies
+
+    for vr in deduped_runs.values():
         seen.add(vr.variant_id)
         audit = audit_by_variant.get(vr.variant_id, {})
         items_total = int(audit.get("included_in_headline", "0") or 0) + int(
@@ -106,7 +121,7 @@ def build_run_summary(bundle: ReproOutputBundle) -> RunSummaryView:
 
     mlflow_links: list[str] = []
     tracking = os.environ.get("MLFLOW_TRACKING_URI", "").strip()
-    for vr in repro.variant_runs:
+    for vr in deduped_runs.values():
         if not vr.mlflow_parent_run_id:
             continue
         if tracking and not tracking.startswith("$"):
@@ -325,30 +340,287 @@ def _render_headline_tex_html(bundle: ReproOutputBundle, generated_latex: str) -
 </section>"""
 
 
-def _render_comparison_html(comparison: VariantComparisonView) -> str:
-    if not comparison.series:
-        return ""
-    parts = ['<section id="comparison"><h2>Variant comparison</h2>']
-    for metric in comparison.metric_names:
-        max_val = max((s.values_by_metric.get(metric, 0.0) for s in comparison.series), default=1.0)
-        max_val = max_val if max_val > 0 else 1.0
-        parts.append(f"<h3>{html.escape(metric)}</h3><div class='bar-chart'>")
-        for s in comparison.series:
-            val = s.values_by_metric.get(metric, 0.0)
-            pct = min(100.0, (val / max_val) * 100.0)
-            delta = s.delta_vs_baseline.get(metric)
-            delta_txt = f" (Δ {delta:+.3f})" if delta is not None and s.variant_id != comparison.baseline_variant else ""
-            parts.append(
-                f"<div class='bar-row'><span class='bar-label'>{html.escape(s.variant_id)}</span>"
-                f"<div class='bar-track'><div class='bar-fill' style='width:{pct:.1f}%'></div></div>"
-                f"<span class='bar-value'>{val:.3f}{delta_txt}</span></div>"
+def _column_header(col: str) -> tuple[str, str]:
+    if col in METRIC_CATALOG:
+        md = METRIC_CATALOG[col]
+        return md.display_name, md.definition
+    if col in AUDIT_COLUMN_LABELS:
+        return AUDIT_COLUMN_LABELS[col]
+    label = col.replace("_", " ").title()
+    return label, label
+
+
+def detect_run_anomalies(bundle: ReproOutputBundle) -> list[RunAnomaly]:
+    """Heuristic flags for operator investigation (read-only over artifacts)."""
+    anomalies: list[RunAnomaly] = []
+    repro = bundle.repro_run
+    headline = bundle.tables.get("headline")
+
+    variant_ids = [vr.variant_id for vr in repro.variant_runs]
+    if len(variant_ids) != len(set(variant_ids)):
+        anomalies.append(
+            RunAnomaly(
+                severity="warning",
+                message="repro_run.json lists duplicate variant_runs entries",
+                hint="Summary deduplicates by variant_id; consider cleaning repro_run.json on next export.",
             )
-        parts.append("</div>")
-    parts.append("</section>")
+        )
+
+    if headline and headline.rows:
+        n = int(headline.rows[0].get("item_count", "0") or 0)
+        if n <= SMOKE_ITEM_THRESHOLD:
+            anomalies.append(
+                RunAnomaly(
+                    severity="info",
+                    message=f"Small benchmark sample (n={n} items per variant)",
+                    hint="paper-live-smoke uses --max-items 2; treat ranking splits as indicative only.",
+                )
+            )
+
+        rubric_vals = [
+            float(r["value"])
+            for r in headline.rows
+            if r["metric_name"] == "rubric_alignment"
+        ]
+        if rubric_vals and all(v == 0.0 for v in rubric_vals):
+            anomalies.append(
+                RunAnomaly(
+                    severity="warning",
+                    message="Rubric alignment is 0.0 for every variant",
+                    hint="Check judge populates alignment_score (claim_presence); items may lack rubric GT.",
+                )
+            )
+
+        fid_vals = [
+            float(r["value"])
+            for r in headline.rows
+            if r["metric_name"] == "trajectory_fidelity"
+        ]
+        if fid_vals and all(v >= 0.999 for v in fid_vals):
+            anomalies.append(
+                RunAnomaly(
+                    severity="info",
+                    message="Trajectory fidelity is ~1.0 for all variants",
+                    hint="Verify judge is discriminating trajectories; ceiling may mask routing differences.",
+                )
+            )
+
+    struct_zero = all(
+        vr.structural_metrics.accession_binding_accuracy == 0.0
+        and vr.structural_metrics.section_path_hit_rate == 0.0
+        for vr in repro.variant_runs
+    )
+    if struct_zero and repro.variant_runs:
+        anomalies.append(
+            RunAnomaly(
+                severity="warning",
+                message="Structural binding metrics are 0.0 for all variant runs",
+                hint="Inspect accession_binding_accuracy computation or expected_bindings in benchmark items.",
+            )
+        )
+
+    for variant_id, records in bundle.variant_results.items():
+        for rec in records:
+            if rec.judge_status == "ok" and rec.citation_count == 0 and variant_id != "flat-chunk":
+                anomalies.append(
+                    RunAnomaly(
+                        severity="warning",
+                        message=f"{variant_id}/{rec.item_id}: judge ok but zero citations",
+                        hint="Answer may be ungrounded; open item drill-down and results.json.",
+                    )
+                )
+            if (
+                rec.outcome_score is not None
+                and rec.outcome_score >= 0.9
+                and rec.ndcg_at_10 is not None
+                and rec.ndcg_at_10 == 0.0
+                and variant_id not in {"ablation-no-walker", "ablation-xbrl-only"}
+            ):
+                anomalies.append(
+                    RunAnomaly(
+                        severity="warning",
+                        message=(
+                            f"{variant_id}/{rec.item_id}: high outcome ({rec.outcome_score:.2f}) "
+                            "but nDCG@10=0"
+                        ),
+                        hint="Judge score and retrieval ranking disagree; inspect citations vs relevance labels.",
+                    )
+                )
+
+    if headline:
+        by_var: dict[str, dict[str, float]] = {}
+        for row in headline.rows:
+            by_var.setdefault(row["variant_id"], {})[row["metric_name"]] = float(row["value"])
+
+        for vid, metrics in by_var.items():
+            mrr = metrics.get("mrr")
+            if mrr is None or mrr > 0.0:
+                continue
+            records = bundle.variant_results.get(vid, [])
+            total_cites = sum(r.citation_count for r in records)
+            if vid == "flat-chunk" and total_cites > 0:
+                anomalies.append(
+                    RunAnomaly(
+                        severity="info",
+                        message=f"{vid}: MRR/MAP/nDCG are 0 despite {total_cites} total citations",
+                        hint=(
+                            "Expected for dense flat-chunk when cited chunks (e.g. sec-0, XBRL) "
+                            "do not match graph-grounded relevance labels (html-risk_factors chunks). "
+                            "Ranking metrics measure label overlap, not citation count."
+                        ),
+                    )
+                )
+            elif vid == "ablation-no-walker":
+                anomalies.append(
+                    RunAnomaly(
+                        severity="info",
+                        message=f"{vid}: MRR/MAP/nDCG are 0 (no citations retrieved)",
+                        hint=(
+                            "Expected when disable_graph_walker prevents reaching HTML narrative "
+                            "chunks; relevance labels target html-risk_factors sections."
+                        ),
+                    )
+                )
+            elif vid == "ablation-xbrl-only":
+                anomalies.append(
+                    RunAnomaly(
+                        severity="info",
+                        message=f"{vid}: MRR/MAP/nDCG are 0 (no citations retrieved)",
+                        hint=(
+                            "Expected for xbrl_only mode: retrieval is limited to XBRL facts while "
+                            "relevance labels are HTML narrative chunks for this smoke set."
+                        ),
+                    )
+                )
+
+        gf = by_var.get("graph-full", {})
+        for vid, metrics in by_var.items():
+            if vid == "graph-full":
+                continue
+            oa = metrics.get("outcome_accuracy")
+            gf_oa = gf.get("outcome_accuracy")
+            if oa is not None and gf_oa is not None and oa > gf_oa + 0.05:
+                anomalies.append(
+                    RunAnomaly(
+                        severity="info",
+                        message=f"{vid} outcome_accuracy ({oa:.2f}) exceeds graph-full ({gf_oa:.2f})",
+                        hint="Unexpected for smoke; verify item-level results before citing in paper.",
+                    )
+                )
+
+    duration_h: float | None = None
+    if repro.completed_at and repro.started_at:
+        duration_h = (repro.completed_at - repro.started_at).total_seconds() / 3600.0
+    if duration_h is not None and duration_h > 24 and headline and headline.rows:
+        n = int(headline.rows[0].get("item_count", "0") or 0)
+        if n <= SMOKE_ITEM_THRESHOLD:
+            anomalies.append(
+                RunAnomaly(
+                    severity="info",
+                    message=f"Long wall-clock ({duration_h:.1f}h) for n={n} smoke items",
+                    hint="Run was likely paused/resumed; check repro_run.json timestamps.",
+                )
+            )
+
+    return anomalies
+
+
+def _render_anomalies_html(anomalies: list[RunAnomaly]) -> str:
+    if not anomalies:
+        return (
+            '<section id="anomalies"><h2>Investigation notes</h2>'
+            "<p>No automated anomalies flagged for this output.</p></section>"
+        )
+    items: list[str] = []
+    for a in anomalies:
+        hint = f"<br/><small>{html.escape(a.hint)}</small>" if a.hint else ""
+        items.append(
+            f"<li class='anomaly-{a.severity}'><strong>[{a.severity}]</strong> "
+            f"{html.escape(a.message)}{hint}</li>"
+        )
+    return (
+        '<section id="anomalies"><h2>Investigation notes</h2>'
+        "<p>Automated checks on this repro output; confirm in item drill-down before acting.</p>"
+        f"<ul class='anomaly-list'>{''.join(items)}</ul></section>"
+    )
+
+
+def _render_metric_glossary_html(columns: list[str]) -> str:
+    metric_cols = [c for c in columns if c in METRIC_CATALOG]
+    if not metric_cols:
+        return ""
+    rows = []
+    for col in metric_cols:
+        md = METRIC_CATALOG[col]
+        rows.append(
+            f"<tr><td><code>{html.escape(md.metric_id)}</code></td>"
+            f"<td>{html.escape(md.display_name)}</td>"
+            f"<td>{html.escape(md.definition)}</td>"
+            f"<td>{html.escape(md.source)}</td></tr>"
+        )
+    return (
+        '<details id="metric-glossary" class="metric-glossary" open>'
+        "<summary>Metric definitions</summary>"
+        "<table><thead><tr><th>ID</th><th>Name</th><th>Definition</th><th>Source</th>"
+        "</tr></thead><tbody>"
+        f"{''.join(rows)}</tbody></table></details>"
+    )
+
+
+def _render_score_matrix_html(
+    columns: list[str],
+    rows: list[dict[str, str]],
+    *,
+    baseline_variant: str = "graph-full",
+    table_class: str = "score-table",
+) -> str:
+    parts = [f"<table class='{table_class}'><thead><tr>"]
+    for col in columns:
+        display, tooltip = _column_header(col)
+        cls = "num" if is_numeric_column(col) else "label"
+        parts.append(
+            f"<th class='{cls}' title=\"{html.escape(tooltip)}\">{html.escape(display)}</th>"
+        )
+    parts.append("</tr></thead><tbody>")
+    for row in rows:
+        is_baseline = row.get("variant_id") == baseline_variant
+        tr_cls = "baseline-row" if is_baseline else ""
+        parts.append(f"<tr class='{tr_cls}'>")
+        for col in columns:
+            raw = row.get(col, "")
+            cls = "num" if is_numeric_column(col) else "label"
+            if col == "variant_id":
+                text = html.escape(str(raw))
+            else:
+                text = html.escape(format_display_number(str(raw)))
+            parts.append(f"<td class='{cls}'>{text}</td>")
+        parts.append("</tr>")
+    parts.append("</tbody></table>")
     return "".join(parts)
 
 
-def _render_tables_html(views: list[PaperTableView]) -> str:
+def _render_comparison_html(comparison: VariantComparisonView, bundle: ReproOutputBundle) -> str:
+    headline = bundle.tables.get("headline")
+    if headline is None or not headline.rows:
+        return ""
+
+    columns, rows = pivot_headline_table(headline.rows)
+    matrix = _render_score_matrix_html(
+        columns,
+        rows,
+        baseline_variant=comparison.baseline_variant,
+    )
+    return (
+        '<section id="comparison"><h2>Variant comparison</h2>'
+        "<p>Variants as rows, evaluation metrics as columns "
+        f"(baseline: <code>{html.escape(comparison.baseline_variant)}</code>). "
+        "Hover column headers for definitions.</p>"
+        f'<div class="score-table-wrap">{matrix}</div>'
+        f"{_render_metric_glossary_html(columns)}</section>"
+    )
+
+
+def _render_tables_html(views: list[PaperTableView], bundle: ReproOutputBundle) -> str:
     parts = ['<section id="paper-tables"><h2>Paper tables</h2>']
     for view in views:
         tid = view.table_id.value
@@ -363,6 +635,15 @@ def _render_tables_html(views: list[PaperTableView]) -> str:
         parts.append(f"<pre id='latex-{tid}' class='hidden'>{html.escape(view.latex_copy)}</pre>")
         parts.append(f"<pre id='csv-{tid}' class='hidden'>{html.escape(view.csv_copy)}</pre>")
         parts.append(f"<pre id='md-{tid}' class='hidden'>{html.escape(view.markdown_copy)}</pre>")
+
+        if view.table_id == PaperTableId.HEADLINE:
+            columns, rows = pivot_headline_table(view.rows)
+            parts.append(
+                "<p><em>Comparison layout below; copy buttons use canonical long-format export.</em></p>"
+            )
+            parts.append(_render_score_matrix_html(columns, rows))
+            continue
+
         parts.append("<table><thead><tr>")
         parts.append("".join(f"<th>{html.escape(c)}</th>" for c in view.columns))
         parts.append("</tr></thead><tbody>")
@@ -485,6 +766,7 @@ def render_html_report(
 
     summary = build_run_summary(bundle)
     comparison = build_variant_comparison(bundle)
+    anomalies = detect_run_anomalies(bundle)
     all_views = build_paper_table_views(bundle)
     if table_ids:
         allowed = {t.value for t in table_ids}
@@ -499,8 +781,9 @@ def render_html_report(
         .replace("{{SUMMARY}}", _render_summary_html(summary))
         .replace("{{EXPORT_MANIFEST}}", _render_export_manifest_html(summary))
         .replace("{{HEADLINE_TEX}}", _render_headline_tex_html(bundle, headline_latex))
-        .replace("{{COMPARISON}}", _render_comparison_html(comparison))
-        .replace("{{TABLES}}", _render_tables_html(all_views))
+        .replace("{{COMPARISON}}", _render_comparison_html(comparison, bundle))
+        .replace("{{ANOMALIES}}", _render_anomalies_html(anomalies))
+        .replace("{{TABLES}}", _render_tables_html(all_views, bundle))
         .replace("{{DRILLDOWN}}", _render_drilldown_html(bundle, max_item_rows=max_item_rows))
     )
 

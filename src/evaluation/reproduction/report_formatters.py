@@ -6,7 +6,10 @@ import csv
 import io
 from typing import Any
 
-from evaluation.reproduction.report_models import PaperTableId
+from evaluation.reproduction.report_models import STANDARD_VARIANTS, PaperTableId
+
+_META_COLUMNS = ("item_count", "excluded_incomplete", "excluded_degraded")
+_NUMERIC_HEADLINE_COLUMNS = frozenset({"value", "delta", *_META_COLUMNS})
 
 _LATEX_ESCAPE_ORDER = ("\\", "&", "%", "$", "#", "_", "{", "}", "~", "^")
 
@@ -96,7 +99,7 @@ def build_booktabs_latex(
         cells = []
         for col in columns:
             raw = row.get(col, "")
-            if col in {"value", "delta"}:
+            if is_numeric_column(col):
                 cells.append(format_display_number(raw))
             else:
                 cells.append(escape_latex(str(raw)))
@@ -114,6 +117,44 @@ def build_booktabs_latex(
         ]
     )
     return "\n".join(lines) + "\n"
+
+
+def pivot_headline_table(
+    rows: list[dict[str, str]],
+) -> tuple[list[str], list[dict[str, str]]]:
+    """Wide layout for HTML: one row per variant, one column per metric."""
+    metrics: list[str] = []
+    seen_metrics: set[str] = set()
+    meta_by_variant: dict[str, dict[str, str]] = {}
+    values: dict[str, dict[str, str]] = {}
+
+    for row in rows:
+        vid = row["variant_id"]
+        metric = row["metric_name"]
+        if metric not in seen_metrics:
+            seen_metrics.add(metric)
+            metrics.append(metric)
+        values.setdefault(vid, {})[metric] = row["value"]
+        if vid not in meta_by_variant:
+            meta_by_variant[vid] = {k: row.get(k, "") for k in _META_COLUMNS}
+
+    order = [v for v in STANDARD_VARIANTS if v in values]
+    order.extend(sorted(v for v in values if v not in order))
+
+    columns = ["variant_id", *_META_COLUMNS, *metrics]
+    pivoted: list[dict[str, str]] = []
+    for vid in order:
+        out = {"variant_id": vid, **meta_by_variant.get(vid, {k: "" for k in _META_COLUMNS})}
+        for metric in metrics:
+            out[metric] = values.get(vid, {}).get(metric, "—")
+        pivoted.append(out)
+    return columns, pivoted
+
+
+def is_numeric_column(col: str) -> bool:
+    if col in _NUMERIC_HEADLINE_COLUMNS:
+        return True
+    return col not in {"variant_id", "baseline_variant", "comparison_variant", "metric_name", "na_reason", "inspiration_profile"}
 
 
 def table_provenance(

@@ -27,5 +27,6 @@ def test_render_html_from_live_smoke_or_fixture(tmp_path: Path) -> None:
     assert out.is_file()
     html = out.read_text(encoding="utf-8")
     assert "Run Summary" in html
-    assert "headline" in html.lower() or "Paper tables" in html
+    assert "score-table" in html
+    assert "outcome_accuracy" in html.lower() or "outcome accuracy" in html.lower()
     assert "http" not in html.lower() or "mlflow" in html.lower()  # no CDN scripts

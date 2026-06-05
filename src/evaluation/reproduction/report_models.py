@@ -29,6 +29,97 @@ STANDARD_VARIANTS: tuple[str, ...] = (
 )
 PRIMARY_METRICS: tuple[str, ...] = ("outcome_accuracy", "ndcg_at_10", "trajectory_fidelity")
 
+SMOKE_ITEM_THRESHOLD = 5
+
+
+class MetricDefinition(BaseModel):
+    metric_id: str
+    display_name: str
+    definition: str
+    source: str
+
+
+METRIC_CATALOG: dict[str, MetricDefinition] = {
+    "outcome_accuracy": MetricDefinition(
+        metric_id="outcome_accuracy",
+        display_name="Outcome accuracy",
+        definition=(
+            "Mean external-judge outcome score on items with answer ground truth "
+            "(synthesis grounding vs expected answer). Excludes incomplete and degraded items."
+        ),
+        source="Judge verdict → outcome_score",
+    ),
+    "rubric_alignment": MetricDefinition(
+        metric_id="rubric_alignment",
+        display_name="Rubric alignment",
+        definition=(
+            "Mean claim-presence / alignment score on items with rubric ground truth. "
+            "Finder-profile items without answer GT may be rubric-only (see by_profile na_reason)."
+        ),
+        source="Judge verdict → alignment_score (claim_presence)",
+    ),
+    "trajectory_fidelity": MetricDefinition(
+        metric_id="trajectory_fidelity",
+        display_name="Trajectory fidelity",
+        definition=(
+            "Mean score for how well the agent navigated the filing: sensible routing, "
+            "visiting expected sections, and retrieving evidence that supports the answer. "
+            "Combines structural trace overlap with an external Gemini judge rubric "
+            "(trajectory coherence, routing decisions, retrieval fidelity). "
+            "Excludes incomplete items."
+        ),
+        source=(
+            "MLflow agent trace + Gemini judge rubrics "
+            "(see configs/judges/gemini_2_5_pro.yaml)"
+        ),
+    ),
+    "mrr": MetricDefinition(
+        metric_id="mrr",
+        display_name="MRR",
+        definition=(
+            "Mean reciprocal rank of the first cited chunk that appears in the item's "
+            "relevance labels. Computed from answer citation chunk_node_ids (in order) "
+            "vs graph-grounded relevant_chunk_ids. 0 means no cited chunk matched a "
+            "labeled relevant chunk."
+        ),
+        source="Citation list vs materialized relevant_chunk_ids (012 relevance gate)",
+    ),
+    "map": MetricDefinition(
+        metric_id="map",
+        display_name="MAP",
+        definition=(
+            "Mean average precision: how many labeled relevant chunks appear early in "
+            "the answer's citation list. Same citation-vs-labels comparison as MRR; "
+            "0 means no overlap between citations and relevance labels."
+        ),
+        source="Citation list vs materialized relevant_chunk_ids (012 relevance gate)",
+    ),
+    "ndcg_at_10": MetricDefinition(
+        metric_id="ndcg_at_10",
+        display_name="nDCG@10",
+        definition=(
+            "Normalized discounted cumulative gain at rank 10 over the citation list, "
+            "using relevant_chunk_ids as ground truth. Rewards retrieving labeled "
+            "chunks near the top of the citation ordering."
+        ),
+        source="Citation list vs materialized relevant_chunk_ids (012 relevance gate)",
+    ),
+}
+
+AUDIT_COLUMN_LABELS: dict[str, tuple[str, str]] = {
+    "variant_id": ("Variant", "Reproduction system variant (graph-full baseline vs ablations)"),
+    "item_count": ("Items (n)", "Benchmark items included in the headline aggregate"),
+    "excluded_incomplete": ("Excl. incomplete", "Items dropped for incomplete validation status"),
+    "excluded_degraded": ("Excl. degraded", "Items dropped because judge_status=degraded"),
+    "excluded_pending_judge": ("Pending judge", "Items awaiting deferred judge batch"),
+}
+
+
+class RunAnomaly(BaseModel):
+    severity: str  # info | warning | critical
+    message: str
+    hint: str = ""
+
 CSV_HEADERS: dict[PaperTableId, tuple[str, ...]] = {
     PaperTableId.HEADLINE: (
         "variant_id",
