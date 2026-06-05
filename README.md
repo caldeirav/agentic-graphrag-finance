@@ -86,6 +86,7 @@ uv run agent-query --help
 | `mlflow-clean` | Reset local MLflow SQLite store |
 | `benchmark-dataset` | Generate **custom-judge** evaluation items (live EDGAR + Gemini) |
 | `repro` | Run paper benchmark variants and export tables (offline corpus) |
+| `repro report` | HTML report + one-click LaTeX/CSV/Markdown table copy from repro output |
 
 Snapshots live under `data/graphs/{TICKER}/` (`{snapshot_id}.graphml`, manifest, reachability report). Raw XBRL: `data/raw/sec_downloads/{ticker}/{accession}/`.
 
@@ -119,6 +120,12 @@ uv run agent-query repro run-all \
 ```
 
 Tables: `reports/repro-live-smoke/tables/headline.csv`, etc.
+
+Generate an investigation report and copy LaTeX into your manuscript:
+
+```bash
+uv run agent-query repro report --input reports/repro-live-smoke
+```
 
 ### Full `paper-v1.0` (recommended: defer judge + resume)
 

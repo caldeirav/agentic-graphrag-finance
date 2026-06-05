@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Reproduction Report — {{RELEASE_TAG}}</title>
+<style>
+:root { --bg:#f8f9fb; --card:#fff; --text:#1a1a2e; --muted:#5c6370; --accent:#2563eb;
+  --degraded:#b45309; --pending:#7c3aed; --not-eval:#be123c; --flag:#dc2626; }
+* { box-sizing:border-box; }
+body { font-family: system-ui, -apple-system, sans-serif; margin:0; padding:1.5rem;
+  background:var(--bg); color:var(--text); line-height:1.5; }
+h1,h2,h3 { margin-top:0; }
+section { background:var(--card); border-radius:8px; padding:1.25rem; margin-bottom:1.25rem;
+  box-shadow:0 1px 3px rgba(0,0,0,.08); }
+.summary-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:1rem; }
+.card { background:#f1f5f9; padding:.75rem 1rem; border-radius:6px; }
+.card .label { font-size:.75rem; color:var(--muted); text-transform:uppercase; }
+.card .value { font-size:1.1rem; font-weight:600; }
+.warnings { background:#fef3c7; padding:.75rem; border-radius:6px; font-size:.9rem; }
+table { width:100%; border-collapse:collapse; font-size:.875rem; }
+th,td { border:1px solid #e2e8f0; padding:.4rem .6rem; text-align:left; }
+th { background:#f1f5f9; }
+.score-table { font-size:.82rem; }
+.score-table th.num, .score-table td.num { text-align:right; font-variant-numeric:tabular-nums; }
+.score-table th.label, .score-table td.label { white-space:nowrap; }
+.score-table tr.baseline-row { background:#eff6ff; font-weight:600; }
+.score-table-wrap { overflow-x:auto; }
+.metric-glossary { margin-top:1rem; font-size:.875rem; }
+.metric-glossary summary { cursor:pointer; font-weight:600; margin-bottom:.5rem; }
+.anomaly-list { margin:.5rem 0 0; padding-left:1.25rem; }
+.anomaly-list li { margin-bottom:.5rem; }
+.anomaly-warning { color:#b45309; }
+.anomaly-info { color:#475569; }
+.anomaly-critical { color:#be123c; }
+.copy-row { margin:.5rem 0 1rem; }
+.copy-row button { margin-right:.5rem; padding:.35rem .75rem; cursor:pointer;
+  border:1px solid #cbd5e1; border-radius:4px; background:#fff; }
+.copy-row button:hover { background:#e2e8f0; }
+.bar-chart { display:flex; flex-direction:column; gap:.75rem; }
+.bar-row { display:flex; align-items:center; gap:.5rem; }
+.bar-label { width:140px; font-size:.8rem; flex-shrink:0; }
+.bar-track { flex:1; background:#e2e8f0; height:18px; border-radius:4px; overflow:hidden; }
+.bar-fill { height:100%; background:var(--accent); border-radius:4px; }
+.bar-value { width:48px; font-size:.8rem; text-align:right; }
+.filters { display:flex; flex-wrap:wrap; gap:.5rem; margin-bottom:1rem; align-items:center; }
+.filters select, .filters input { padding:.35rem .5rem; }
+.chip { padding:.25rem .6rem; border-radius:999px; border:1px solid #cbd5e1;
+  background:#fff; cursor:pointer; font-size:.8rem; }
+.chip.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+tr.status-degraded { background:#fff7ed; }
+tr.status-pending { background:#f5f3ff; }
+tr.status-not_evaluable { background:#fff1f2; }
+tr.flag-binding_miss, tr.flag-high_delta { outline:2px solid var(--flag); outline-offset:-2px; }
+details summary { cursor:pointer; color:var(--accent); }
+.headline-tex { background:#f8fafc; padding:1rem; overflow:auto; font-size:.8rem;
+  border:1px solid #e2e8f0; border-radius:6px; max-height:240px; }
+.hidden { display:none; }
+</style>
+</head>
+<body>
+<h1>Reproduction Report</h1>
+{{WARNINGS}}
+{{SUMMARY}}
+{{EXPORT_MANIFEST}}
+{{HEADLINE_TEX}}
+{{COMPARISON}}
+{{ANOMALIES}}
+{{TABLES}}
+{{DRILLDOWN}}
+<script>
+function copyText(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent).then(function() {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(function() { btn.textContent = orig; }, 1200);
+  });
+}
+(function() {
+  var chips = document.querySelectorAll('.chip[data-filter-status]');
+  chips.forEach(function(chip) {
+    chip.addEventListener('click', function() {
+      chips.forEach(function(c) { c.classList.remove('active'); });
+      chip.classList.add('active');
+      var status = chip.getAttribute('data-filter-status');
+      document.querySelectorAll('.item-row').forEach(function(row) {
+        if (status === 'all') { row.classList.remove('hidden'); return; }
+        row.classList.toggle('hidden', row.getAttribute('data-status') !== status);
+      });
+    });
+  });
+  var variantSel = document.getElementById('filter-variant');
+  var profileSel = document.getElementById('filter-profile');
+  var statusSel = document.getElementById('filter-judge-status');
+  function applyFilters() {
+    var v = variantSel ? variantSel.value : 'all';
+    var p = profileSel ? profileSel.value : 'all';
+    var s = statusSel ? statusSel.value : 'all';
+    document.querySelectorAll('.item-row').forEach(function(row) {
+      var ok = (v === 'all' || row.getAttribute('data-variant') === v)
+        && (p === 'all' || row.getAttribute('data-profile') === p)
+        && (s === 'all' || row.getAttribute('data-status') === s);
+      row.classList.toggle('hidden', !ok);
+    });
+  }
+  [variantSel, profileSel, statusSel].forEach(function(el) {
+    if (el) el.addEventListener('change', applyFilters);
+  });
+})();
+</script>
+</body>
+</html>
