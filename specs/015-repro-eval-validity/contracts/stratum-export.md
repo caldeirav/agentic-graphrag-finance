@@ -112,6 +112,10 @@ ablation_guidance:
     valid_comparisons:
       - baseline: graph-full
         comparison: ablation-no-walker
+    ranking_margin:
+      graph_full_mrr_min: 0.10
+      ablation_no_walker_mrr_max: 0.05
+      abstention_rate_min: 0.80  # ablation-no-walker on HTML stratum (SC-006)
     notes: "Walker required for HTML narrative chunks"
   xbrl:
     valid_comparisons:
@@ -127,4 +131,4 @@ ablation_guidance:
 
 - Sum of `item_count` across strata (per variant, per metric) ≤ total eligible dev items
 - SC-005: all five variants present for html, xbrl, mixed strata
-- SC-006: HTML stratum `ablation-no-walker.abstention_rate` ≥ 0.80 on paper-v1.0 after re-judge
+- SC-006: HTML stratum on paper-v1.0 after re-judge — `ablation-no-walker.abstention_rate` ≥ 0.80, `graph-full.mrr` ≥ 0.10, `ablation-no-walker.mrr` ≤ 0.05 (thresholds in manifest `ranking_margin`)

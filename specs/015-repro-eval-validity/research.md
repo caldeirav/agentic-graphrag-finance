@@ -4,7 +4,7 @@
 
 ## R1 — Evidence stratum classification
 
-**Decision**: Assign `primary_evidence_source` using the uniform all-or-mixed rule on `relevant_chunk_ids`: classify each chunk id as `html` or `xbrl` via substring heuristics aligned with `walker.py` (`html-` in id → html; `xbrl` in id or `CHUNK_XBRL` pattern → xbrl); if all html → `html`, all xbrl → `xbrl`, both types → `mixed`, empty list → `unknown`.
+**Decision**: Assign `primary_evidence_source` using per-chunk classification then the uniform all-or-mixed rule on `relevant_chunk_ids`: `-html-` or `html-` prefix → html; `xbrl` substring (case-insensitive) → xbrl; any other non-empty id → html (legacy narrative ids); if all html → `html`, all xbrl → `xbrl`, both types → `mixed`, empty list → `unknown`.
 
 **Rationale**: Matches clarified spec rule and existing graph node id conventions (`doc-{accession}-html-{section}`, `doc-{accession}-xbrl-{hash}`). No manual per-item tags required for v1.
 

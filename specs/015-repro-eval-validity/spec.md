@@ -17,6 +17,8 @@
 - Q: What acceptance threshold applies for graph-full vs abstaining ablations on outcome_accuracy (SC-001)? → A: Strict ordering — graph-full MUST be strictly greater than both abstaining ablations on the full dev split (no tolerance band).
 - Q: How should stratum-scoped variant deltas be exported (FR-014)? → A: New file `variant_delta_by_source.csv` with stratum column; existing `variant_delta.csv` remains pooled full-split deltas only.
 - Q: Which variants receive structural audit metrics (FR-005)? → A: All five standard variants — accession binding, section path hit rate, and multi-filing success recorded per variant.
+- Q: How should chunk ids without explicit `-html-` or `xbrl` markers be classified for stratum assignment? → A: Per-chunk rule before the uniform stratum rule: ids containing `-html-` or starting with `html-` → HTML narrative; ids containing `xbrl` (case-insensitive) → XBRL; all other non-empty ids → HTML narrative (legacy `sec-*` / narrative section ids). Empty `relevant_chunk_ids` → `unknown` stratum only (not per-chunk).
+- Q: What ranking margin satisfies SC-006 for graph-full vs no-walker on the HTML stratum? → A: On HTML stratum after re-export: `graph-full` MRR ≥ 0.10 and `ablation-no-walker` MRR ≤ 0.05; documented in `releases/paper-v1.0/manifest.yaml` `ablation_guidance.html.ranking_margin`.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -43,7 +45,7 @@ An evaluation engineer wants graph-full runs to produce financially grounded ans
 
 **Why this priority**: Ranking metrics show graph retrieval works; remaining gaps are synthesis quality on partial evidence and missing structural binding scores in reproduction run metadata.
 
-**Independent Test**: Run a smoke reproduction on graph-full (≥10 items with expected bindings); verify structural audit fields are populated and sampled financebench items do not state numbers unsupported by citations.
+**Independent Test**: Run a smoke reproduction across **all five standard variants** (≥10 binding-heavy items per variant or full smoke split); verify each variant's `structural_metrics` in `repro_run.json` are non-zero when `expected_bindings` exist, and sampled financebench items do not state numbers unsupported by citations.
 
 **Acceptance Scenarios**:
 
@@ -126,7 +128,7 @@ A paper author wants ablation comparisons split by evidence type (HTML narrative
 
 #### P3 — Stratified ablation reporting
 
-- **FR-012**: Each custom-judge dev item MUST receive primary evidence source at publish or export time using the uniform stratum rule: if every `relevant_chunk_id` is an HTML narrative chunk → `html`; if every id is XBRL → `xbrl`; if both types appear → `mixed`; if labels are empty → `unknown`.
+- **FR-012**: Each custom-judge dev item MUST receive primary evidence source at publish or export time. Classify each `relevant_chunk_id` first (`-html-` / `html-` prefix → HTML; `xbrl` substring → XBRL; otherwise → HTML narrative for legacy ids), then apply the uniform stratum rule: all HTML → `html`; all XBRL → `xbrl`; both types → `mixed`; empty labels → `unknown`.
 - **FR-013**: Paper export MUST include a by-evidence-source table with headline metrics and abstention rate per variant and stratum.
 - **FR-014**: Paper export MUST produce `variant_delta_by_source.csv` with columns including `primary_evidence_source`, `baseline_variant`, `comparison_variant`, `metric_name`, and `delta`. Existing `variant_delta.csv` MUST remain pooled full-split deltas only (unchanged schema).
 - **FR-015**: The results viewer MUST render a stratified ablation section per evidence source.
@@ -150,7 +152,7 @@ A paper author wants ablation comparisons split by evidence type (HTML narrative
 - **SC-003**: On a smoke run with binding-heavy items, structural audit metrics are non-zero in reproduction run metadata for each variant that processes those items (all five variants on full repro).
 - **SC-004**: Full reproduction reports contain no more than 25 top-level investigation notes (aggregated, not per-item duplicates).
 - **SC-005**: Stratified export covers all five standard variants across html, xbrl, and mixed strata with item counts summing to eligible dev items.
-- **SC-006**: On the HTML stratum, no-walker abstention rate is at least 80% and graph-full retrieval ranking exceeds no-walker by a documented margin.
+- **SC-006**: On the HTML stratum after re-export, `ablation-no-walker` abstention rate is at least 80%, `graph-full` MRR is at least 0.10, and `ablation-no-walker` MRR is at most 0.05 (margins documented in `releases/paper-v1.0/manifest.yaml` `ablation_guidance.html.ranking_margin`).
 - **SC-007**: Operators can re-score, re-export, and regenerate a report from existing output in under 30 minutes of active time (excluding external judge queue time).
 
 ## Assumptions

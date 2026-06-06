@@ -35,15 +35,16 @@ Per-item classification derived at export or publish time.
 | `mixed` | Both types present |
 | `unknown` | Empty `relevant_chunk_ids` |
 
-**Chunk classification** (implementation):
+**Chunk classification** (normative per spec clarification 2026-06-06; applied before uniform stratum rule):
 
 | Condition on chunk id | Type |
 |-----------------------|------|
 | contains `-html-` or starts with `html-` | html |
 | contains `xbrl` (case-insensitive) | xbrl |
-| otherwise | html if no xbrl marker (conservative default for narrative sec-* ids) |
+| any other non-empty id | html (legacy narrative ids e.g. `sec-*` without explicit markers) |
+| (no ids — empty `relevant_chunk_ids` list) | stratum `unknown` only; no per-chunk classification |
 
-Validation: `assign_primary_evidence_source(ids) -> Literal["html","xbrl","mixed","unknown"]` is pure and unit-tested.
+Validation: `classify_chunk_id(id) -> Literal["html","xbrl"]`; `assign_primary_evidence_source(ids) -> Literal["html","xbrl","mixed","unknown"]` is pure and unit-tested.
 
 ## AbstentionRate
 
