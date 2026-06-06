@@ -31,8 +31,8 @@ description: "Task list for reproduction evaluation validity and stratified abla
 
 **Purpose**: Confirm P0 scoring fixes are present; no re-implementation of FR-000
 
-- [ ] T001 Rebase or merge `015-repro-eval-validity` onto `main` so P0 modules are present: `src/evaluation/judges/outcome_scoring.py`, `src/tracing/trajectory_export.py` (`normalize_trajectory_state`), `src/evaluation/reproduction/export.py` (`load_item_contexts`)
-- [ ] T002 [P] Run and pass existing P0 tests: `tests/unit/test_outcome_scoring.py`, `tests/unit/test_trajectory_state_normalize.py`, export-tables tests in `tests/unit/test_paper_table_export.py`
+- [x] T001 Rebase or merge `015-repro-eval-validity` onto `main` so P0 modules are present: `src/evaluation/judges/outcome_scoring.py`, `src/tracing/trajectory_export.py` (`normalize_trajectory_state`), `src/evaluation/reproduction/export.py` (`load_item_contexts`)
+- [x] T002 [P] Run and pass existing P0 tests: `tests/unit/test_outcome_scoring.py`, `tests/unit/test_trajectory_state_normalize.py`, export-tables tests in `tests/unit/test_paper_table_export.py`
 
 **Checkpoint**: `uv run pytest tests/unit/test_outcome_scoring.py tests/unit/test_trajectory_state_normalize.py -q` passes on feature branch
 
@@ -44,10 +44,10 @@ description: "Task list for reproduction evaluation validity and stratified abla
 
 **⚠️ CRITICAL**: Blocks **US2 and US4 only** — US1 and US3 may start after Phase 1 (Setup)
 
-- [ ] T003 Implement `classify_chunk_id`, `assign_primary_evidence_source(relevant_chunk_ids)` in `src/evaluation/reproduction/stratum.py` per `data-model.md` and `research.md` R1
-- [ ] T004 [P] Add unit tests `tests/unit/test_stratum.py` covering html-only, xbrl-only, mixed, unknown, legacy `sec-*` ids (no marker → html), and explicit `-html-`/`xbrl` patterns per spec clarifications
-- [ ] T005 Implement `extract_used_accessions` and `extract_visited_paths` from normalized `trajectory_snapshot` in `src/evaluation/reproduction/structural_extract.py` per `contracts/structural-metrics.md`
-- [ ] T006 [P] Add unit tests `tests/unit/test_structural_extract.py` for accession parsing from `doc-{accession}-...` ids and graph_traversal path extraction
+- [x] T003 Implement `classify_chunk_id`, `assign_primary_evidence_source(relevant_chunk_ids)` in `src/evaluation/reproduction/stratum.py` per `data-model.md` and `research.md` R1
+- [x] T004 [P] Add unit tests `tests/unit/test_stratum.py` covering html-only, xbrl-only, mixed, unknown, legacy `sec-*` ids (no marker → html), and explicit `-html-`/`xbrl` patterns per spec clarifications
+- [x] T005 Implement `extract_used_accessions` and `extract_visited_paths` from normalized `trajectory_snapshot` in `src/evaluation/reproduction/structural_extract.py` per `contracts/structural-metrics.md`
+- [x] T006 [P] Add unit tests `tests/unit/test_structural_extract.py` for accession parsing from `doc-{accession}-...` ids and graph_traversal path extraction
 
 **Checkpoint**: `uv run pytest tests/unit/test_stratum.py tests/unit/test_structural_extract.py -q` passes
 
@@ -61,16 +61,16 @@ description: "Task list for reproduction evaluation validity and stratified abla
 
 ### Tests for User Story 1
 
-- [ ] T007 [P] [US1] Add unit tests `tests/unit/test_judge_batch_resume.py` for v2 resume skip (hydrated evidence), citation-fallback pending, and `--force-rescore` bypass per `contracts/re-judge-workflow.md`
-- [ ] T008 [P] [US1] Add integration test `tests/integration/test_rejudge_headline_ordering.py` asserting SC-001 ordering from fixture or mocked re-scored `headline.csv` rows
-- [ ] T037 [P] [US1] Add integration test `tests/integration/test_rejudge_evidence_hydration.py` asserting SC-002: ≥80% of graph-full items with `citation_count > 0` have non-empty `evidence_chunks` after `normalize_trajectory_state` on fixture or `reports/repro-paper-v1.0` checkpoint
+- [x] T007 [P] [US1] Add unit tests `tests/unit/test_judge_batch_resume.py` for v2 resume skip (hydrated evidence), citation-fallback pending, and `--force-rescore` bypass per `contracts/re-judge-workflow.md`
+- [x] T008 [P] [US1] Add integration test `tests/integration/test_rejudge_headline_ordering.py` asserting SC-001 ordering from fixture or mocked re-scored `headline.csv` rows
+- [x] T037 [P] [US1] Add integration test `tests/integration/test_rejudge_evidence_hydration.py` asserting SC-002: ≥80% of graph-full items with `citation_count > 0` have non-empty `evidence_chunks` after `normalize_trajectory_state` on fixture or `reports/repro-paper-v1.0` checkpoint
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Extend `_pending_results` in `src/evaluation/reproduction/judge_batch.py` with judge version ≥ v2 + non-empty `evidence_chunks` resume skip per `research.md` R2 and `contracts/re-judge-workflow.md`
-- [ ] T010 [US1] Add `--force-rescore` flag to `repro judge-batch` in `src/cli/commands/repro.py` and plumb to `judge_batch.py`
-- [ ] T011 [US1] Document re-judge workflow (`judge-batch` → `export-tables` → `report`) in `docs/research-reproduction.md` per `contracts/re-judge-workflow.md` and FR-001
-- [ ] T012 [P] [US1] Align `specs/015-repro-eval-validity/quickstart.md` CLI examples with actual `repro.py` flag names after T010
+- [x] T009 [US1] Extend `_pending_results` in `src/evaluation/reproduction/judge_batch.py` with judge version ≥ v2 + non-empty `evidence_chunks` resume skip per `research.md` R2 and `contracts/re-judge-workflow.md`
+- [x] T010 [US1] Add `--force-rescore` flag to `repro judge-batch` in `src/cli/commands/repro.py` and plumb to `judge_batch.py`
+- [x] T011 [US1] Document re-judge workflow (`judge-batch` → `export-tables` → `report`) in `docs/research-reproduction.md` per `contracts/re-judge-workflow.md` and FR-001
+- [x] T012 [P] [US1] Align `specs/015-repro-eval-validity/quickstart.md` CLI examples with actual `repro.py` flag names after T010
 
 **Checkpoint**: `uv run agent-query repro judge-batch --help` shows `--force-rescore`; resume + SC-001/SC-002 tests pass; docs describe full re-score path
 
@@ -84,14 +84,14 @@ description: "Task list for reproduction evaluation validity and stratified abla
 
 ### Tests for User Story 2
 
-- [ ] T013 [P] [US2] Add unit tests `tests/unit/test_structural_runner.py` for `aggregate_structural_metrics` wiring across all five variants with mocked variant results per `contracts/structural-metrics.md`, FR-005, and SC-003
-- [ ] T014 [P] [US2] Add unit tests `tests/unit/test_trajectory_citation_consistency.py` for consistency guard on `BenchmarkResult` write paths per FR-007
+- [x] T013 [P] [US2] Add unit tests `tests/unit/test_structural_runner.py` for `aggregate_structural_metrics` wiring across all five variants with mocked variant results per `contracts/structural-metrics.md`, FR-005, and SC-003
+- [x] T014 [P] [US2] Add unit tests `tests/unit/test_trajectory_citation_consistency.py` for consistency guard on `BenchmarkResult` write paths per FR-007
 
 ### Implementation for User Story 2
 
-- [ ] T015 [US2] Wire `aggregate_structural_metrics` into variant finalization in `src/evaluation/reproduction/runner.py` for all five standard variants; persist on `EvalRunRef.structural_metrics` per FR-005 and `contracts/structural-metrics.md`
-- [ ] T016 [US2] Add trajectory↔citation consistency check before atomic `results.json` write in `src/evaluation/reproduction/runner.py` per FR-007 (hydrate evidence from citations when snapshot empty)
-- [ ] T017 [US2] Add optional ungrounded-numeric warning when answer tokens are absent from cited chunk text in `src/evaluation/reproduction/runner.py` per `research.md` R8 and FR-006 (warn artifact, non-blocking)
+- [x] T015 [US2] Wire `aggregate_structural_metrics` into variant finalization in `src/evaluation/reproduction/runner.py` for all five standard variants; persist on `EvalRunRef.structural_metrics` per FR-005 and `contracts/structural-metrics.md`
+- [x] T016 [US2] Add trajectory↔citation consistency check before atomic `results.json` write in `src/evaluation/reproduction/runner.py` per FR-007 (hydrate evidence from citations when snapshot empty)
+- [x] T017 [US2] Add optional ungrounded-numeric warning when answer tokens are absent from cited chunk text in `src/evaluation/reproduction/runner.py` per `research.md` R8 and FR-006 (warn artifact, non-blocking)
 
 **Checkpoint**: Smoke `repro_run.json` shows non-zero `structural_metrics` for **each of the five variants** when binding-heavy items exist; structural and consistency tests pass
 
@@ -105,14 +105,14 @@ description: "Task list for reproduction evaluation validity and stratified abla
 
 ### Tests for User Story 3
 
-- [ ] T018 [P] [US3] Add unit tests `tests/unit/test_repro_report_aggregated_notes.py` for pattern aggregation, FR-010 outcome-exceeds guard, 25-note cap, and example item id limit per `data-model.md`
+- [x] T018 [P] [US3] Add unit tests `tests/unit/test_repro_report_aggregated_notes.py` for pattern aggregation, FR-010 outcome-exceeds guard, 25-note cap, and example item id limit per `data-model.md`
 
 ### Implementation for User Story 3
 
-- [ ] T019 [P] [US3] Add `AggregatedInvestigationNote` model in `src/evaluation/reproduction/report_models.py` per `data-model.md`
-- [ ] T020 [US3] Implement `aggregate_investigation_notes(bundle)` in `src/evaluation/reproduction/report_render.py`; refactor `detect_run_anomalies` to use aggregation per FR-008–FR-011 and `research.md` R4–R5
-- [ ] T021 [US3] Update `_render_anomalies_html()` for expandable notes with up to five `example_item_ids` and drill-down anchor links in `src/evaluation/reproduction/report_render.py`
-- [ ] T022 [US3] Add aggregation expand/collapse styles and item anchor hooks in `templates/reproduction_report.html` per SC-004
+- [x] T019 [P] [US3] Add `AggregatedInvestigationNote` model in `src/evaluation/reproduction/report_models.py` per `data-model.md`
+- [x] T020 [US3] Implement `aggregate_investigation_notes(bundle)` in `src/evaluation/reproduction/report_render.py`; refactor `detect_run_anomalies` to use aggregation per FR-008–FR-011 and `research.md` R4–R5
+- [x] T021 [US3] Update `_render_anomalies_html()` for expandable notes with up to five `example_item_ids` and drill-down anchor links in `src/evaluation/reproduction/report_render.py`
+- [x] T022 [US3] Add aggregation expand/collapse styles and item anchor hooks in `templates/reproduction_report.html` per SC-004
 
 **Checkpoint**: Report from paper-v1.0 fixture renders ≤25 investigation notes; ablation patterns aggregated
 
@@ -126,21 +126,21 @@ description: "Task list for reproduction evaluation validity and stratified abla
 
 ### Tests for User Story 4
 
-- [ ] T023 [P] [US4] Add unit tests `tests/unit/test_stratum_export.py` for `by_evidence_source.csv` columns, abstention_rate computation, unknown exclusion, and low-n `na_reason` per `contracts/stratum-export.md`
-- [ ] T024 [P] [US4] Add integration test `tests/integration/test_stratum_export_smoke.py` asserting SC-005 (five variants × html/xbrl/mixed strata) from fixture bundle
-- [ ] T038 [P] [US4] Extend `tests/integration/test_stratum_export_smoke.py` (or add `test_stratum_sc006_thresholds.py`) asserting SC-006 on HTML stratum: `ablation-no-walker` abstention_rate ≥ 0.80, `graph-full` mrr ≥ 0.10, `ablation-no-walker` mrr ≤ 0.05 per `contracts/stratum-export.md`
+- [x] T023 [P] [US4] Add unit tests `tests/unit/test_stratum_export.py` for `by_evidence_source.csv` columns, abstention_rate computation, unknown exclusion, and low-n `na_reason` per `contracts/stratum-export.md`
+- [x] T024 [P] [US4] Add integration test `tests/integration/test_stratum_export_smoke.py` asserting SC-005 (five variants × html/xbrl/mixed strata) from fixture bundle
+- [x] T038 [P] [US4] Extend `tests/integration/test_stratum_export_smoke.py` (or add `test_stratum_sc006_thresholds.py`) asserting SC-006 on HTML stratum: `ablation-no-walker` abstention_rate ≥ 0.80, `graph-full` mrr ≥ 0.10, `ablation-no-walker` mrr ≤ 0.05 per `contracts/stratum-export.md`
 
 ### Implementation for User Story 4
 
-- [ ] T025 [US4] Add `StratumTableRow` and `StratumDeltaRow` types and export bundle fields in `src/evaluation/reproduction/export.py` per `data-model.md`
-- [ ] T026 [US4] Implement `by_evidence_source.csv` generation with abstention_rate rows in `src/evaluation/reproduction/export.py` per FR-013 and `contracts/stratum-export.md`
-- [ ] T027 [US4] Implement `variant_delta_by_source.csv` generation (pooled `variant_delta.csv` unchanged) in `src/evaluation/reproduction/export.py` per FR-014
-- [ ] T028 [US4] Record `stratum_audit.unknown_excluded` count in `export_manifest.json` from `src/evaluation/reproduction/export.py`
-- [ ] T029 [P] [US4] Extend `PaperTableId`, `CSV_HEADERS`, and `PAPER_TABLE_IDS` in `src/evaluation/reproduction/report_models.py` for `by_evidence_source` and `variant_delta_by_source`
-- [ ] T030 [US4] Load optional stratum CSVs in `src/evaluation/reproduction/report_loader.py` with non-fatal warnings for pre-P3 checkpoints
-- [ ] T031 [US4] Implement stratified ablation HTML section (variant×metric per stratum, item counts, abstention rate) in `src/evaluation/reproduction/report_render.py` per FR-015
-- [ ] T032 [US4] Add `ablation_guidance` per stratum to `releases/paper-v1.0/manifest.yaml` including `ranking_margin` thresholds for SC-006 (`graph_full_mrr_min: 0.10`, `ablation_no_walker_mrr_max: 0.05`, `ablation_no_walker_abstention_rate_min: 0.80`) per FR-016 and `contracts/stratum-export.md`
-- [ ] T033 [US4] Extend `repro report --table` filter values for `by_evidence_source` and `variant_delta_by_source` in `src/cli/commands/repro.py`
+- [x] T025 [US4] Add `StratumTableRow` and `StratumDeltaRow` types and export bundle fields in `src/evaluation/reproduction/export.py` per `data-model.md`
+- [x] T026 [US4] Implement `by_evidence_source.csv` generation with abstention_rate rows in `src/evaluation/reproduction/export.py` per FR-013 and `contracts/stratum-export.md`
+- [x] T027 [US4] Implement `variant_delta_by_source.csv` generation (pooled `variant_delta.csv` unchanged) in `src/evaluation/reproduction/export.py` per FR-014
+- [x] T028 [US4] Record `stratum_audit.unknown_excluded` count in `export_manifest.json` from `src/evaluation/reproduction/export.py`
+- [x] T029 [P] [US4] Extend `PaperTableId`, `CSV_HEADERS`, and `PAPER_TABLE_IDS` in `src/evaluation/reproduction/report_models.py` for `by_evidence_source` and `variant_delta_by_source`
+- [x] T030 [US4] Load optional stratum CSVs in `src/evaluation/reproduction/report_loader.py` with non-fatal warnings for pre-P3 checkpoints
+- [x] T031 [US4] Implement stratified ablation HTML section (variant×metric per stratum, item counts, abstention rate) in `src/evaluation/reproduction/report_render.py` per FR-015
+- [x] T032 [US4] Add `ablation_guidance` per stratum to `releases/paper-v1.0/manifest.yaml` including `ranking_margin` thresholds for SC-006 (`graph_full_mrr_min: 0.10`, `ablation_no_walker_mrr_max: 0.05`, `ablation_no_walker_abstention_rate_min: 0.80`) per FR-016 and `contracts/stratum-export.md`
+- [x] T033 [US4] Extend `repro report --table` filter values for `by_evidence_source` and `variant_delta_by_source` in `src/cli/commands/repro.py`
 
 **Checkpoint**: `tables/by_evidence_source.csv` and `tables/variant_delta_by_source.csv` written on export; report shows stratified section; integration test passes
 
@@ -150,9 +150,9 @@ description: "Task list for reproduction evaluation validity and stratified abla
 
 **Purpose**: Docs, quickstart validation, regression sweep
 
-- [ ] T034 [P] Update `docs/research-reproduction.md` with stratified table catalog, investigation aggregation, and structural metrics pointers
-- [ ] T035 Run `specs/015-repro-eval-validity/quickstart.md` validation (re-judge → export → report) on `reports/repro-paper-smoke` or committed fixture
-- [ ] T036 [P] Run full feature pytest sweep: `tests/unit/test_stratum*.py`, `tests/unit/test_structural*.py`, `tests/unit/test_judge_batch_resume.py`, `tests/unit/test_repro_report_aggregated_notes.py`, `tests/integration/test_stratum_export_smoke.py`, `tests/integration/test_rejudge_headline_ordering.py`, `tests/integration/test_rejudge_evidence_hydration.py`
+- [x] T034 [P] Update `docs/research-reproduction.md` with stratified table catalog, investigation aggregation, and structural metrics pointers
+- [x] T035 Run `specs/015-repro-eval-validity/quickstart.md` validation (re-judge → export → report) on `reports/repro-paper-smoke` or committed fixture
+- [x] T036 [P] Run full feature pytest sweep: `tests/unit/test_stratum*.py`, `tests/unit/test_structural*.py`, `tests/unit/test_judge_batch_resume.py`, `tests/unit/test_repro_report_aggregated_notes.py`, `tests/integration/test_stratum_export_smoke.py`, `tests/integration/test_rejudge_headline_ordering.py`, `tests/integration/test_rejudge_evidence_hydration.py`
 
 **Checkpoint**: All 015 tests green; quickstart steps verified
 

@@ -37,3 +37,24 @@ tolerance_bands:
   structural_metrics_exact: true
 
 expected_checksums_path: expected_checksums.json
+
+ablation_guidance:
+  html:
+    valid_comparisons:
+      - baseline: graph-full
+        comparison: ablation-no-walker
+    ranking_margin:
+      graph_full_mrr_min: 0.10
+      ablation_no_walker_mrr_max: 0.05
+      abstention_rate_min: 0.80
+    notes: "Walker required for HTML narrative chunks; compare graph-full vs no-walker on HTML stratum only."
+  xbrl:
+    valid_comparisons:
+      - baseline: graph-full
+        comparison: ablation-xbrl-only
+    notes: "XBRL stratum compares graph-full vs xbrl-only retrieval."
+  mixed:
+    valid_comparisons:
+      - baseline: graph-full
+        comparison: ablation-no-macro
+    notes: "Mixed-label items require both narrative and numeric evidence."

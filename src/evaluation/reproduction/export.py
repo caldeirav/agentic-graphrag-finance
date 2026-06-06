@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from models.evaluation import BenchmarkResult, RankingMetrics
+from evaluation.judges.outcome_scoring import is_abstention_answer
+from evaluation.reproduction.stratum import assign_primary_evidence_source
 from models.reproduction import (
     AuditRow,
     DeltaRow,
@@ -16,7 +18,12 @@ from models.reproduction import (
     PaperTableExport,
     ProfileMetricRow,
     ReleaseManifest,
+    StratumDeltaRow,
+    StratumMetricRow,
 )
+
+_STRATA = ("html", "xbrl", "mixed")
+_LOW_N_THRESHOLD = 10
 
 
 @dataclass
@@ -166,10 +173,143 @@ def _aggregate_metrics(summary: VariantRunSummary) -> dict[str, float | None]:
     return out
 
 
+def _stratum_for_record(
+    record: VariantItemRecord,
+    relevance_by_item: dict[str, list[str]],
+) -> str:
+    chunk_ids = relevance_by_item.get(record.item_id, [])
+    return assign_primary_evidence_source(chunk_ids)
+
+
+def _records_for_stratum(
+    summary: VariantRunSummary,
+    stratum: str,
+    relevance_by_item: dict[str, list[str]],
+) -> list[VariantItemRecord]:
+    return [
+        r
+        for r in summary.records
+        if _stratum_for_record(r, relevance_by_item) == stratum
+    ]
+
+
+def _abstention_rate(records: list[VariantItemRecord]) -> float:
+    eligible = [r for r in records if _headline_eligible(r)]
+    if not eligible:
+        return 0.0
+    abstained = sum(1 for r in eligible if is_abstention_answer(r.result.answer))
+    return abstained / len(eligible)
+
+
+def _append_stratum_exports(
+    export: PaperTableExport,
+    summaries: list[VariantRunSummary],
+    relevance_by_item: dict[str, list[str]],
+    metric_names: list[str],
+) -> None:
+    unknown_items = {
+        r.item_id
+        for s in summaries
+        for r in s.records
+        if assign_primary_evidence_source(relevance_by_item.get(r.item_id, [])) == "unknown"
+    }
+    export.stratum_audit = {"unknown_excluded": len(unknown_items)}
+
+    stratum_summaries: dict[tuple[str, str], VariantRunSummary] = {}
+    for summary in summaries:
+        for stratum in _STRATA:
+            records = _records_for_stratum(summary, stratum, relevance_by_item)
+            stratum_summaries[(summary.variant_id, stratum)] = VariantRunSummary(
+                variant_id=summary.variant_id,
+                records=records,
+                excluded_incomplete=summary.excluded_incomplete,
+                excluded_degraded=summary.excluded_degraded,
+                excluded_pending_judge=summary.excluded_pending_judge,
+            )
+
+    agg_by_variant_stratum = {
+        key: _aggregate_metrics(sub) for key, sub in stratum_summaries.items()
+    }
+
+    for (variant_id, stratum), sub in stratum_summaries.items():
+        metrics = agg_by_variant_stratum[(variant_id, stratum)]
+        eligible_count = sum(1 for r in sub.records if _headline_eligible(r))
+        abstention = _abstention_rate(sub.records)
+        for name in metric_names:
+            value = metrics.get(name)
+            na = ""
+            if eligible_count == 0:
+                na = "no_eligible_items"
+            elif eligible_count < _LOW_N_THRESHOLD:
+                na = "low_n"
+            export.by_evidence_source_rows.append(
+                StratumMetricRow(
+                    variant_id=variant_id,
+                    primary_evidence_source=stratum,
+                    metric_name=name,
+                    value=float(value) if value is not None else 0.0,
+                    item_count=eligible_count,
+                    excluded_incomplete=sub.excluded_incomplete,
+                    excluded_degraded=sub.excluded_degraded,
+                    abstention_rate=abstention,
+                    na_reason=na,
+                )
+            )
+        export.by_evidence_source_rows.append(
+            StratumMetricRow(
+                variant_id=variant_id,
+                primary_evidence_source=stratum,
+                metric_name="abstention_rate",
+                value=abstention,
+                item_count=eligible_count,
+                excluded_incomplete=sub.excluded_incomplete,
+                excluded_degraded=sub.excluded_degraded,
+                abstention_rate=abstention,
+                na_reason="low_n" if 0 < eligible_count < _LOW_N_THRESHOLD else "",
+            )
+        )
+
+    baseline = "graph-full"
+    for stratum in _STRATA:
+        base_metrics = agg_by_variant_stratum.get((baseline, stratum), {})
+        base_count = sum(
+            1 for r in stratum_summaries.get((baseline, stratum), VariantRunSummary(variant_id=baseline)).records
+            if _headline_eligible(r)
+        )
+        for summary in summaries:
+            if summary.variant_id == baseline:
+                continue
+            cmp_metrics = agg_by_variant_stratum.get((summary.variant_id, stratum), {})
+            cmp_count = sum(
+                1
+                for r in stratum_summaries.get((summary.variant_id, stratum), VariantRunSummary(variant_id=summary.variant_id)).records
+                if _headline_eligible(r)
+            )
+            low_n = base_count < _LOW_N_THRESHOLD or cmp_count < _LOW_N_THRESHOLD
+            for name in metric_names:
+                b = base_metrics.get(name)
+                c = cmp_metrics.get(name)
+                if b is None or c is None:
+                    continue
+                export.variant_delta_by_source_rows.append(
+                    StratumDeltaRow(
+                        primary_evidence_source=stratum,
+                        baseline_variant=baseline,
+                        comparison_variant=summary.variant_id,
+                        metric_name=name,
+                        delta=float(b) - float(c),
+                        baseline_item_count=base_count,
+                        comparison_item_count=cmp_count,
+                        na_reason="low_n" if low_n else "",
+                    )
+                )
+
+
 def export_paper_tables(
     summaries: list[VariantRunSummary],
     *,
     release_tag: str,
+    relevance_by_item: dict[str, list[str]] | None = None,
 ) -> PaperTableExport:
     export = PaperTableExport(release_tag=release_tag)
     metric_names = [
@@ -271,6 +411,9 @@ def export_paper_tables(
                 )
             )
 
+    if relevance_by_item:
+        _append_stratum_exports(export, summaries, relevance_by_item, metric_names)
+
     return export
 
 
@@ -301,6 +444,15 @@ def _write_headline_tex(path: Path, rows: list) -> None:
 def write_paper_tables(export: PaperTableExport, output_dir: Path) -> None:
     tables = output_dir / "tables"
     tables.mkdir(parents=True, exist_ok=True)
+    if export.stratum_audit:
+        manifest_path = output_dir / "export_manifest.json"
+        payload: dict = {}
+        if manifest_path.is_file():
+            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        payload["stratum_audit"] = export.stratum_audit
+        payload["release_tag"] = export.release_tag
+        payload["exported_at"] = export.exported_at.isoformat()
+        manifest_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     def _write_csv(path: Path, rows: list[dict], fieldnames: list[str]) -> None:
         with path.open("w", encoding="utf-8", newline="") as fh:
@@ -351,6 +503,37 @@ def write_paper_tables(export: PaperTableExport, output_dir: Path) -> None:
             "included_in_headline",
         ],
     )
+    if export.by_evidence_source_rows:
+        _write_csv(
+            tables / "by_evidence_source.csv",
+            [r.model_dump() for r in export.by_evidence_source_rows],
+            [
+                "variant_id",
+                "primary_evidence_source",
+                "metric_name",
+                "value",
+                "item_count",
+                "abstention_rate",
+                "excluded_incomplete",
+                "excluded_degraded",
+                "na_reason",
+            ],
+        )
+    if export.variant_delta_by_source_rows:
+        _write_csv(
+            tables / "variant_delta_by_source.csv",
+            [r.model_dump() for r in export.variant_delta_by_source_rows],
+            [
+                "primary_evidence_source",
+                "baseline_variant",
+                "comparison_variant",
+                "metric_name",
+                "delta",
+                "baseline_item_count",
+                "comparison_item_count",
+                "na_reason",
+            ],
+        )
 
 
 def export_tables_from_disk(
@@ -398,4 +581,8 @@ def export_tables_from_disk(
                 ground_truth_by_item,
             )
         )
-    return export_paper_tables(summaries, release_tag=release_tag)
+    return export_paper_tables(
+        summaries,
+        release_tag=release_tag,
+        relevance_by_item=relevance_by_item,
+    )

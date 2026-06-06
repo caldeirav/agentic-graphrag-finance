@@ -11,6 +11,20 @@ import pytest
 from evaluation.reproduction import judge_batch as jb_mod
 from evaluation.reproduction.judge_batch import run_judge_batch
 from models.evaluation import BenchmarkItem, BenchmarkResult, JudgeVerdict
+from models.query import AnswerPackage, EvidenceChunk
+
+
+def _pending_row(item_id: str) -> BenchmarkResult:
+    citation = EvidenceChunk(
+        chunk_node_id=f"doc-chunk-{item_id}",
+        excerpt="fact",
+        content_hash=f"hash-{item_id}",
+    )
+    return BenchmarkResult(
+        item_id=item_id,
+        judge_status="pending",
+        answer=AnswerPackage(text="ans", citations=[citation]),
+    )
 
 
 @pytest.mark.integration
@@ -18,7 +32,7 @@ def test_judge_batch_restart_only_pending_tail(tmp_path: Path, monkeypatch) -> N
     bundle = Path("tests/fixtures/custom_judge")
     variant_dir = tmp_path / "graph-full"
     variant_dir.mkdir()
-    rows = [BenchmarkResult(item_id=f"item-{i:02d}", judge_status="pending") for i in range(20)]
+    rows = [_pending_row(f"item-{i:02d}") for i in range(20)]
     results_path = variant_dir / "results.json"
     results_path.write_text(
         json.dumps([r.model_dump(mode="json") for r in rows]),
@@ -43,7 +57,7 @@ def test_judge_batch_restart_only_pending_tail(tmp_path: Path, monkeypatch) -> N
             raise RuntimeError("simulated crash")
         verdict = JudgeVerdict(
             judge_model="mock",
-            judge_version="v1",
+            judge_version="v2",
             scores={"synthesis_grounding": 0.8},
         )
         saved[item.item_id] = verdict
@@ -66,7 +80,7 @@ def test_judge_batch_restart_only_pending_tail(tmp_path: Path, monkeypatch) -> N
 
     judge.judge.side_effect = lambda item, answer, trajectory: JudgeVerdict(
         judge_model="mock",
-        judge_version="v1",
+        judge_version="v2",
         scores={"synthesis_grounding": 0.8},
     )
     stats = run_judge_batch(

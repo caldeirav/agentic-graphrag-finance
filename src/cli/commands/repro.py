@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Annotated
 
 import typer
 
@@ -92,25 +93,48 @@ def run_variants(
 
 @app.command("judge-batch")
 def judge_batch_cmd(
-    output: Path = typer.Option(..., "--output"),
-    manifest: Path = typer.Option(..., "--manifest"),
+    input_dir: Annotated[
+        Path,
+        typer.Option(
+            ...,
+            "--input",
+            "--output",
+            help="Repro output directory (reports/repro-{tag})",
+        ),
+    ],
+    manifest: Annotated[Path, typer.Option(..., "--manifest")],
     variant: str = typer.Option("", "--variant", help="Optional variant id"),
     concurrency: int = typer.Option(2, "--concurrency"),
     max_items: int | None = typer.Option(None, "--max-items"),
+    force_rescore: bool = typer.Option(False, "--force-rescore", help="Re-judge all items"),
+    quiet: bool = typer.Option(False, "--quiet", help="Suppress per-item progress lines"),
 ) -> None:
     """Run deferred judge batch on pending items in results.json."""
     _require_offline()
     rel = load_release_manifest(manifest)
     bundle = REPO_ROOT / rel.custom_judge_bundle_path
+
+    def _progress(msg: str) -> None:
+        if quiet and " item=" in msg:
+            return
+        typer.echo(msg)
+
+    typer.echo(
+        f"Judge batch: input={input_dir} manifest={manifest.name} "
+        f"release={rel.release_tag} split={rel.eval_split}"
+    )
     stats = run_judge_batch(
-        output,
+        input_dir,
         bundle_root=bundle,
         split=rel.eval_split,
         custom_judge_version=rel.custom_judge_version,
         concurrency=concurrency,
         max_items=max_items,
+        force_rescore=force_rescore,
+        variant_id=variant or None,
+        progress=_progress,
     )
-    typer.echo(f"Judge batch complete: {stats}")
+    typer.echo(f"Judge batch summary: {stats}")
 
 
 @app.command("export-tables")

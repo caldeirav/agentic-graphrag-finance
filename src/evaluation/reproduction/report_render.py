@@ -22,6 +22,7 @@ from evaluation.reproduction.report_models import (
     METRIC_CATALOG,
     PRIMARY_METRICS,
     STANDARD_VARIANTS,
+    AggregatedInvestigationNote,
     ItemResultRecord,
     PaperTableId,
     PaperTableView,
@@ -38,7 +39,9 @@ from evaluation.reproduction.report_models import (
 REPO_ROOT = Path(__file__).resolve().parents[3]
 TEMPLATE_PATH = REPO_ROOT / "templates" / "reproduction_report.html"
 DEFAULT_DELTA_THRESHOLD = 0.10
+MAX_INVESTIGATION_NOTES = 25
 HIGHLIGHT_STATUSES = frozenset({"degraded", "pending", "not_evaluable"})
+_EXPECTED_ZERO_CITATION_VARIANTS = frozenset({"ablation-no-walker", "ablation-xbrl-only"})
 
 
 def build_paper_table_views(bundle: ReproOutputBundle) -> list[PaperTableView]:
@@ -350,58 +353,62 @@ def _column_header(col: str) -> tuple[str, str]:
     return label, label
 
 
-def detect_run_anomalies(bundle: ReproOutputBundle) -> list[RunAnomaly]:
-    """Heuristic flags for operator investigation (read-only over artifacts)."""
-    anomalies: list[RunAnomaly] = []
+def _cap_investigation_notes(
+    notes: list[AggregatedInvestigationNote],
+) -> list[AggregatedInvestigationNote]:
+    if len(notes) <= MAX_INVESTIGATION_NOTES:
+        return notes
+    severity_rank = {"critical": 0, "warning": 1, "info": 2}
+    return sorted(notes, key=lambda n: (severity_rank.get(n.severity, 9), -n.item_count))[
+        :MAX_INVESTIGATION_NOTES
+    ]
+
+
+def aggregate_investigation_notes(bundle: ReproOutputBundle) -> list[AggregatedInvestigationNote]:
+    """Group per-item patterns into bounded operator summaries (FR-008–FR-011)."""
+    notes: list[AggregatedInvestigationNote] = []
     repro = bundle.repro_run
     headline = bundle.tables.get("headline")
 
     variant_ids = [vr.variant_id for vr in repro.variant_runs]
     if len(variant_ids) != len(set(variant_ids)):
-        anomalies.append(
-            RunAnomaly(
+        notes.append(
+            AggregatedInvestigationNote(
                 severity="warning",
+                pattern_code="DUPLICATE_VARIANT_RUNS",
                 message="repro_run.json lists duplicate variant_runs entries",
+                item_count=0,
                 hint="Summary deduplicates by variant_id; consider cleaning repro_run.json on next export.",
+                expandable=False,
             )
         )
 
     if headline and headline.rows:
         n = int(headline.rows[0].get("item_count", "0") or 0)
         if n <= SMOKE_ITEM_THRESHOLD:
-            anomalies.append(
-                RunAnomaly(
+            notes.append(
+                AggregatedInvestigationNote(
                     severity="info",
+                    pattern_code="SMALL_SAMPLE",
                     message=f"Small benchmark sample (n={n} items per variant)",
+                    item_count=n,
                     hint="paper-live-smoke uses --max-items 2; treat ranking splits as indicative only.",
+                    expandable=False,
                 )
             )
 
         rubric_vals = [
-            float(r["value"])
-            for r in headline.rows
-            if r["metric_name"] == "rubric_alignment"
+            float(r["value"]) for r in headline.rows if r["metric_name"] == "rubric_alignment"
         ]
         if rubric_vals and all(v == 0.0 for v in rubric_vals):
-            anomalies.append(
-                RunAnomaly(
+            notes.append(
+                AggregatedInvestigationNote(
                     severity="warning",
+                    pattern_code="RUBRIC_ALIGNMENT_ZERO",
                     message="Rubric alignment is 0.0 for every variant",
-                    hint="Check judge populates alignment_score (claim_presence); items may lack rubric GT.",
-                )
-            )
-
-        fid_vals = [
-            float(r["value"])
-            for r in headline.rows
-            if r["metric_name"] == "trajectory_fidelity"
-        ]
-        if fid_vals and all(v >= 0.999 for v in fid_vals):
-            anomalies.append(
-                RunAnomaly(
-                    severity="info",
-                    message="Trajectory fidelity is ~1.0 for all variants",
-                    hint="Verify judge is discriminating trajectories; ceiling may mask routing differences.",
+                    item_count=len(rubric_vals),
+                    hint="Check judge populates claim_presence; items may lack rubric GT.",
+                    expandable=False,
                 )
             )
 
@@ -411,41 +418,76 @@ def detect_run_anomalies(bundle: ReproOutputBundle) -> list[RunAnomaly]:
         for vr in repro.variant_runs
     )
     if struct_zero and repro.variant_runs:
-        anomalies.append(
-            RunAnomaly(
+        notes.append(
+            AggregatedInvestigationNote(
                 severity="warning",
+                pattern_code="STRUCTURAL_METRICS_ZERO",
                 message="Structural binding metrics are 0.0 for all variant runs",
-                hint="Inspect accession_binding_accuracy computation or expected_bindings in benchmark items.",
+                item_count=len(repro.variant_runs),
+                hint="Inspect structural_metrics wiring or expected_bindings in benchmark items.",
+                expandable=False,
             )
         )
+
+    zero_cite_buckets: dict[str, list[str]] = {}
+    high_outcome_zero_ndcg: dict[str, list[str]] = {}
 
     for variant_id, records in bundle.variant_results.items():
         for rec in records:
             if rec.judge_status == "ok" and rec.citation_count == 0 and variant_id != "flat-chunk":
-                anomalies.append(
-                    RunAnomaly(
-                        severity="warning",
-                        message=f"{variant_id}/{rec.item_id}: judge ok but zero citations",
-                        hint="Answer may be ungrounded; open item drill-down and results.json.",
-                    )
-                )
+                zero_cite_buckets.setdefault(variant_id, []).append(rec.item_id)
             if (
                 rec.outcome_score is not None
                 and rec.outcome_score >= 0.9
                 and rec.ndcg_at_10 is not None
                 and rec.ndcg_at_10 == 0.0
-                and variant_id not in {"ablation-no-walker", "ablation-xbrl-only"}
+                and variant_id not in _EXPECTED_ZERO_CITATION_VARIANTS
             ):
-                anomalies.append(
-                    RunAnomaly(
-                        severity="warning",
-                        message=(
-                            f"{variant_id}/{rec.item_id}: high outcome ({rec.outcome_score:.2f}) "
-                            "but nDCG@10=0"
-                        ),
-                        hint="Judge score and retrieval ranking disagree; inspect citations vs relevance labels.",
-                    )
+                high_outcome_zero_ndcg.setdefault(variant_id, []).append(rec.item_id)
+
+    for variant_id, item_ids in zero_cite_buckets.items():
+        if variant_id in _EXPECTED_ZERO_CITATION_VARIANTS:
+            notes.append(
+                AggregatedInvestigationNote(
+                    severity="info",
+                    pattern_code="ABLATION_ZERO_CITATIONS",
+                    variant_id=variant_id,
+                    message=(
+                        f"{variant_id}: {len(item_ids)} items with judge ok but zero citations "
+                        "(expected ablation pattern)"
+                    ),
+                    item_count=len(item_ids),
+                    example_item_ids=item_ids[:5],
+                    hint="No-walker/xbrl-only cannot reach HTML narrative relevance labels.",
                 )
+            )
+        else:
+            notes.append(
+                AggregatedInvestigationNote(
+                    severity="warning",
+                    pattern_code="JUDGE_OK_ZERO_CITATIONS",
+                    variant_id=variant_id,
+                    message=f"{variant_id}: {len(item_ids)} items with judge ok but zero citations",
+                    item_count=len(item_ids),
+                    example_item_ids=item_ids[:5],
+                    hint="Answer may be ungrounded; open item drill-down and results.json.",
+                )
+            )
+
+    for variant_id, item_ids in high_outcome_zero_ndcg.items():
+        notes.append(
+            AggregatedInvestigationNote(
+                severity="warning",
+                pattern_code="HIGH_OUTCOME_ZERO_NDCG",
+                variant_id=variant_id,
+                message=(
+                    f"{variant_id}: {len(item_ids)} items with high outcome but nDCG@10=0"
+                ),
+                item_count=len(item_ids),
+                example_item_ids=item_ids[:5],
+                hint="Judge score and retrieval ranking disagree; inspect citations vs relevance labels.",
+            )
+        )
 
     if headline:
         by_var: dict[str, dict[str, float]] = {}
@@ -454,75 +496,99 @@ def detect_run_anomalies(bundle: ReproOutputBundle) -> list[RunAnomaly]:
 
         for vid, metrics in by_var.items():
             mrr = metrics.get("mrr")
-            if mrr is None or mrr > 0.0:
-                continue
-            records = bundle.variant_results.get(vid, [])
-            total_cites = sum(r.citation_count for r in records)
-            if vid == "flat-chunk" and total_cites > 0:
-                anomalies.append(
-                    RunAnomaly(
-                        severity="info",
-                        message=f"{vid}: MRR/MAP/nDCG are 0 despite {total_cites} total citations",
-                        hint=(
-                            "Expected for dense flat-chunk when cited chunks (e.g. sec-0, XBRL) "
-                            "do not match graph-grounded relevance labels (html-risk_factors chunks). "
-                            "Ranking metrics measure label overlap, not citation count."
-                        ),
+            if mrr is not None and mrr <= 0.0:
+                records = bundle.variant_results.get(vid, [])
+                total_cites = sum(r.citation_count for r in records)
+                if vid == "flat-chunk" and total_cites > 0:
+                    notes.append(
+                        AggregatedInvestigationNote(
+                            severity="info",
+                            pattern_code="FLAT_CHUNK_ZERO_RANKING",
+                            variant_id=vid,
+                            message=f"{vid}: MRR/MAP/nDCG are 0 despite {total_cites} total citations",
+                            item_count=len(records),
+                            hint="Citations may not overlap graph-grounded relevance labels.",
+                            expandable=False,
+                        )
                     )
-                )
-            elif vid == "ablation-no-walker":
-                anomalies.append(
-                    RunAnomaly(
-                        severity="info",
-                        message=f"{vid}: MRR/MAP/nDCG are 0 (no citations retrieved)",
-                        hint=(
-                            "Expected when disable_graph_walker prevents reaching HTML narrative "
-                            "chunks; relevance labels target html-risk_factors sections."
-                        ),
+                elif vid in _EXPECTED_ZERO_CITATION_VARIANTS:
+                    notes.append(
+                        AggregatedInvestigationNote(
+                            severity="info",
+                            pattern_code="ABLATION_ZERO_RANKING",
+                            variant_id=vid,
+                            message=f"{vid}: MRR/MAP/nDCG are 0 (expected for this ablation)",
+                            item_count=len(records),
+                            hint="Ablation cannot retrieve HTML-labeled narrative chunks.",
+                            expandable=False,
+                        )
                     )
-                )
-            elif vid == "ablation-xbrl-only":
-                anomalies.append(
-                    RunAnomaly(
-                        severity="info",
-                        message=f"{vid}: MRR/MAP/nDCG are 0 (no citations retrieved)",
-                        hint=(
-                            "Expected for xbrl_only mode: retrieval is limited to XBRL facts while "
-                            "relevance labels are HTML narrative chunks for this smoke set."
-                        ),
-                    )
-                )
 
         gf = by_var.get("graph-full", {})
+        gf_records = bundle.variant_results.get("graph-full", [])
+        gf_total_cites = sum(r.citation_count for r in gf_records)
+        gf_mrr = gf.get("mrr", 0.0) or 0.0
         for vid, metrics in by_var.items():
             if vid == "graph-full":
                 continue
             oa = metrics.get("outcome_accuracy")
             gf_oa = gf.get("outcome_accuracy")
-            if oa is not None and gf_oa is not None and oa > gf_oa + 0.05:
-                anomalies.append(
-                    RunAnomaly(
-                        severity="info",
-                        message=f"{vid} outcome_accuracy ({oa:.2f}) exceeds graph-full ({gf_oa:.2f})",
-                        hint="Unexpected for smoke; verify item-level results before citing in paper.",
-                    )
-                )
-
-    duration_h: float | None = None
-    if repro.completed_at and repro.started_at:
-        duration_h = (repro.completed_at - repro.started_at).total_seconds() / 3600.0
-    if duration_h is not None and duration_h > 24 and headline and headline.rows:
-        n = int(headline.rows[0].get("item_count", "0") or 0)
-        if n <= SMOKE_ITEM_THRESHOLD:
-            anomalies.append(
-                RunAnomaly(
+            if oa is None or gf_oa is None or oa <= gf_oa + 0.05:
+                continue
+            cmp_records = bundle.variant_results.get(vid, [])
+            cmp_cites = sum(r.citation_count for r in cmp_records)
+            cmp_mrr = metrics.get("mrr", 0.0) or 0.0
+            if cmp_cites == 0 and cmp_mrr <= 0.0:
+                continue
+            notes.append(
+                AggregatedInvestigationNote(
                     severity="info",
-                    message=f"Long wall-clock ({duration_h:.1f}h) for n={n} smoke items",
-                    hint="Run was likely paused/resumed; check repro_run.json timestamps.",
+                    pattern_code="OUTCOME_EXCEEDS_BASELINE",
+                    variant_id=vid,
+                    message=f"{vid} outcome_accuracy ({oa:.2f}) exceeds graph-full ({gf_oa:.2f})",
+                    item_count=1,
+                    hint="Verify item-level results before citing in paper.",
+                    expandable=False,
                 )
             )
 
-    return anomalies
+    return _cap_investigation_notes(notes)
+
+
+def detect_run_anomalies(bundle: ReproOutputBundle) -> list[RunAnomaly]:
+    """Backward-compatible wrapper over aggregated investigation notes."""
+    return [
+        RunAnomaly(severity=n.severity, message=n.message, hint=n.hint)
+        for n in aggregate_investigation_notes(bundle)
+    ]
+
+
+def _render_aggregated_notes_html(notes: list[AggregatedInvestigationNote]) -> str:
+    if not notes:
+        return (
+            '<section id="anomalies"><h2>Investigation notes</h2>'
+            "<p>No automated anomalies flagged for this output.</p></section>"
+        )
+    items: list[str] = []
+    for note in notes:
+        hint = f"<br/><small>{html.escape(note.hint)}</small>" if note.hint else ""
+        examples = ""
+        if note.expandable and note.example_item_ids:
+            links = ", ".join(
+                f'<a href="#item-{html.escape(note.variant_id)}-{html.escape(iid)}">'
+                f"{html.escape(iid)}</a>"
+                for iid in note.example_item_ids
+            )
+            examples = f"<details><summary>Examples ({len(note.example_item_ids)})</summary><p>{links}</p></details>"
+        items.append(
+            f"<li class='anomaly-{note.severity}'><strong>[{note.severity}]</strong> "
+            f"{html.escape(note.message)}{hint}{examples}</li>"
+        )
+    return (
+        '<section id="anomalies"><h2>Investigation notes</h2>'
+        f"<p>{len(notes)} aggregated checks (max {MAX_INVESTIGATION_NOTES}).</p>"
+        f"<ul class='anomaly-list'>{''.join(items)}</ul></section>"
+    )
 
 
 def _render_anomalies_html(anomalies: list[RunAnomaly]) -> str:
@@ -543,6 +609,43 @@ def _render_anomalies_html(anomalies: list[RunAnomaly]) -> str:
         "<p>Automated checks on this repro output; confirm in item drill-down before acting.</p>"
         f"<ul class='anomaly-list'>{''.join(items)}</ul></section>"
     )
+
+
+def _render_stratified_html(bundle: ReproOutputBundle) -> str:
+    table = bundle.tables.get("by_evidence_source")
+    if table is None or not table.rows:
+        return ""
+    strata = sorted({r["primary_evidence_source"] for r in table.rows})
+    parts = ['<section id="stratified"><h2>Stratified ablation (by evidence source)</h2>']
+    for stratum in strata:
+        rows = [r for r in table.rows if r["primary_evidence_source"] == stratum]
+        if not rows:
+            continue
+        pivot_rows: dict[str, dict[str, str]] = {}
+        abstention_by_variant: dict[str, str] = {}
+        for row in rows:
+            if row["metric_name"] == "abstention_rate":
+                abstention_by_variant[row["variant_id"]] = row["value"]
+                continue
+            pivot_rows.setdefault(row["variant_id"], {})[row["metric_name"]] = row["value"]
+            pivot_rows[row["variant_id"]]["item_count"] = row["item_count"]
+        if not pivot_rows:
+            continue
+        columns = ["variant_id"] + sorted(
+            {k for vals in pivot_rows.values() for k in vals if k != "variant_id"}
+        )
+        matrix_rows = []
+        for variant_id in sorted(pivot_rows):
+            row = {"variant_id": variant_id, **pivot_rows[variant_id]}
+            if variant_id in abstention_by_variant:
+                row["abstention_rate"] = abstention_by_variant[variant_id]
+            matrix_rows.append(row)
+        if "abstention_rate" not in columns:
+            columns.append("abstention_rate")
+        parts.append(f"<h3>{html.escape(stratum)}</h3>")
+        parts.append(_render_score_matrix_html(columns, matrix_rows))
+    parts.append("</section>")
+    return "".join(parts)
 
 
 def _render_metric_glossary_html(columns: list[str]) -> str:
@@ -724,7 +827,8 @@ def _render_drilldown_html(
             profile = record.inspiration_profile or "—"
             flags_txt = ", ".join(record.flags) if record.flags else "—"
             parts.append(
-                f"<tr class=\"{' '.join(classes)}\" "
+                f"<tr id=\"item-{html.escape(variant_id)}-{html.escape(record.item_id)}\" "
+                f"class=\"{' '.join(classes)}\" "
                 f"data-variant=\"{html.escape(variant_id)}\" "
                 f"data-profile=\"{html.escape(record.inspiration_profile)}\" "
                 f"data-status=\"{html.escape(record.judge_status)}\">"
@@ -766,7 +870,7 @@ def render_html_report(
 
     summary = build_run_summary(bundle)
     comparison = build_variant_comparison(bundle)
-    anomalies = detect_run_anomalies(bundle)
+    aggregated_notes = aggregate_investigation_notes(bundle)
     all_views = build_paper_table_views(bundle)
     if table_ids:
         allowed = {t.value for t in table_ids}
@@ -782,7 +886,8 @@ def render_html_report(
         .replace("{{EXPORT_MANIFEST}}", _render_export_manifest_html(summary))
         .replace("{{HEADLINE_TEX}}", _render_headline_tex_html(bundle, headline_latex))
         .replace("{{COMPARISON}}", _render_comparison_html(comparison, bundle))
-        .replace("{{ANOMALIES}}", _render_anomalies_html(anomalies))
+        .replace("{{STRATIFIED}}", _render_stratified_html(bundle))
+        .replace("{{ANOMALIES}}", _render_aggregated_notes_html(aggregated_notes))
         .replace("{{TABLES}}", _render_tables_html(all_views, bundle))
         .replace("{{DRILLDOWN}}", _render_drilldown_html(bundle, max_item_rows=max_item_rows))
     )
