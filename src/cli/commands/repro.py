@@ -140,6 +140,7 @@ def export_tables(
         input_dir,
         release_tag=rel.release_tag,
         manifest=rel,
+        repo_root=REPO_ROOT,
     )
     write_paper_tables(export, input_dir)
     typer.echo(f"Tables written to {input_dir / 'tables'}")

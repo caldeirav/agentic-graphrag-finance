@@ -7,7 +7,6 @@ import os
 import shutil
 import time
 import uuid
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -16,6 +15,7 @@ import mlflow
 from contracts.query import QueryRequest
 from evaluation.datasets.custom_judge import CustomJudgeDataset
 from evaluation.judges.gemini_panel import GeminiJudgePanel
+from evaluation.judges.outcome_scoring import compute_outcome_scores
 from evaluation.metrics.ranking import compute_ranking_metrics
 from evaluation.metrics.trajectory import trajectory_fidelity_score
 from evaluation.reproduction.accession_index import AccessionIndex
@@ -23,9 +23,12 @@ from evaluation.reproduction.corpus_verify import dry_run_registry_check, verify
 from evaluation.reproduction.defer_config import resolve_defer_config
 from evaluation.reproduction.errors import MissingBindingsError
 from evaluation.reproduction.export import (
+    ItemContext,
     build_variant_summary,
     export_paper_tables,
     export_tables_from_disk,
+    item_context_lookup_maps,
+    load_item_contexts,
     write_paper_tables,
 )
 from evaluation.reproduction.flat_chunk import FlatChunkBaseline
@@ -77,13 +80,6 @@ def _require_live_eval(release_tag: str, *, defer: DeferJudgeConfig) -> None:
     if not os.environ.get("GOOGLE_API_KEY", "").strip():
         msg = f"Release {release_tag} requires GOOGLE_API_KEY for live judge scoring"
         raise RuntimeError(msg)
-
-
-@dataclass
-class ItemContext:
-    inspiration_profile: str
-    ground_truth: dict
-    relevant_chunk_ids: list[str]
 
 
 def _progress(message: str) -> None:
@@ -227,7 +223,7 @@ class ReproRunner:
             bundle_root=bundle_root,
         )
         items = ds.load_split(self._manifest.eval_split)
-        contexts = self._load_item_contexts(bundle_root, self._manifest.eval_split)
+        contexts = load_item_contexts(bundle_root, self._manifest.eval_split)
         if max_items:
             items = items[:max_items]
 
@@ -423,13 +419,14 @@ class ReproRunner:
         traj_score = trajectory_fidelity_score(
             trajectory, judge_score=verdict.scores.get("trajectory_fidelity")
         )
+        outcome_score, alignment_score = compute_outcome_scores(item, answer, verdict)
         return BenchmarkResult(
             item_id=item.item_id,
             answer=answer,
             validation_status="complete",
             judge_status="ok",
-            outcome_score=verdict.scores.get("synthesis_grounding", verdict.scores.get("value_alignment", 0)),
-            alignment_score=verdict.scores.get("claim_presence", 0),
+            outcome_score=outcome_score,
+            alignment_score=alignment_score,
             trajectory_fidelity=traj_score,
             ranking_metrics=ranking,
             judge_verdict=verdict,
@@ -508,14 +505,15 @@ class ReproRunner:
         traj_score = trajectory_fidelity_score(
             trajectory, judge_score=verdict.scores.get("trajectory_fidelity")
         )
+        outcome_score, alignment_score = compute_outcome_scores(item, resp.answer, verdict)
         return BenchmarkResult(
             item_id=item.item_id,
             answer=resp.answer,
             mlflow_run_id=resp.mlflow_run_id,
             validation_status=resp.validation_status or "complete",
             judge_status=resp.judge_status or "ok",
-            outcome_score=verdict.scores.get("synthesis_grounding", verdict.scores.get("value_alignment", 0)),
-            alignment_score=verdict.scores.get("claim_presence", 0),
+            outcome_score=outcome_score,
+            alignment_score=alignment_score,
             trajectory_fidelity=traj_score,
             ranking_metrics=ranking,
             judge_verdict=verdict,
@@ -541,6 +539,7 @@ class ReproRunner:
                 output_dir,
                 release_tag=self._manifest.release_tag,
                 manifest=self._manifest,
+                repo_root=self._repo_root,
             )
             write_paper_tables(export, output_dir)
             repro = self._load_repro_run(output_dir) or ReproRun(
@@ -601,7 +600,8 @@ class ReproRunner:
             repro.defer_judge = self.defer_config.enabled
 
         variants = resolve_variant_configs(self._manifest)
-        contexts = self._load_item_contexts(bundle, self._manifest.eval_split)
+        contexts = load_item_contexts(bundle, self._manifest.eval_split)
+        profiles, rel, gt = item_context_lookup_maps(contexts)
         summaries = []
 
         for variant in variants:
@@ -621,9 +621,6 @@ class ReproRunner:
                 self._save_repro_run(output_dir, repro)
                 raise
             repro.variant_runs.append(ref)
-            profiles = {item_id: ctx.inspiration_profile for item_id, ctx in contexts.items()}
-            gt = {item_id: ctx.ground_truth for item_id, ctx in contexts.items()}
-            rel = {item_id: ctx.relevant_chunk_ids for item_id, ctx in contexts.items()}
             summaries.append(
                 build_variant_summary(
                     variant.variant_id,
@@ -650,9 +647,9 @@ class ReproRunner:
                     build_variant_summary(
                         variant.variant_id,
                         results,
-                        {item_id: ctx.inspiration_profile for item_id, ctx in contexts.items()},
-                        {item_id: ctx.relevant_chunk_ids for item_id, ctx in contexts.items()},
-                        {item_id: ctx.ground_truth for item_id, ctx in contexts.items()},
+                        profiles,
+                        rel,
+                        gt,
                     )
                 )
 
@@ -669,9 +666,9 @@ class ReproRunner:
                     build_variant_summary(
                         variant.variant_id,
                         results,
-                        {item_id: ctx.inspiration_profile for item_id, ctx in contexts.items()},
-                        {item_id: ctx.relevant_chunk_ids for item_id, ctx in contexts.items()},
-                        {item_id: ctx.ground_truth for item_id, ctx in contexts.items()},
+                        profiles,
+                        rel,
+                        gt,
                     )
                 )
 
@@ -703,23 +700,6 @@ class ReproRunner:
                 repro.status = "failed"
                 raise RuntimeError(verify.message)
         return repro
-
-    @staticmethod
-    def _load_item_contexts(bundle_root: Path, split: str) -> dict[str, ItemContext]:
-        path = bundle_root / "items" / f"{split}.jsonl"
-        contexts: dict[str, ItemContext] = {}
-        for line in path.read_text(encoding="utf-8").splitlines():
-            if not line.strip():
-                continue
-            row = json.loads(line)
-            gt = row.get("ground_truth") or {}
-            contexts[row["item_id"]] = ItemContext(
-                inspiration_profile=row.get("inspiration_profile", "unknown"),
-                ground_truth=gt,
-                relevant_chunk_ids=row.get("relevant_chunk_ids") or gt.get("relevant_chunk_ids") or [],
-            )
-        return contexts
-
 
 def _mean(results: list[BenchmarkResult], field: str) -> float:
     vals = [getattr(r, field) for r in results]

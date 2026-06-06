@@ -6,6 +6,8 @@ import uuid
 from datetime import date
 from typing import Any
 
+from models.enums import EvidenceSourceType
+
 from graph.accession import accession_from_node_id
 from models.enums import QueryStatus
 from models.filing import FilingRef
@@ -192,6 +194,70 @@ def _resolve_synthesis_path(state: dict[str, Any]) -> SynthesisPath:
     return SynthesisPath.LIVE_LLM
 
 
+def _parse_iso_date(value: object) -> date:
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(str(value)[:10])
+
+
+def _evidence_dict_to_chunk(entry: dict[str, Any]) -> EvidenceChunk:
+    raw_type = str(entry.get("source_type") or "narrative").upper()
+    try:
+        source_type = EvidenceSourceType(raw_type)
+    except ValueError:
+        source_type = EvidenceSourceType.HTML
+    return EvidenceChunk(
+        chunk_node_id=str(entry.get("chunk_node_id") or ""),
+        excerpt="",
+        content_hash=str(entry.get("content_hash") or ""),
+        citation_label=str(entry.get("citation_label") or entry.get("chunk_node_id") or ""),
+        source_type=source_type,
+        accession=str(entry.get("accession") or ""),
+        section_id=str(entry.get("section_id") or ""),
+    )
+
+
+def normalize_trajectory_state(state: dict[str, Any]) -> dict[str, Any]:
+    """Hydrate LangGraph fields from a serialized AgentTrajectorySnapshot dict."""
+    normalized = dict(state)
+    if not normalized.get("evidence_chunks") and normalized.get("evidence"):
+        chunks: list[EvidenceChunk] = []
+        for entry in normalized["evidence"]:
+            if isinstance(entry, EvidenceChunk):
+                chunks.append(entry)
+            elif isinstance(entry, dict):
+                chunks.append(_evidence_dict_to_chunk(entry))
+            elif hasattr(entry, "model_dump"):
+                chunks.append(_evidence_dict_to_chunk(entry.model_dump()))
+        normalized["evidence_chunks"] = chunks
+
+    if not normalized.get("filing_set") and normalized.get("document_route"):
+        filing_set: list[FilingRef] = []
+        for route in normalized["document_route"]:
+            if isinstance(route, FilingRef):
+                filing_set.append(route)
+                continue
+            if not isinstance(route, dict):
+                continue
+            filed_at = _parse_iso_date(route.get("filed_at") or "1970-01-01")
+            period_end = _parse_iso_date(route.get("period_end") or filed_at)
+            filing_set.append(
+                FilingRef(
+                    cik=str(route.get("cik") or ""),
+                    accession=str(route.get("accession") or ""),
+                    form_type=str(route.get("form_type") or "10-K"),
+                    filed_at=filed_at,
+                    period_end=period_end,
+                    source_uri="",
+                )
+            )
+        normalized["filing_set"] = filing_set
+
+    if normalized.get("query_text") and not normalized.get("query"):
+        normalized["query"] = normalized["query_text"]
+    return normalized
+
+
 def _resolve_absent_reason(state: dict[str, Any]) -> str | None:
     if state.get("macro_binding_failed"):
         return "macro_binding_failed"
@@ -212,6 +278,7 @@ def build_agent_trajectory_snapshot(
     mlflow_run_id: str = "",
     issuer_id: str = "",
 ) -> AgentTrajectorySnapshot:
+    state = normalize_trajectory_state(state)
     query_id = str(state.get("query_id") or uuid.uuid4())
     filing_set: list[FilingRef] = list(state.get("filing_set") or [])
     filing_accessions = {f.accession for f in filing_set if f.accession}
@@ -245,7 +312,7 @@ def build_agent_trajectory_snapshot(
         query_text=str(state.get("query") or ""),
         issuer_id=issuer_id or str(state.get("issuer_id") or ""),
         snapshot_id=str(state.get("snapshot_id") or ""),
-        evaluation_as_of=date.today().isoformat(),
+        evaluation_as_of=str(state.get("evaluation_as_of") or date.today().isoformat()),
         mlflow_run_id=mlflow_run_id,
         mlflow_trace_id=mlflow_trace_id,
         status=state.get("status", QueryStatus.SUCCESS),

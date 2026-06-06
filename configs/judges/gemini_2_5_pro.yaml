@@ -17,10 +17,13 @@ rubrics:
     with the document route.
   synthesis_grounding: |
     Score 0.0-1.0 whether the final answer stays within cited evidence without unsupported claims.
+    Do not reward abstention ("insufficient evidence") when the trajectory contains usable evidence.
   value_alignment: |
-    Score 0-1 whether numeric claims in the answer exactly match ground truth
-    within stated tolerance. Penalize fabricated numbers. (legacy benchmark key)
+    Score 0.0-1.0 whether the answer matches ground_truth.answer (numeric tolerance where applicable).
+    Score 0.0 for abstention or refusal when ground truth expects a substantive answer.
+    Penalize fabricated numbers and claims not supported by cited evidence.
   claim_presence: |
-    Score 0-1 whether required factual claims from the rubric appear in the answer. (legacy)
+    Score 0.0-1.0 whether required factual claims from ground_truth.rubric appear in the answer.
+    Score 0.0 when the answer abstains but the rubric expects specific claims.
   trajectory_fidelity: |
     Score 0-1 whether the agent trajectory aligns with expected navigation. (legacy)

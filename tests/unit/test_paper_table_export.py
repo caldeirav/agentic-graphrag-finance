@@ -1,13 +1,16 @@
 """Unit tests for paper table export (012)."""
 
+import json
 from pathlib import Path
 
 from evaluation.reproduction.export import (
     build_variant_summary,
     export_paper_tables,
+    export_tables_from_disk,
     write_paper_tables,
 )
 from models.evaluation import BenchmarkResult, RankingMetrics
+from models.reproduction import ModelPins, ReleaseManifest
 
 
 def _result(
@@ -90,6 +93,88 @@ def test_finder_profile_marks_rubric_only_outcome() -> None:
         if r.inspiration_profile == "finder" and r.metric_name == "outcome_accuracy"
     ]
     assert finder_outcome[0].na_reason == "rubric_only"
+
+
+def _test_manifest(bundle_path: str = "bundle") -> ReleaseManifest:
+    return ReleaseManifest(
+        release_tag="test",
+        git_sha="sha",
+        custom_judge_version="1.0.0",
+        custom_judge_bundle_path=bundle_path,
+        eval_split="dev",
+        variant_ids=["graph-full"],
+        model_pins=ModelPins(
+            llm_config_path="configs/llm/x.yaml",
+            llm_config_hash="sha256:x",
+            judge_config_path="configs/judges/x.yaml",
+            judge_config_hash="sha256:x",
+            embedding_model_id="sentence-transformers/all-MiniLM-L6-v2",
+            embedding_model_revision="rev",
+            embedding_config_path="configs/reproduction/embeddings/x.yaml",
+            embedding_config_hash="sha256:x",
+        ),
+    )
+
+
+def test_export_tables_from_disk_loads_item_context(tmp_path: Path) -> None:
+    bundle = tmp_path / "bundle"
+    (bundle / "items").mkdir(parents=True)
+    item = {
+        "item_id": "i1",
+        "inspiration_profile": "financebench",
+        "ground_truth": {"answer": "expected"},
+        "relevant_chunk_ids": ["chunk-1"],
+    }
+    (bundle / "items" / "dev.jsonl").write_text(json.dumps(item) + "\n", encoding="utf-8")
+
+    out = tmp_path / "out"
+    variant_dir = out / "graph-full"
+    variant_dir.mkdir(parents=True)
+    result = BenchmarkResult(
+        item_id="i1",
+        validation_status="complete",
+        judge_status="ok",
+        outcome_score=0.75,
+        alignment_score=0.5,
+        trajectory_fidelity=0.9,
+        ranking_metrics=RankingMetrics(mrr=0.6, map_score=0.4, ndcg_at_10=0.7),
+    )
+    (variant_dir / "results.json").write_text(
+        json.dumps([result.model_dump(mode="json")]),
+        encoding="utf-8",
+    )
+
+    export = export_tables_from_disk(
+        out,
+        release_tag="test",
+        manifest=_test_manifest(),
+        repo_root=tmp_path,
+    )
+    outcome_rows = [r for r in export.headline_rows if r.metric_name == "outcome_accuracy"]
+    assert len(outcome_rows) == 1
+    assert outcome_rows[0].value == 0.75
+    assert outcome_rows[0].na_reason == ""
+
+
+def test_export_tables_from_disk_without_manifest_has_no_eligible_items(tmp_path: Path) -> None:
+    variant_dir = tmp_path / "graph-full"
+    variant_dir.mkdir(parents=True)
+    result = BenchmarkResult(
+        item_id="i1",
+        validation_status="complete",
+        judge_status="ok",
+        outcome_score=0.75,
+        trajectory_fidelity=0.9,
+        ranking_metrics=RankingMetrics(mrr=0.6, map_score=0.4, ndcg_at_10=0.7),
+    )
+    (variant_dir / "results.json").write_text(
+        json.dumps([result.model_dump(mode="json")]),
+        encoding="utf-8",
+    )
+
+    export = export_tables_from_disk(tmp_path, release_tag="test")
+    outcome_rows = [r for r in export.headline_rows if r.metric_name == "outcome_accuracy"]
+    assert outcome_rows[0].na_reason == "no_eligible_items"
 
 
 def test_writes_headline_tex(tmp_path: Path) -> None:

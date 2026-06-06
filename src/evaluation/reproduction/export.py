@@ -20,6 +20,43 @@ from models.reproduction import (
 
 
 @dataclass
+class ItemContext:
+    inspiration_profile: str
+    ground_truth: dict
+    relevant_chunk_ids: list[str]
+
+
+def load_item_contexts(bundle_root: Path, split: str) -> dict[str, ItemContext]:
+    """Load per-item profile, ground truth, and relevance labels from the judge bundle."""
+    path = bundle_root / "items" / f"{split}.jsonl"
+    if not path.is_file():
+        msg = f"Custom-judge split not found: {path}"
+        raise FileNotFoundError(msg)
+    contexts: dict[str, ItemContext] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        gt = row.get("ground_truth") or {}
+        contexts[row["item_id"]] = ItemContext(
+            inspiration_profile=row.get("inspiration_profile", "unknown"),
+            ground_truth=gt,
+            relevant_chunk_ids=row.get("relevant_chunk_ids") or gt.get("relevant_chunk_ids") or [],
+        )
+    return contexts
+
+
+def item_context_lookup_maps(
+    contexts: dict[str, ItemContext],
+) -> tuple[dict[str, str], dict[str, list[str]], dict[str, dict]]:
+    """Split item contexts into the dicts expected by build_variant_summary."""
+    profiles = {item_id: ctx.inspiration_profile for item_id, ctx in contexts.items()}
+    relevance = {item_id: ctx.relevant_chunk_ids for item_id, ctx in contexts.items()}
+    ground_truth = {item_id: ctx.ground_truth for item_id, ctx in contexts.items()}
+    return profiles, relevance, ground_truth
+
+
+@dataclass
 class VariantItemRecord:
     item_id: str
     inspiration_profile: str
@@ -321,9 +358,21 @@ def export_tables_from_disk(
     *,
     release_tag: str,
     manifest: ReleaseManifest | None = None,
+    repo_root: Path | None = None,
 ) -> PaperTableExport:
     """Build paper tables from existing per-variant results.json checkpoints."""
     from evaluation.reproduction.manifest import resolve_variant_configs
+
+    profiles_by_item: dict[str, str] = {}
+    relevance_by_item: dict[str, list[str]] = {}
+    ground_truth_by_item: dict[str, dict] = {}
+    if manifest is not None:
+        root = repo_root or Path.cwd()
+        bundle_root = root / manifest.custom_judge_bundle_path
+        contexts = load_item_contexts(bundle_root, manifest.eval_split)
+        profiles_by_item, relevance_by_item, ground_truth_by_item = item_context_lookup_maps(
+            contexts
+        )
 
     summaries: list[VariantRunSummary] = []
     variant_ids: list[str] = []
@@ -344,9 +393,9 @@ def export_tables_from_disk(
             build_variant_summary(
                 variant_id,
                 results,
-                profiles_by_item={},
-                relevance_by_item={},
-                ground_truth_by_item={},
+                profiles_by_item,
+                relevance_by_item,
+                ground_truth_by_item,
             )
         )
     return export_paper_tables(summaries, release_tag=release_tag)

@@ -10,6 +10,7 @@ from collections.abc import Callable
 from evaluation.datasets.custom_judge import CustomJudgeDataset
 from evaluation.generation.api_retry import with_transient_retry
 from evaluation.judges.gemini_panel import GeminiJudgePanel
+from evaluation.judges.outcome_scoring import compute_outcome_scores
 from evaluation.metrics.trajectory import trajectory_fidelity_score
 from evaluation.reproduction.defer_config import is_final_judge_status
 from evaluation.reproduction.io import write_json_atomic
@@ -40,6 +41,8 @@ def _judge_one(
         trajectory = build_trajectory_from_state(
             {"evidence_chunks": citations, "query": item.question}
         )
+    if not trajectory.evidence and result.answer and result.answer.citations:
+        trajectory = trajectory.model_copy(update={"evidence": list(result.answer.citations)})
     verdict = with_transient_retry(
         lambda: judge.judge(item, result.answer, trajectory),
         label="GeminiJudge",
@@ -47,14 +50,13 @@ def _judge_one(
     traj_score = trajectory_fidelity_score(
         trajectory, judge_score=verdict.scores.get("trajectory_fidelity")
     )
+    outcome_score, alignment_score = compute_outcome_scores(item, result.answer, verdict)
     return result.model_copy(
         update={
             "judge_status": "ok",
             "judge_verdict": verdict,
-            "outcome_score": verdict.scores.get(
-                "synthesis_grounding", verdict.scores.get("value_alignment", 0)
-            ),
-            "alignment_score": verdict.scores.get("claim_presence", 0),
+            "outcome_score": outcome_score,
+            "alignment_score": alignment_score,
             "trajectory_fidelity": traj_score,
             "mlflow_run_id": result.generation_mlflow_run_id or result.mlflow_run_id,
         }

@@ -13,6 +13,7 @@ import mlflow
 
 from contracts.query import QueryRequest
 from evaluation.judges.gemini_panel import GeminiJudgePanel
+from evaluation.judges.outcome_scoring import compute_outcome_scores
 from evaluation.metrics.ranking import compute_ranking_metrics
 from evaluation.metrics.trajectory import trajectory_fidelity_score
 from evaluation.registry import BenchmarkRegistry, default_registry
@@ -176,6 +177,9 @@ class EvaluationRunner:
                         trajectory or build_trajectory_from_state({}),
                         judge_score=verdict.scores.get("trajectory_fidelity"),
                     )
+                    outcome_score, alignment_score = compute_outcome_scores(
+                        item, resp.answer, verdict
+                    )
                     results.append(
                         BenchmarkResult(
                             item_id=item.item_id,
@@ -183,11 +187,8 @@ class EvaluationRunner:
                             mlflow_run_id=resp.mlflow_run_id,
                             validation_status=resp.validation_status,
                             judge_status=resp.judge_status,
-                            outcome_score=verdict.scores.get(
-                                "synthesis_grounding",
-                                verdict.scores.get("value_alignment", 0),
-                            ),
-                            alignment_score=verdict.scores.get("claim_presence", 0),
+                            outcome_score=outcome_score,
+                            alignment_score=alignment_score,
                             trajectory_fidelity=traj_score,
                             ranking_metrics=ranking,
                             judge_verdict=verdict,

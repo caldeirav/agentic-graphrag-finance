@@ -10,8 +10,10 @@ from pathlib import Path
 
 import yaml
 
+from evaluation.judges.outcome_scoring import criteria_for_item
 from models.evaluation import (
     BenchmarkItem,
+    GroundTruth,
     JudgeCriterionResult,
     JudgeRunSummary,
     JudgeStatus,
@@ -20,12 +22,15 @@ from models.evaluation import (
 from models.query import AnswerPackage, TrajectoryRecord
 from models.trajectory import AgentTrajectorySnapshot
 
-CRITERION_IDS = (
+TRAJECTORY_CRITERION_IDS = (
     "trajectory_coherence",
     "routing_decisions",
     "retrieval_fidelity",
     "synthesis_grounding",
 )
+
+# Backward-compatible alias for tests and imports.
+CRITERION_IDS = TRAJECTORY_CRITERION_IDS
 
 
 class JudgeParseError(Exception):
@@ -88,7 +93,14 @@ class GeminiJudgePanel:
                     chosen_path_rationale="no trajectory",
                 ),
             )
-        summary = self.judge_trajectory(snapshot, answer, item.question)
+        criteria_ids = criteria_for_item(item)
+        summary = self.judge_trajectory(
+            snapshot,
+            answer,
+            item.question,
+            ground_truth=item.ground_truth,
+            criteria_ids=criteria_ids,
+        )
         scores = {c.criterion_id: c.score for c in summary.criteria}
         return JudgeVerdict(
             judge_model=summary.judge_model,
@@ -103,11 +115,21 @@ class GeminiJudgePanel:
         snapshot: AgentTrajectorySnapshot,
         answer: AnswerPackage | None,
         question: str,
+        *,
+        ground_truth: GroundTruth | None = None,
+        criteria_ids: tuple[str, ...] | None = None,
     ) -> JudgeRunSummary:
         if os.environ.get("USE_MOCK_JUDGE", "0") == "1":
-            return self._mock_summary(snapshot, answer, question)
+            return self._mock_summary(snapshot, answer, question, criteria_ids=criteria_ids)
 
-        prompt = self._build_trajectory_prompt(snapshot, answer, question)
+        expected = criteria_ids or TRAJECTORY_CRITERION_IDS
+        prompt = self._build_trajectory_prompt(
+            snapshot,
+            answer,
+            question,
+            ground_truth=ground_truth,
+            criteria_ids=expected,
+        )
         from langchain_core.messages import HumanMessage
         from langchain_google_genai import ChatGoogleGenerativeAI
 
@@ -117,9 +139,15 @@ class GeminiJudgePanel:
         )
         resp = llm.invoke([HumanMessage(content=prompt)])
         text = resp.content if isinstance(resp.content, str) else str(resp.content)
-        return self._parse_summary(text)
+        return self._parse_summary(text, criteria_ids=expected)
 
-    def _parse_summary(self, text: str) -> JudgeRunSummary:
+    def _parse_summary(
+        self,
+        text: str,
+        *,
+        criteria_ids: tuple[str, ...] | None = None,
+    ) -> JudgeRunSummary:
+        expected = criteria_ids or TRAJECTORY_CRITERION_IDS
         try:
             data = _extract_json(text)
         except json.JSONDecodeError as exc:
@@ -128,7 +156,7 @@ class GeminiJudgePanel:
         criteria: list[JudgeCriterionResult] = []
         for entry in criteria_raw:
             cid = str(entry.get("id") or entry.get("criterion_id") or "")
-            if cid not in CRITERION_IDS:
+            if cid not in expected:
                 continue
             criteria.append(
                 JudgeCriterionResult(
@@ -138,8 +166,8 @@ class GeminiJudgePanel:
                     stage=entry.get("stage"),
                 )
             )
-        if len(criteria) < len(CRITERION_IDS):
-            raise JudgeParseError(f"expected {len(CRITERION_IDS)} criteria, got {len(criteria)}")
+        if len(criteria) < len(expected):
+            raise JudgeParseError(f"expected {len(expected)} criteria, got {len(criteria)}")
         weakest = min(criteria, key=lambda c: c.score)
         return JudgeRunSummary(
             judge_model=self._model,
@@ -156,10 +184,13 @@ class GeminiJudgePanel:
         snapshot: AgentTrajectorySnapshot,
         answer: AnswerPackage | None,
         question: str,
+        *,
+        criteria_ids: tuple[str, ...] | None = None,
     ) -> JudgeRunSummary:
         has_answer = answer is not None and bool(answer.text)
         has_ev = len(snapshot.evidence) > 0
         base = 0.88 if has_answer and has_ev else 0.35
+        expected = criteria_ids or TRAJECTORY_CRITERION_IDS
         criteria = [
             JudgeCriterionResult(
                 criterion_id=cid,
@@ -167,7 +198,7 @@ class GeminiJudgePanel:
                 justification=f"mock judge for {snapshot.query_id[:8]}",
                 stage=None,
             )
-            for cid in CRITERION_IDS
+            for cid in expected
         ]
         return JudgeRunSummary(
             judge_model="mock-judge",
@@ -207,10 +238,36 @@ class GeminiJudgePanel:
         snapshot: AgentTrajectorySnapshot,
         answer: AnswerPackage | None,
         question: str,
+        *,
+        ground_truth: GroundTruth | None = None,
+        criteria_ids: tuple[str, ...] | None = None,
     ) -> str:
         rubrics = self._cfg.get("rubrics", {})
         as_of = snapshot.evaluation_as_of or date.today().isoformat()
         traj_json = snapshot.model_dump_json()[:12000]
+        expected = criteria_ids or TRAJECTORY_CRITERION_IDS
+        gt_block = ""
+        if ground_truth is not None:
+            gt_parts: list[str] = []
+            if ground_truth.answer:
+                gt_parts.append(f"- expected_answer: {ground_truth.answer[:2000]}")
+            if ground_truth.rubric:
+                gt_parts.append(f"- expected_rubric: {ground_truth.rubric[:2000]}")
+            if gt_parts:
+                gt_block = (
+                    "\nGround truth for this item (use only when scoring value_alignment "
+                    "or claim_presence):\n"
+                    + "\n".join(gt_parts)
+                    + "\n"
+                    "- Score value_alignment 0.0 when the answer abstains (e.g. "
+                    "'Insufficient evidence') but ground truth expects a substantive answer.\n"
+                    "- Score claim_presence 0.0 when required rubric claims are missing or the "
+                    "answer abstains without justification.\n"
+                )
+        example_criteria = ", ".join(
+            f'{{"id": "{cid}", "score": 0.9, "stage": null, "justification": "..."}}'
+            for cid in expected[:4]
+        )
         return (
             "You are an expert auditor for SEC disclosure Q&A agents.\n\n"
             "Evaluation context (authoritative — do not override):\n"
@@ -219,16 +276,13 @@ class GeminiJudgePanel:
             "materialized corpus snapshot (not hypothetical).\n"
             "- Use filed_at and period_end on each route entry when judging dates.\n"
             "- trajectory_coherence measures internal consistency (plan → route → hops → "
-            "evidence), NOT whether fiscal year labels match your training cutoff.\n\n"
+            "evidence), NOT whether fiscal year labels match your training cutoff.\n"
+            f"{gt_block}\n"
             f"Question: {question}\n"
             f"Answer: {answer.text if answer else 'N/A'}\n"
             f"Trajectory JSON:\n{traj_json}\n\n"
             f"Rubrics:\n{yaml.dump(rubrics)}\n\n"
             "Return ONLY valid JSON with this shape (use your own scores 0.0-1.0, not placeholders):\n"
-            '{"criteria": [{"id": "trajectory_coherence", "score": 0.85, "stage": null, '
-            '"justification": "..."}, {"id": "routing_decisions", "score": 0.9, "stage": "macro", '
-            '"justification": "..."}, {"id": "retrieval_fidelity", "score": 0.9, "stage": null, '
-            '"justification": "..."}, {"id": "synthesis_grounding", "score": 0.9, "stage": null, '
-            '"justification": "..."}], "overall_summary": "..."}\n'
-            f"Score all criteria: {', '.join(CRITERION_IDS)} on 0.0-1.0.\n"
+            f'{{"criteria": [{example_criteria}, ...], "overall_summary": "..."}}\n'
+            f"Score all criteria: {', '.join(expected)} on 0.0-1.0.\n"
         )
