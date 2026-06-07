@@ -12,7 +12,9 @@ from evaluation.reproduction.manifest import load_release_manifest
 from evaluation.reproduction.report_errors import ReportInputError
 from evaluation.reproduction.report_models import (
     CSV_HEADERS,
+    OPTIONAL_PAPER_TABLE_IDS,
     PAPER_TABLE_IDS,
+    REQUIRED_PAPER_TABLE_IDS,
     ItemResultRecord,
     PaperTableId,
     ReproOutputBundle,
@@ -136,11 +138,15 @@ def load_repro_report_bundle(
         raise ReportInputError("Missing required tables/ directory", path=tables_dir)
 
     tables: dict[str, TableData] = {}
-    for table_id in PAPER_TABLE_IDS:
+    for table_id in REQUIRED_PAPER_TABLE_IDS:
         csv_path = tables_dir / f"{table_id.value}.csv"
         if not csv_path.is_file():
             raise ReportInputError(f"Missing required {csv_path.name}", path=csv_path)
         tables[table_id.value] = _read_csv(csv_path, table_id)
+    for table_id in OPTIONAL_PAPER_TABLE_IDS:
+        csv_path = tables_dir / f"{table_id.value}.csv"
+        if csv_path.is_file():
+            tables[table_id.value] = _read_csv(csv_path, table_id)
 
     warnings: list[str] = []
     incomplete_variants: list[str] = []

@@ -164,6 +164,22 @@ class DeltaRow(BaseModel):
     delta: float
 
 
+class StratumMetricRow(MetricRow):
+    primary_evidence_source: str
+    abstention_rate: float = 0.0
+
+
+class StratumDeltaRow(BaseModel):
+    primary_evidence_source: str
+    baseline_variant: str
+    comparison_variant: str
+    metric_name: str
+    delta: float
+    baseline_item_count: int = 0
+    comparison_item_count: int = 0
+    na_reason: str = ""
+
+
 class AuditRow(BaseModel):
     variant_id: str
     excluded_incomplete: int
@@ -178,4 +194,7 @@ class PaperTableExport(BaseModel):
     headline_rows: list[MetricRow] = Field(default_factory=list)
     by_profile_rows: list[ProfileMetricRow] = Field(default_factory=list)
     variant_delta_rows: list[DeltaRow] = Field(default_factory=list)
+    by_evidence_source_rows: list[StratumMetricRow] = Field(default_factory=list)
+    variant_delta_by_source_rows: list[StratumDeltaRow] = Field(default_factory=list)
     audit_rows: list[AuditRow] = Field(default_factory=list)
+    stratum_audit: dict[str, int] = Field(default_factory=dict)

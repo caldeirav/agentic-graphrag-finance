@@ -17,9 +17,21 @@ class PaperTableId(StrEnum):
     BY_PROFILE = "by_profile"
     VARIANT_DELTA = "variant_delta"
     TRAJECTORY_AUDIT = "trajectory_audit"
+    BY_EVIDENCE_SOURCE = "by_evidence_source"
+    VARIANT_DELTA_BY_SOURCE = "variant_delta_by_source"
 
 
-PAPER_TABLE_IDS: tuple[PaperTableId, ...] = tuple(PaperTableId)
+REQUIRED_PAPER_TABLE_IDS: tuple[PaperTableId, ...] = (
+    PaperTableId.HEADLINE,
+    PaperTableId.BY_PROFILE,
+    PaperTableId.VARIANT_DELTA,
+    PaperTableId.TRAJECTORY_AUDIT,
+)
+OPTIONAL_PAPER_TABLE_IDS: tuple[PaperTableId, ...] = (
+    PaperTableId.BY_EVIDENCE_SOURCE,
+    PaperTableId.VARIANT_DELTA_BY_SOURCE,
+)
+PAPER_TABLE_IDS: tuple[PaperTableId, ...] = REQUIRED_PAPER_TABLE_IDS + OPTIONAL_PAPER_TABLE_IDS
 STANDARD_VARIANTS: tuple[str, ...] = (
     "graph-full",
     "flat-chunk",
@@ -120,6 +132,17 @@ class RunAnomaly(BaseModel):
     message: str
     hint: str = ""
 
+
+class AggregatedInvestigationNote(BaseModel):
+    severity: str
+    pattern_code: str
+    message: str
+    item_count: int
+    variant_id: str = ""
+    example_item_ids: list[str] = Field(default_factory=list)
+    hint: str = ""
+    expandable: bool = True
+
 CSV_HEADERS: dict[PaperTableId, tuple[str, ...]] = {
     PaperTableId.HEADLINE: (
         "variant_id",
@@ -152,6 +175,27 @@ CSV_HEADERS: dict[PaperTableId, tuple[str, ...]] = {
         "excluded_degraded",
         "excluded_pending_judge",
         "included_in_headline",
+    ),
+    PaperTableId.BY_EVIDENCE_SOURCE: (
+        "variant_id",
+        "primary_evidence_source",
+        "metric_name",
+        "value",
+        "item_count",
+        "abstention_rate",
+        "excluded_incomplete",
+        "excluded_degraded",
+        "na_reason",
+    ),
+    PaperTableId.VARIANT_DELTA_BY_SOURCE: (
+        "primary_evidence_source",
+        "baseline_variant",
+        "comparison_variant",
+        "metric_name",
+        "delta",
+        "baseline_item_count",
+        "comparison_item_count",
+        "na_reason",
     ),
 }
 

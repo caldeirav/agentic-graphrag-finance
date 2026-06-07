@@ -271,7 +271,7 @@ uv run agent-query repro verify-tables \
 | `repro run` | Run selected variants |
 | `repro run-all` | Full phase-2 workflow (recommended) |
 | `repro run-all --defer-judge` | Generation without per-item Gemini; judge-batch after each variant |
-| `repro judge-batch` | Score pending items in existing `results.json` |
+| `repro judge-batch` | Score pending items in existing `results.json` (idempotent v2 resume; `--force-rescore`) |
 | `repro run-all --judge-only` | Judge batch only (skip agent generation) |
 | `repro run-all --export-only` | Export tables from checkpoints |
 | `repro run-all --resume/--no-resume` | Resume partial runs (default: resume) |
@@ -297,7 +297,27 @@ uv run agent-query repro report \
   --format latex-only --table headline
 ```
 
-The report consumes existing artifacts only (`repro_run.json`, `tables/*.csv`, optional `{variant}/results.json`); it does not re-run agents or judges. Operator quickstart: [014 quickstart](../specs/014-repro-results-viewer/quickstart.md). Troubleshooting partial runs: missing variant checkpoints produce warnings, not hard failures.
+The report consumes existing artifacts only (`repro_run.json`, `tables/*.csv`, optional `{variant}/results.json`); it does not re-run agents or judges. Investigation notes are aggregated (≤25 per run). Optional stratified tables: `by_evidence_source.csv`, `variant_delta_by_source.csv`. Operator quickstart: [014 quickstart](../specs/014-repro-results-viewer/quickstart.md) | [015 quickstart](../specs/015-repro-eval-validity/quickstart.md). Troubleshooting partial runs: missing variant checkpoints produce warnings, not hard failures.
+
+## Re-judge workflow (015)
+
+After P0 scoring fixes on `main`, re-score an existing checkpoint without re-running agents:
+
+```bash
+uv run agent-query repro judge-batch \
+  --manifest releases/paper-v1.0/manifest.yaml \
+  --input reports/repro-paper-v1.0
+
+uv run agent-query repro export-tables \
+  --manifest releases/paper-v1.0/manifest.yaml \
+  --input reports/repro-paper-v1.0
+
+uv run agent-query repro report \
+  --input reports/repro-paper-v1.0 \
+  --output reports/repro-paper-v1.0/report.html
+```
+
+Use `--force-rescore` on `judge-batch` to bypass the v2 resume skip. `--input` is an alias for `--output` on `judge-batch`.
 
 ## Output layout
 
@@ -313,7 +333,9 @@ reports/repro-paper-v1.0/
     ├── headline.csv
     ├── by_profile.csv
     ├── variant_delta.csv
-    └── trajectory_audit.csv
+    ├── trajectory_audit.csv
+    ├── by_evidence_source.csv      # optional (015)
+    └── variant_delta_by_source.csv # optional (015)
 ```
 
 ## Recovery playbook (013)
@@ -327,7 +349,7 @@ Long `paper-v1.0` runs can be interrupted. Checkpoints live under `reports/repro
    ```bash
    uv run agent-query repro judge-batch \
      --manifest releases/paper-v1.0/manifest.yaml \
-     --output reports/repro-paper-v1.0
+     --input reports/repro-paper-v1.0
    ```
 
    Or: `repro run-all ... --judge-only` with the same manifest and output directory.

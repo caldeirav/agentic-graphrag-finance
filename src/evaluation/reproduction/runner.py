@@ -41,7 +41,10 @@ from evaluation.reproduction.manifest import (
     sha256_file,
 )
 from evaluation.reproduction.relevance import materialize_relevance_labels
+from evaluation.reproduction.result_write import prepare_result_for_write, ungrounded_numeric_tokens
 from evaluation.reproduction.snapshot_loader import load_item_subgraph
+from evaluation.reproduction.structural import aggregate_structural_metrics
+from evaluation.reproduction.structural_extract import build_structural_inputs
 from evaluation.reproduction.verify_tables import verify_tables
 from graph.query_api import InMemoryGraphQueryAPI
 from models.evaluation import BenchmarkItem, BenchmarkResult, JudgeStatus
@@ -87,7 +90,20 @@ def _progress(message: str) -> None:
 
 
 def _write_variant_results(path: Path, results: list[BenchmarkResult]) -> None:
-    write_json_atomic(path, [r.model_dump(mode="json") for r in results])
+    prepared = [prepare_result_for_write(r) for r in results]
+    write_json_atomic(path, [r.model_dump(mode="json") for r in prepared])
+
+
+def _structural_metrics_for_variant(
+    items: list[BenchmarkItem],
+    results: list[BenchmarkResult],
+):
+    used, paths = build_structural_inputs(results)
+    return aggregate_structural_metrics(
+        items,
+        used_accessions_by_item=used,
+        visited_paths_by_item=paths,
+    )
 
 
 def _variant_is_complete(
@@ -243,7 +259,12 @@ class ReproRunner:
 
         if _variant_is_complete(results, len(items), defer=self.defer_config.enabled):
             _progress(f"Skipping complete variant {variant.variant_id}")
-            ref = EvalRunRef(variant_id=variant.variant_id, report_dir=str(variant_dir))
+            structural = _structural_metrics_for_variant(items, results)
+            ref = EvalRunRef(
+                variant_id=variant.variant_id,
+                report_dir=str(variant_dir),
+                structural_metrics=structural,
+            )
             if repro is not None:
                 repro.items_completed[variant.variant_id] = len(results)
                 if variant.variant_id not in repro.completed_variants:
@@ -330,17 +351,26 @@ class ReproRunner:
                     )
                     graph_api = InMemoryGraphQueryAPI(slice_snap)
                     svc = QueryService(graph_api=graph_api, issuer_id=slice_snap.issuer_id)
-                    results.append(
-                        self._score_graph_item(
-                            item,
-                            svc,
-                            slice_id,
-                            slice_snap.issuer_id,
-                            caps,
-                            contexts.get(item.item_id),
-                            snapshot=slice_snap,
-                        )
+                    scored = self._score_graph_item(
+                        item,
+                        svc,
+                        slice_id,
+                        slice_snap.issuer_id,
+                        caps,
+                        contexts.get(item.item_id),
+                        snapshot=slice_snap,
                     )
+                    if scored.answer and scored.answer.citations:
+                        cited_text = " ".join(
+                            getattr(c, "excerpt", "") or "" for c in scored.answer.citations
+                        )
+                        bad = ungrounded_numeric_tokens(scored.answer.text or "", cited_text)
+                        if bad:
+                            _progress(
+                                f"    warn: ungrounded numeric tokens on {item.item_id}: "
+                                f"{', '.join(bad[:3])}"
+                            )
+                    results.append(scored)
                     _write_variant_results(results_path, results)
                     if repro is not None:
                         repro.items_completed[variant.variant_id] = len(results)
@@ -371,12 +401,14 @@ class ReproRunner:
             if (r.validation_status or "").lower() in {"incomplete", "non_reproducible"}
         )
         degraded = sum(1 for r in results if r.judge_status == "degraded")
+        structural = _structural_metrics_for_variant(items, results)
         ref = EvalRunRef(
             variant_id=variant.variant_id,
             mlflow_parent_run_id=parent_id or "",
             report_dir=str(report_dir),
             items_excluded_incomplete=incomplete,
             items_excluded_degraded=degraded,
+            structural_metrics=structural,
         )
         _write_variant_results(results_path, results)
         if repro is not None:
@@ -685,7 +717,11 @@ class ReproRunner:
             msg = "Judge phase incomplete; pending items remain (use --allow-pending-export or run judge-batch)"
             raise RuntimeError(msg)
 
-        export = export_paper_tables(summaries, release_tag=self._manifest.release_tag)
+        export = export_paper_tables(
+            summaries,
+            release_tag=self._manifest.release_tag,
+            relevance_by_item=rel,
+        )
         write_paper_tables(export, output_dir)
         repro.completed_at = datetime.now(UTC)
         repro.status = "completed"
