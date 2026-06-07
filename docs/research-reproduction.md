@@ -333,6 +333,8 @@ uv run agent-query repro report \
 
 Resume without `--force-rescore` skips only items with complete v3 criteria. `export_manifest.json` records `min_judge_version: v3` and `outcome_scoring_policy: value_alignment_only`. Operator quickstart: [016 quickstart](../specs/016-fair-outcome-scoring/quickstart.md).
 
+If headline `outcome_accuracy` remains low (~0.14) after v3 re-score on v1.1.0, that reflects retrieval failure on the 61-item answer-GT pool (not synthesis fallback). Follow the **[v1.2.0 migration checklist](../specs/016-fair-outcome-scoring/checklists/v1.2.0-migration.md)** for dataset, agent, judge, and full-repro phases targeting **0.45–0.60** graph-full outcome.
+
 ## Output layout
 
 ```text

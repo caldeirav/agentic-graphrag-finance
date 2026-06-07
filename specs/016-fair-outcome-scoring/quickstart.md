@@ -102,3 +102,10 @@ Report shows outcome-by-profile and outcome-by-stratum above pooled headline.
 | outcome_accuracy still flat-chunk > graph-full | Confirm `--force-rescore`; check value_alignment populated |
 | rubric_alignment = 0 | Incomplete criteria; verify judge_version v3 |
 | High synthesis on flat-chunk dumps | Confirm anti-dump rubric in judge config deployed |
+| outcome_accuracy ~0.14 after v3 re-score | Expected on v1.1.0 until retrieval + graded VA; follow [v1.2.0 migration checklist](checklists/v1.2.0-migration.md) |
+
+## Follow-on: bundle v1.2.0 (outcome calibration)
+
+To raise outcome_accuracy materially while keeping VA-only policy, use the phased checklist:
+
+**[checklists/v1.2.0-migration.md](checklists/v1.2.0-migration.md)** — Phases A (dataset) → B (agent) → C (judge) → D (paper repro).
