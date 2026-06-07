@@ -3,7 +3,10 @@
 from pathlib import Path
 
 from models.reproduction import VariantCapabilities
-from retrieval.orchestration.variant_profile import load_variant_capabilities, variant_metadata_flags
+from retrieval.orchestration.variant_profile import (
+    load_variant_capabilities,
+    variant_metadata_flags,
+)
 
 
 def test_load_graph_full_capabilities() -> None:

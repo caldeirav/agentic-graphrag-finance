@@ -1,9 +1,11 @@
 """Unit tests for aggregated investigation notes (015)."""
 
-from datetime import UTC, datetime
 
 from evaluation.reproduction.report_models import ItemResultRecord, ReproOutputBundle, TableData
-from evaluation.reproduction.report_render import MAX_INVESTIGATION_NOTES, aggregate_investigation_notes
+from evaluation.reproduction.report_render import (
+    MAX_INVESTIGATION_NOTES,
+    aggregate_investigation_notes,
+)
 from models.reproduction import EvalRunRef, ReproRun
 
 

@@ -21,16 +21,16 @@ from evaluation.reproduction.report_models import (
     AUDIT_COLUMN_LABELS,
     METRIC_CATALOG,
     PRIMARY_METRICS,
+    SMOKE_ITEM_THRESHOLD,
     STANDARD_VARIANTS,
     AggregatedInvestigationNote,
     ItemResultRecord,
     PaperTableId,
     PaperTableView,
-    ReproOutputBundle,
     ReportArtifact,
+    ReproOutputBundle,
     RunAnomaly,
     RunSummaryView,
-    SMOKE_ITEM_THRESHOLD,
     VariantComparisonView,
     VariantCount,
     VariantMetricSeries,
@@ -277,9 +277,9 @@ def _render_summary_html(summary: RunSummaryView) -> str:
         ("Mode", ", ".join(flags) if flags else "standard"),
     ]
     cards_html = "".join(
-        f'<div class="card"><div class="label">{html.escape(l)}</div>'
-        f'<div class="value">{html.escape(v)}</div></div>'
-        for l, v in cards
+        f'<div class="card"><div class="label">{html.escape(label)}</div>'
+        f'<div class="value">{html.escape(value)}</div></div>'
+        for label, value in cards
     )
 
     variant_rows = ""
@@ -525,9 +525,6 @@ def aggregate_investigation_notes(bundle: ReproOutputBundle) -> list[AggregatedI
                     )
 
         gf = by_var.get("graph-full", {})
-        gf_records = bundle.variant_results.get("graph-full", [])
-        gf_total_cites = sum(r.citation_count for r in gf_records)
-        gf_mrr = gf.get("mrr", 0.0) or 0.0
         for vid, metrics in by_var.items():
             if vid == "graph-full":
                 continue

@@ -3,7 +3,11 @@
 import csv
 from pathlib import Path
 
-from evaluation.reproduction.export import build_variant_summary, export_paper_tables, write_paper_tables
+from evaluation.reproduction.export import (
+    build_variant_summary,
+    export_paper_tables,
+    write_paper_tables,
+)
 from models.evaluation import BenchmarkResult, RankingMetrics
 
 

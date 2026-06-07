@@ -13,10 +13,15 @@ _TESTS_ROOT = Path(__file__).resolve().parent
 if str(_TESTS_ROOT) not in sys.path:
     sys.path.insert(0, str(_TESTS_ROOT))
 
-from models.filing import FilingRef, SectionBlock, TableBlock
-from models.ingestion import FilingResolution, XBRLArtifact, XBRLArtifactManifest, XBRLArtifactRole
-from models.parsing import ParsedDocument
-from parsing.docling_xbrl import PARSER_VERSION
+from models.filing import FilingRef, SectionBlock, TableBlock  # noqa: E402
+from models.ingestion import (  # noqa: E402
+    FilingResolution,
+    XBRLArtifact,
+    XBRLArtifactManifest,
+    XBRLArtifactRole,
+)
+from models.parsing import ParsedDocument  # noqa: E402
+from parsing.docling_xbrl import PARSER_VERSION  # noqa: E402
 
 
 @pytest.fixture(autouse=True)

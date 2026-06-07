@@ -5,10 +5,10 @@ import typer
 import cli.bootstrap  # noqa: F401  # load .env first
 from cli.commands.ask import ask
 from cli.commands.benchmark_dataset import app as benchmark_dataset_app
-from cli.commands.repro import app as repro_app
 from cli.commands.graph_audit import graph_audit
 from cli.commands.materialize import materialize
 from cli.commands.mlflow_clean import mlflow_clean
+from cli.commands.repro import app as repro_app
 from cli.commands.test import test_cmd
 
 app = typer.Typer(

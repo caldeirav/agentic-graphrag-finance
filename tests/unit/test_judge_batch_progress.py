@@ -4,8 +4,6 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
-
 from evaluation.reproduction import judge_batch as jb_mod
 from evaluation.reproduction.judge_batch import run_judge_batch
 from models.evaluation import BenchmarkItem, BenchmarkResult, JudgeVerdict

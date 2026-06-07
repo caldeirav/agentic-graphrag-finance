@@ -6,10 +6,8 @@ import uuid
 from datetime import date
 from typing import Any
 
-from models.enums import EvidenceSourceType
-
 from graph.accession import accession_from_node_id
-from models.enums import QueryStatus
+from models.enums import EvidenceSourceType, QueryStatus
 from models.filing import FilingRef
 from models.query import EvidenceChunk, IntentRouterTrace, MacroPlan
 from models.trajectory import (

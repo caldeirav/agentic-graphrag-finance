@@ -3,8 +3,8 @@
 from pathlib import Path
 
 from evaluation.reproduction.report_loader import load_repro_report_bundle
-from evaluation.reproduction.report_render import _binding_miss, compute_investigation_flags
 from evaluation.reproduction.report_models import ItemResultRecord
+from evaluation.reproduction.report_render import _binding_miss, compute_investigation_flags
 from fixtures.repro_report_bundle import write_minimal_repro_bundle
 
 

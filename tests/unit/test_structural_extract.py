@@ -1,6 +1,9 @@
 """Unit tests for structural extraction from trajectories (015)."""
 
-from evaluation.reproduction.structural_extract import extract_used_accessions, extract_visited_paths
+from evaluation.reproduction.structural_extract import (
+    extract_used_accessions,
+    extract_visited_paths,
+)
 
 
 def test_extract_accessions_from_doc_chunk_ids() -> None:

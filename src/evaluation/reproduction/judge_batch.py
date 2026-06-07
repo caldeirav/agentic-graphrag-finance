@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from collections.abc import Callable
 
 from evaluation.datasets.custom_judge import CustomJudgeDataset
 from evaluation.generation.api_retry import with_transient_retry
