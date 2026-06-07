@@ -326,15 +326,21 @@ def export_paper_tables(
     for summary in summaries:
         metrics = agg_by_variant[summary.variant_id]
         eligible_count = sum(1 for r in summary.records if _headline_eligible(r))
+        outcome_gt_count = sum(
+            1 for r in summary.records if _headline_eligible(r) and r.has_answer_gt
+        )
         for name in metric_names:
             value = metrics.get(name)
+            metric_item_count = (
+                outcome_gt_count if name == "outcome_accuracy" else eligible_count
+            )
             if value is None:
                 export.headline_rows.append(
                     MetricRow(
                         variant_id=summary.variant_id,
                         metric_name=name,
                         value=0.0,
-                        item_count=eligible_count,
+                        item_count=metric_item_count,
                         excluded_incomplete=summary.excluded_incomplete,
                         excluded_degraded=summary.excluded_degraded,
                         na_reason="no_eligible_items",
@@ -346,7 +352,7 @@ def export_paper_tables(
                     variant_id=summary.variant_id,
                     metric_name=name,
                     value=float(value),
-                    item_count=eligible_count,
+                    item_count=metric_item_count,
                     excluded_incomplete=summary.excluded_incomplete,
                     excluded_degraded=summary.excluded_degraded,
                 )
@@ -364,19 +370,25 @@ def export_paper_tables(
                 excluded_degraded=summary.excluded_degraded,
             )
             prof_metrics = _aggregate_metrics(sub)
+            profile_outcome_gt = sum(
+                1 for r in records if _headline_eligible(r) and r.has_answer_gt
+            )
             for name in metric_names:
                 value = prof_metrics.get(name)
                 na = ""
-                if profile == "finder" and name == "outcome_accuracy":
-                    na = "rubric_only"
-                    value = None
+                row_item_count = len(records)
+                if name == "outcome_accuracy":
+                    row_item_count = profile_outcome_gt
+                    if profile_outcome_gt == 0:
+                        na = "no_answer_gt"
+                        value = None
                 export.by_profile_rows.append(
                     ProfileMetricRow(
                         variant_id=summary.variant_id,
                         inspiration_profile=profile,
                         metric_name=name,
                         value=float(value) if value is not None else 0.0,
-                        item_count=len(records),
+                        item_count=row_item_count,
                         na_reason=na,
                     )
                 )

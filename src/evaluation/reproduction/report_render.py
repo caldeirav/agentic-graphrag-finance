@@ -716,7 +716,9 @@ def _render_outcome_by_profile_html(bundle: ReproOutputBundle) -> str:
     )
     return (
         '<section id="outcome-by-profile"><h2>Outcome accuracy by inspiration profile</h2>'
-        "<p>Answer-GT items only; value_alignment-based outcome (v3 policy).</p>"
+        "<p>Answer-GT items only (value_alignment-based outcome, v3 policy). "
+        "<code>item_count</code> is the number of answer-GT items in that profile; "
+        "profiles with only rubric GT are omitted.</p>"
         f'<div class="score-table-wrap">{matrix}</div></section>'
     )
 

@@ -77,7 +77,7 @@ def test_excludes_degraded_from_headline_means() -> None:
     assert outcome_rows[0].excluded_degraded == 1
 
 
-def test_finder_profile_marks_rubric_only_outcome() -> None:
+def test_profile_without_answer_gt_marks_outcome_na() -> None:
     results = [_result("f1")]
     summary = build_variant_summary(
         "graph-full",
@@ -92,7 +92,26 @@ def test_finder_profile_marks_rubric_only_outcome() -> None:
         for r in export.by_profile_rows
         if r.inspiration_profile == "finder" and r.metric_name == "outcome_accuracy"
     ]
-    assert finder_outcome[0].na_reason == "rubric_only"
+    assert finder_outcome[0].na_reason == "no_answer_gt"
+    assert finder_outcome[0].item_count == 0
+
+
+def test_headline_outcome_item_count_is_answer_gt_only() -> None:
+    results = [
+        _result("a1", outcome=1.0),
+        _result("r1", outcome=0.5),
+    ]
+    summary = build_variant_summary(
+        "graph-full",
+        results,
+        profiles_by_item={"a1": "financebench", "r1": "finder"},
+        relevance_by_item={"a1": ["c1"], "r1": ["c2"]},
+        ground_truth_by_item={"a1": {"answer": "42"}, "r1": {"rubric": "only rubric"}},
+    )
+    export = export_paper_tables([summary], release_tag="paper-smoke")
+    outcome = next(r for r in export.headline_rows if r.metric_name == "outcome_accuracy")
+    assert outcome.item_count == 1
+    assert outcome.value == 1.0
 
 
 def _test_manifest(bundle_path: str = "bundle") -> ReleaseManifest:
