@@ -549,6 +549,81 @@ def aggregate_investigation_notes(bundle: ReproOutputBundle) -> list[AggregatedI
                 )
             )
 
+        gf_oa = gf.get("outcome_accuracy")
+        fc_oa = by_var.get("flat-chunk", {}).get("outcome_accuracy")
+        html_gf: float | None = None
+        html_fc: float | None = None
+        stratum_table = bundle.tables.get("by_evidence_source")
+        if stratum_table:
+            for row in stratum_table.rows:
+                if row.get("primary_evidence_source") != "html":
+                    continue
+                if row.get("metric_name") != "outcome_accuracy":
+                    continue
+                if row.get("variant_id") == "graph-full":
+                    html_gf = float(row["value"])
+                if row.get("variant_id") == "flat-chunk":
+                    html_fc = float(row["value"])
+        regression = False
+        if gf_oa is not None and fc_oa is not None and gf_oa <= fc_oa:
+            regression = True
+        if html_gf is not None and html_fc is not None and html_gf <= html_fc:
+            regression = True
+        if regression:
+            example_ids: list[str] = []
+            gf_records = bundle.variant_results.get("graph-full", [])
+            fc_records = bundle.variant_results.get("flat-chunk", [])
+            for g_rec, f_rec in zip(gf_records[:5], fc_records[:5], strict=False):
+                if (
+                    f_rec.outcome_score is not None
+                    and g_rec.outcome_score is not None
+                    and f_rec.outcome_score > g_rec.outcome_score
+                ):
+                    example_ids.append(g_rec.item_id)
+            pooled_msg = ""
+            if gf_oa is not None and fc_oa is not None:
+                pooled_msg = (
+                    f"graph-full outcome_accuracy ({gf_oa:.2f}) does not exceed "
+                    f"flat-chunk ({fc_oa:.2f}) on pooled headline"
+                )
+            html_msg = ""
+            if html_gf is not None and html_fc is not None and html_gf <= html_fc:
+                html_msg = f"HTML stratum gf={html_gf:.2f} fc={html_fc:.2f}"
+            message = "; ".join(part for part in (pooled_msg, html_msg) if part) or (
+                "SC-001 outcome ordering regression detected"
+            )
+            notes.append(
+                AggregatedInvestigationNote(
+                    severity="warning",
+                    pattern_code="OUTCOME_ORDERING_REGRESSION",
+                    message=message,
+                    item_count=max(1, len(example_ids)),
+                    example_item_ids=example_ids[:5],
+                    hint="SC-001 target not met; review v3 re-score and bundle v1.1.0 before citing.",
+                    expandable=bool(example_ids),
+                )
+            )
+
+    incomplete_va = 0
+    for records in bundle.variant_results.values():
+        for rec in records:
+            if rec.judge_status != "ok":
+                continue
+            scores = rec.rubric_scores or {}
+            if scores and "value_alignment" not in scores and rec.outcome_score is not None:
+                incomplete_va += 1
+    if incomplete_va:
+        notes.append(
+            AggregatedInvestigationNote(
+                severity="warning",
+                pattern_code="INCOMPLETE_JUDGE_CRITERIA",
+                message=f"{incomplete_va} judged items lack value_alignment in stored verdicts",
+                item_count=incomplete_va,
+                hint="Re-run judge-batch with v3; missing VA counts as zero in outcome_accuracy.",
+                expandable=False,
+            )
+        )
+
     return _cap_investigation_notes(notes)
 
 
@@ -605,6 +680,82 @@ def _render_anomalies_html(anomalies: list[RunAnomaly]) -> str:
         '<section id="anomalies"><h2>Investigation notes</h2>'
         "<p>Automated checks on this repro output; confirm in item drill-down before acting.</p>"
         f"<ul class='anomaly-list'>{''.join(items)}</ul></section>"
+    )
+
+
+def _render_outcome_by_profile_html(bundle: ReproOutputBundle) -> str:
+    table = bundle.tables.get("by_profile")
+    if table is None or not table.rows:
+        return ""
+    filtered = [
+        r
+        for r in table.rows
+        if r.get("metric_name") == "outcome_accuracy" and not r.get("na_reason")
+    ]
+    if not filtered:
+        return ""
+    pivot: dict[str, dict[str, str]] = {}
+    for row in filtered:
+        profile = row["inspiration_profile"]
+        vid = row["variant_id"]
+        pivot.setdefault(profile, {})[vid] = row.get("value", "")
+        pivot[profile]["item_count"] = row.get("item_count", "")
+    matrix_rows = [
+        {
+            "inspiration_profile": profile,
+            "item_count": vals.get("item_count", ""),
+            "graph-full": vals.get("graph-full", "—"),
+            "flat-chunk": vals.get("flat-chunk", "—"),
+        }
+        for profile, vals in sorted(pivot.items())
+    ]
+    matrix = _render_score_matrix_html(
+        ["inspiration_profile", "item_count", "graph-full", "flat-chunk"],
+        matrix_rows,
+        table_class="score-table outcome-table",
+    )
+    return (
+        '<section id="outcome-by-profile"><h2>Outcome accuracy by inspiration profile</h2>'
+        "<p>Answer-GT items only; value_alignment-based outcome (v3 policy).</p>"
+        f'<div class="score-table-wrap">{matrix}</div></section>'
+    )
+
+
+def _render_outcome_by_stratum_html(bundle: ReproOutputBundle) -> str:
+    table = bundle.tables.get("by_evidence_source")
+    if table is None or not table.rows:
+        return ""
+    filtered = [
+        r
+        for r in table.rows
+        if r.get("metric_name") == "outcome_accuracy" and not r.get("na_reason")
+    ]
+    if not filtered:
+        return ""
+    pivot: dict[str, dict[str, str]] = {}
+    for row in filtered:
+        stratum = row["primary_evidence_source"]
+        vid = row["variant_id"]
+        pivot.setdefault(stratum, {})[vid] = row.get("value", "")
+        pivot[stratum]["item_count"] = row.get("item_count", "")
+    matrix_rows = [
+        {
+            "primary_evidence_source": stratum,
+            "item_count": vals.get("item_count", ""),
+            "graph-full": vals.get("graph-full", "—"),
+            "flat-chunk": vals.get("flat-chunk", "—"),
+        }
+        for stratum, vals in sorted(pivot.items())
+    ]
+    matrix = _render_score_matrix_html(
+        ["primary_evidence_source", "item_count", "graph-full", "flat-chunk"],
+        matrix_rows,
+        table_class="score-table outcome-table",
+    )
+    return (
+        '<section id="outcome-by-stratum"><h2>Outcome accuracy by evidence source</h2>'
+        "<p>Primary evidence stratum (html, xbrl, mixed); pooled headline below for all metrics.</p>"
+        f'<div class="score-table-wrap">{matrix}</div></section>'
     )
 
 
@@ -881,6 +1032,8 @@ def render_html_report(
         .replace("{{WARNINGS}}", _render_warnings_html(bundle.warnings))
         .replace("{{SUMMARY}}", _render_summary_html(summary))
         .replace("{{EXPORT_MANIFEST}}", _render_export_manifest_html(summary))
+        .replace("{{OUTCOME_BY_PROFILE}}", _render_outcome_by_profile_html(bundle))
+        .replace("{{OUTCOME_BY_STRATUM}}", _render_outcome_by_stratum_html(bundle))
         .replace("{{HEADLINE_TEX}}", _render_headline_tex_html(bundle, headline_latex))
         .replace("{{COMPARISON}}", _render_comparison_html(comparison, bundle))
         .replace("{{STRATIFIED}}", _render_stratified_html(bundle))

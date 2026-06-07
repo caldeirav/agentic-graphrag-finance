@@ -17,9 +17,16 @@ rubrics:
     with the document route.
   synthesis_grounding: |
     Score 0.0-1.0 whether the final answer stays within cited evidence without unsupported claims.
+    Score 0.0 when the response is primarily verbatim chunk concatenation without answering the question.
+    Score 0.0 when citations reference the wrong issuer or filing relative to expected_bindings.
     Do not reward abstention ("insufficient evidence") when the trajectory contains usable evidence.
+  answer_quality: |
+    Score 0.0-1.0 whether the response substantively addresses the question using retrieved evidence.
+    Score 0.0 for chunk-dump answers that quote excerpts without synthesis or direct question answering.
   value_alignment: |
     Score 0.0-1.0 whether the answer matches ground_truth.answer (numeric tolerance where applicable).
+    For narrative ground truth, score claim coverage against required_claims when present; do not reward
+    header or fragment overlap without semantic substance.
     Score 0.0 for abstention or refusal when ground truth expects a substantive answer.
     Penalize fabricated numbers and claims not supported by cited evidence.
   claim_presence: |

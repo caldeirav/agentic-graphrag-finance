@@ -24,7 +24,10 @@ Update release manifest to point at v1.1.0.
 
 ## 2. Selective agent re-run (changed items only)
 
-For items flagged `requires_agent_rerun: true` in CHANGELOG:
+For items flagged `requires_agent_rerun: true` in `CHANGELOG.md` (typically `rubric_route` or `bindings` fixes):
+
+1. List item ids: `grep 'requires_agent_rerun: true' -B3 data/benchmarks/custom-judge/v1.1.0/CHANGELOG.md`
+2. Re-run agents only for those items on affected variants (`graph-full`, `flat-chunk`, ablations as needed):
 
 ```bash
 uv run agent-query repro run \
@@ -34,7 +37,7 @@ uv run agent-query repro run \
   --resume
 ```
 
-Use item filters when CLI supports `--item-ids` from changelog list.
+**Unchanged items** keep existing checkpoints — do not delete `results.json` for items absent from CHANGELOG. **All items** still need v3 re-judge (step 3) even when agent checkpoints are reused.
 
 ## 3. Full v3 re-judge
 

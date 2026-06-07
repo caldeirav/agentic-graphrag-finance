@@ -11,14 +11,13 @@ from pathlib import Path
 from evaluation.datasets.custom_judge import CustomJudgeDataset
 from evaluation.generation.api_retry import with_transient_retry
 from evaluation.judges.gemini_panel import GeminiJudgePanel
-from evaluation.judges.outcome_scoring import compute_outcome_scores
+from evaluation.judges.outcome_scoring import compute_outcome_scores, should_skip_judging
 from evaluation.metrics.trajectory import trajectory_fidelity_score
 from evaluation.reproduction.defer_config import is_final_judge_status
 from evaluation.reproduction.io import write_json_atomic
 from evaluation.reproduction.result_write import prepare_result_for_write
 from models.evaluation import BenchmarkItem, BenchmarkResult
 from tracing.mlflow_langgraph import build_trajectory_from_state
-from tracing.trajectory_export import normalize_trajectory_state
 
 _RESERVED_DIRS = frozenset({"tables", "assets", "__pycache__"})
 
@@ -42,41 +41,25 @@ def _discover_variant_dirs(output_dir: Path, variant_id: str | None) -> list[Pat
     )
 
 
-def _parse_judge_version(version: str) -> int:
-    raw = (version or "").strip().lower()
-    if raw.startswith("v"):
-        raw = raw[1:]
-    digits = "".join(ch for ch in raw if ch.isdigit())
-    try:
-        return int(digits) if digits else 0
-    except ValueError:
-        return 0
-
-
-def _has_hydrated_evidence(trajectory_snapshot: dict | None) -> bool:
-    if not trajectory_snapshot:
+def _should_judge(
+    row: BenchmarkResult,
+    item: BenchmarkItem | None,
+    variant_id: str,
+    *,
+    force_rescore: bool,
+) -> bool:
+    if item is None:
         return False
-    state = normalize_trajectory_state(trajectory_snapshot)
-    chunks = state.get("evidence_chunks") or []
-    return len(chunks) > 0
-
-
-def _should_skip_rescore(row: BenchmarkResult) -> bool:
-    """Skip items already at judge v2+ with non-empty trajectory evidence."""
-    verdict = row.judge_verdict
-    if verdict is None:
-        return False
-    if _parse_judge_version(verdict.judge_version) < 2:
-        return False
-    return _has_hydrated_evidence(row.trajectory_snapshot)
-
-
-def _should_judge(row: BenchmarkResult, *, force_rescore: bool) -> bool:
     if force_rescore:
         return (row.judge_status or "").lower() != "not_evaluable"
     if not is_final_judge_status(row.judge_status):
         return True
-    return not _should_skip_rescore(row)
+    return not should_skip_judging(
+        row.judge_verdict,
+        item,
+        variant_id,
+        force_rescore=force_rescore,
+    )
 
 
 def _load_results(path: Path) -> list[BenchmarkResult]:
@@ -88,10 +71,21 @@ def _load_results(path: Path) -> list[BenchmarkResult]:
 
 def _pending_results(
     results: list[BenchmarkResult],
+    items_by_id: dict[str, BenchmarkItem],
+    variant_id: str,
     *,
     force_rescore: bool = False,
-) -> list[BenchmarkResult]:
-    return [r for r in results if _should_judge(r, force_rescore=force_rescore)]
+) -> tuple[list[BenchmarkResult], int]:
+    pending: list[BenchmarkResult] = []
+    missing_bundle = 0
+    for row in results:
+        item = items_by_id.get(row.item_id)
+        if item is None:
+            missing_bundle += 1
+            continue
+        if _should_judge(row, item, variant_id, force_rescore=force_rescore):
+            pending.append(row)
+    return pending, missing_bundle
 
 
 def _persist_variant_results(
@@ -110,6 +104,8 @@ def _judge_one(
     item: BenchmarkItem,
     result: BenchmarkResult,
     judge: GeminiJudgePanel,
+    *,
+    variant_id: str,
 ) -> BenchmarkResult:
     if result.trajectory_snapshot:
         trajectory = build_trajectory_from_state(result.trajectory_snapshot)
@@ -121,7 +117,7 @@ def _judge_one(
     if not trajectory.evidence and result.answer and result.answer.citations:
         trajectory = trajectory.model_copy(update={"evidence": list(result.answer.citations)})
     verdict = with_transient_retry(
-        lambda: judge.judge(item, result.answer, trajectory),
+        lambda: judge.judge(item, result.answer, trajectory, variant_id=variant_id),
         label="GeminiJudge",
     )
     traj_score = trajectory_fidelity_score(
@@ -171,6 +167,7 @@ def run_judge_batch(
     stats: dict[str, int | float] = {
         "judged": 0,
         "skipped": 0,
+        "skipped_missing_bundle": 0,
         "failed": 0,
         "variants_processed": 0,
     }
@@ -188,11 +185,28 @@ def run_judge_batch(
             log(f"judge-batch: skip {variant_dir.name} (no results.json)")
             continue
         results = _load_results(results_path)
-        pending = _pending_results(results, force_rescore=force_rescore)
-        skipped = len(results) - len(pending)
+        pending, missing_bundle = _pending_results(
+            results,
+            items_by_id,
+            variant_dir.name,
+            force_rescore=force_rescore,
+        )
+        stats["skipped_missing_bundle"] = int(stats["skipped_missing_bundle"]) + missing_bundle
+        skipped = len(results) - len(pending) - missing_bundle
         stats["skipped"] = int(stats["skipped"]) + skipped
+        if missing_bundle:
+            log(
+                f"judge-batch: {variant_dir.name} — {missing_bundle} checkpoint item(s) "
+                f"not found in bundle {version!r} (manifest custom_judge_bundle_path); "
+                "re-publish v1.1.0 from v1.0.0 or align manifest with checkpoint bundle"
+            )
         if pending:
             plan.append((variant_dir, results, pending))
+        elif missing_bundle == len(results):
+            log(
+                f"judge-batch: {variant_dir.name} — 0 pending "
+                f"(all {len(results)} items missing from bundle)"
+            )
         else:
             log(
                 f"judge-batch: {variant_dir.name} — 0 pending "
@@ -210,7 +224,14 @@ def run_judge_batch(
     )
     if total_pending == 0:
         stats["elapsed_seconds"] = round(time.perf_counter() - batch_started, 1)
-        log(f"judge-batch: nothing to do (finished in {stats['elapsed_seconds']}s)")
+        missing_total = int(stats["skipped_missing_bundle"])
+        if missing_total and force_rescore:
+            log(
+                f"judge-batch: nothing to do — {missing_total} checkpoint item(s) absent from "
+                f"bundle {version!r}; migrate/publish full v1.1.0 from v1.0.0 before --force-rescore"
+            )
+        else:
+            log(f"judge-batch: nothing to do (finished in {stats['elapsed_seconds']}s)")
         return stats
 
     judged_so_far = 0
@@ -232,7 +253,7 @@ def run_judge_batch(
             item = items_by_id.get(row.item_id)
             if item is None:
                 return row.model_copy(update={"judge_status": "not_evaluable"})
-            return _judge_one(item, row, panel)
+            return _judge_one(item, row, panel, variant_id=variant_name)
 
         updated: dict[str, BenchmarkResult] = {r.item_id: r for r in results}
         variant_done = 0

@@ -1,9 +1,13 @@
-"""Integration test for SC-002 evidence hydration at re-score."""
+"""Integration test for evidence hydration at re-score."""
 
-from evaluation.reproduction.judge_batch import _has_hydrated_evidence
 from models.evaluation import BenchmarkResult
 from models.query import AnswerPackage, EvidenceChunk
 from tracing.trajectory_export import normalize_trajectory_state
+
+
+def _has_hydrated_evidence(state: dict) -> bool:
+    chunks = state.get("evidence_chunks") or []
+    return any(c.get("excerpt") and c.get("content_hash") for c in chunks)
 
 
 def test_sc002_majority_cited_items_have_evidence() -> None:

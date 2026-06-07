@@ -444,15 +444,19 @@ def _write_headline_tex(path: Path, rows: list) -> None:
 def write_paper_tables(export: PaperTableExport, output_dir: Path) -> None:
     tables = output_dir / "tables"
     tables.mkdir(parents=True, exist_ok=True)
+    manifest_path = output_dir / "export_manifest.json"
+    payload: dict = {}
+    if manifest_path.is_file():
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     if export.stratum_audit:
-        manifest_path = output_dir / "export_manifest.json"
-        payload: dict = {}
-        if manifest_path.is_file():
-            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
         payload["stratum_audit"] = export.stratum_audit
-        payload["release_tag"] = export.release_tag
-        payload["exported_at"] = export.exported_at.isoformat()
-        manifest_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    payload["release_tag"] = export.release_tag
+    payload["exported_at"] = export.exported_at.isoformat()
+    payload.setdefault("min_judge_version", "v3")
+    payload.setdefault("outcome_scoring_policy", "value_alignment_only")
+    if export.custom_judge_version:
+        payload["custom_judge_version"] = export.custom_judge_version
+    manifest_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     def _write_csv(path: Path, rows: list[dict], fieldnames: list[str]) -> None:
         with path.open("w", encoding="utf-8", newline="") as fh:
@@ -534,6 +538,7 @@ def write_paper_tables(export: PaperTableExport, output_dir: Path) -> None:
                 "na_reason",
             ],
         )
+    _write_headline_tex(tables / "headline.tex", export.headline_rows)
 
 
 def export_tables_from_disk(
@@ -581,8 +586,11 @@ def export_tables_from_disk(
                 ground_truth_by_item,
             )
         )
-    return export_paper_tables(
+    export = export_paper_tables(
         summaries,
         release_tag=release_tag,
         relevance_by_item=relevance_by_item,
     )
+    if manifest is not None:
+        export.custom_judge_version = manifest.custom_judge_version
+    return export

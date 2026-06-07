@@ -116,6 +116,24 @@ def _test_manifest(bundle_path: str = "bundle") -> ReleaseManifest:
     )
 
 
+def test_export_manifest_records_custom_judge_version(tmp_path: Path) -> None:
+    results = [_result("i1")]
+    summary = build_variant_summary(
+        "graph-full",
+        results,
+        profiles_by_item={"i1": "financebench"},
+        relevance_by_item={"i1": ["c1"]},
+        ground_truth_by_item={"i1": {"answer": "a"}},
+    )
+    export = export_paper_tables([summary], release_tag="paper-smoke")
+    export.custom_judge_version = "1.1.0"
+    write_paper_tables(export, tmp_path)
+    manifest = json.loads((tmp_path / "export_manifest.json").read_text(encoding="utf-8"))
+    assert manifest["custom_judge_version"] == "1.1.0"
+    assert manifest["min_judge_version"] == "v3"
+    assert manifest["outcome_scoring_policy"] == "value_alignment_only"
+
+
 def test_export_tables_from_disk_loads_item_context(tmp_path: Path) -> None:
     bundle = tmp_path / "bundle"
     (bundle / "items").mkdir(parents=True)
@@ -175,6 +193,49 @@ def test_export_tables_from_disk_without_manifest_has_no_eligible_items(tmp_path
     export = export_tables_from_disk(tmp_path, release_tag="test")
     outcome_rows = [r for r in export.headline_rows if r.metric_name == "outcome_accuracy"]
     assert outcome_rows[0].na_reason == "no_eligible_items"
+
+
+def test_ranking_metrics_unchanged_when_only_outcome_fields_differ() -> None:
+    """SC-002: MRR/MAP/nDCG export rows are independent of outcome/judge scores."""
+    base_kwargs = {
+        "profiles_by_item": {"i1": "financebench"},
+        "relevance_by_item": {"i1": ["c1"]},
+        "ground_truth_by_item": {"i1": {"answer": "a", "rubric": "r"}},
+    }
+    ranking = RankingMetrics(mrr=0.42, map_score=0.33, ndcg_at_10=0.51)
+    before = _result("i1", outcome=0.9, rubric=0.8, fidelity=0.7, mrr=0.42)
+    before = before.model_copy(update={"ranking_metrics": ranking})
+    after = before.model_copy(
+        update={
+            "outcome_score": 0.1,
+            "alignment_score": 0.0,
+            "trajectory_fidelity": 0.0,
+        }
+    )
+    export_before = export_paper_tables(
+        [
+            build_variant_summary("graph-full", [before], **base_kwargs),
+            build_variant_summary("flat-chunk", [before], **base_kwargs),
+        ],
+        release_tag="ranking-check",
+    )
+    export_after = export_paper_tables(
+        [
+            build_variant_summary("graph-full", [after], **base_kwargs),
+            build_variant_summary("flat-chunk", [after], **base_kwargs),
+        ],
+        release_tag="ranking-check",
+    )
+    ranking_names = {"mrr", "map", "ndcg_at_10"}
+
+    def _ranking_rows(export):
+        return {
+            (r.variant_id, r.metric_name): r.value
+            for r in export.headline_rows
+            if r.metric_name in ranking_names and not r.na_reason
+        }
+
+    assert _ranking_rows(export_before) == _ranking_rows(export_after)
 
 
 def test_writes_headline_tex(tmp_path: Path) -> None:

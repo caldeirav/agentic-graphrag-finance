@@ -190,6 +190,7 @@ class AuditRow(BaseModel):
 
 class PaperTableExport(BaseModel):
     release_tag: str
+    custom_judge_version: str | None = None
     exported_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     headline_rows: list[MetricRow] = Field(default_factory=list)
     by_profile_rows: list[ProfileMetricRow] = Field(default_factory=list)

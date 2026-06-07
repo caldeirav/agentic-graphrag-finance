@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 from evaluation.reproduction import judge_batch as jb_mod
 from evaluation.reproduction.judge_batch import run_judge_batch
-from models.evaluation import BenchmarkItem, BenchmarkResult, JudgeVerdict
+from models.evaluation import BenchmarkItem, BenchmarkResult, GroundTruth, JudgeVerdict
 from models.query import AnswerPackage, EvidenceChunk
 
 
@@ -26,13 +26,42 @@ def _pending_row(item_id: str) -> BenchmarkResult:
     )
 
 
+def _v3_complete_scores() -> dict[str, float]:
+    return {
+        "trajectory_coherence": 1.0,
+        "routing_decisions": 1.0,
+        "retrieval_fidelity": 1.0,
+        "synthesis_grounding": 1.0,
+        "value_alignment": 1.0,
+    }
+
+
 def test_judge_batch_logs_plan_and_empty_complete(tmp_path: Path) -> None:
     variant = tmp_path / "graph-full"
     variant.mkdir()
     (variant / "results.json").write_text(
-        '[{"item_id": "i1", "judge_status": "ok", '
-        '"judge_verdict": {"judge_model": "g", "judge_version": "v2", "scores": {}}, '
-        '"trajectory_snapshot": {"evidence_chunks": [{"chunk_node_id": "c1"}]}}]',
+        json.dumps(
+            [
+                {
+                    "item_id": "i1",
+                    "judge_status": "ok",
+                    "judge_verdict": {
+                        "judge_model": "g",
+                        "judge_version": "v3",
+                        "scores": _v3_complete_scores(),
+                    },
+                    "trajectory_snapshot": {
+                        "evidence_chunks": [
+                            {
+                                "chunk_node_id": "c1",
+                                "excerpt": "x",
+                                "content_hash": "h",
+                            }
+                        ]
+                    },
+                }
+            ]
+        ),
         encoding="utf-8",
     )
     bundle = tmp_path / "bundle"
@@ -41,7 +70,15 @@ def test_judge_batch_logs_plan_and_empty_complete(tmp_path: Path) -> None:
     items = bundle / "items"
     items.mkdir()
     (items / "dev.jsonl").write_text(
-        '{"item_id": "i1", "question": "q", "ground_truth": {"answer": "a"}}\n',
+        json.dumps(
+            {
+                "item_id": "i1",
+                "dataset": "custom-judge",
+                "question": "q",
+                "ground_truth": {"answer": "a"},
+            }
+        )
+        + "\n",
         encoding="utf-8",
     )
 
@@ -88,8 +125,18 @@ def test_judge_batch_checkpoints_each_item_for_resume(tmp_path: Path, monkeypatc
     bundle.mkdir()
     (bundle / "manifest.json").write_text('{"version": "2.0.0"}', encoding="utf-8")
     items = [
-        BenchmarkItem(item_id="i1", dataset="custom-judge", question="q1"),
-        BenchmarkItem(item_id="i2", dataset="custom-judge", question="q2"),
+        BenchmarkItem(
+            item_id="i1",
+            dataset="custom-judge",
+            question="q1",
+            ground_truth=GroundTruth(answer="a"),
+        ),
+        BenchmarkItem(
+            item_id="i2",
+            dataset="custom-judge",
+            question="q2",
+            ground_truth=GroundTruth(answer="b"),
+        ),
     ]
     monkeypatch.setattr(
         "evaluation.reproduction.judge_batch.CustomJudgeDataset",
@@ -98,11 +145,15 @@ def test_judge_batch_checkpoints_each_item_for_resume(tmp_path: Path, monkeypatc
 
     calls = {"n": 0}
 
-    def _judge(item, answer, trajectory):
+    def _judge(item, answer, trajectory, **kwargs):
         calls["n"] += 1
         if calls["n"] > 1:
             raise RuntimeError("interrupted")
-        return JudgeVerdict(judge_model="mock", judge_version="v2", scores={"x": 1.0})
+        return JudgeVerdict(
+            judge_model="mock",
+            judge_version="v3",
+            scores=_v3_complete_scores(),
+        )
 
     judge = MagicMock()
     judge.judge.side_effect = _judge
@@ -121,8 +172,10 @@ def test_judge_batch_checkpoints_each_item_for_resume(tmp_path: Path, monkeypatc
     assert mid[0]["judge_status"] == "ok"
     assert mid[1]["judge_status"] == "pending"
 
-    judge.judge.side_effect = lambda item, answer, trajectory: JudgeVerdict(
-        judge_model="mock", judge_version="v2", scores={"x": 1.0}
+    judge.judge.side_effect = lambda item, answer, trajectory, **kwargs: JudgeVerdict(
+        judge_model="mock",
+        judge_version="v3",
+        scores=_v3_complete_scores(),
     )
     stats2 = run_judge_batch(
         tmp_path,
