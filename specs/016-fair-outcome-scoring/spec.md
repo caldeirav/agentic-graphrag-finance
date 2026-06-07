@@ -29,13 +29,13 @@ A research reproduction operator re-scores an existing paper reproduction output
 
 **Why this priority**: Paper headline outcome comparisons are misleading today; this blocks credible ablation claims even when retrieval metrics are correct.
 
-**Independent Test**: Re-score `paper-v1.0` dev split (all five variants), re-export tables, and verify graph-full outcome_accuracy strictly exceeds flat-chunk on the HTML evidence stratum and on the pooled headline; MRR and nDCG@10 rankings remain unchanged from pre-fix baselines (same agent answers, same relevance labels).
+**Independent Test**: Re-score fixture checkpoints (all five variants), re-export tables, and verify answer-GT `outcome_accuracy` equals mean `value_alignment` (zero when absent; no synthesis fallback). MRR and nDCG@10 per variant differ by less than 0.001 from pre-fix baselines (SC-002). Cross-variant ordering (graph-full vs flat-chunk) is validated under **SC-001** after full feature delivery (bundle v1.1.0 + v3 rubrics); failure emits `OUTCOME_ORDERING_REGRESSION` and does not block US1 completion.
 
 **Acceptance Scenarios**:
 
 1. **Given** a benchmark item with answer ground truth and a completed judge verdict containing `value_alignment`, **When** outcome_accuracy is computed, **Then** the item score equals `value_alignment` only (no fallback to synthesis or grounding scores).
 2. **Given** a benchmark item with answer ground truth and a judge verdict missing `value_alignment`, **When** outcome_accuracy is computed, **Then** the item contributes zero.
-3. **Given** a completed re-score of paper-v1.0, **When** headline tables are exported, **Then** graph-full outcome_accuracy is greater than flat-chunk on the HTML stratum and globally.
+3. **Given** a completed re-score after full 016 delivery (manifest on bundle v1.1.0, v3 rubrics), **When** headline tables are exported, **Then** SC-001 applies: graph-full outcome_accuracy should exceed flat-chunk on the HTML stratum and globally; if not, investigation report emits `OUTCOME_ORDERING_REGRESSION` (see SC-001).
 4. **Given** the same reproduction checkpoints before and after this feature (agent answers unchanged), **When** ranking metrics are compared, **Then** MRR, MAP, and nDCG@10 per variant differ by less than 0.001 (unchanged).
 
 ---

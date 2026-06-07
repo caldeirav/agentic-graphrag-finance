@@ -23,7 +23,6 @@ GRAPH_VARIANTS = {
     "ablation-no-macro",
     "ablation-no-walker",
     "ablation-xbrl-only",
-    "ablation-no-xbrl",
 }
 FLAT_VARIANT = "flat-chunk"
 
