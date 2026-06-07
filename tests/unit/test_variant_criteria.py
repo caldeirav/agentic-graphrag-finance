@@ -43,7 +43,7 @@ def test_mock_judge_flat_chunk_excludes_trajectory_scores() -> None:
         ground_truth=GroundTruth(answer="42"),
     )
     verdict = panel.judge(item, None, None, variant_id="flat-chunk")
-    assert verdict.judge_version == "v3"
+    assert verdict.judge_version == "v3.1"
     assert "trajectory_coherence" not in verdict.scores
     assert "routing_decisions" not in verdict.scores
     assert "answer_quality" in verdict.scores

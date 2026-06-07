@@ -31,10 +31,28 @@ def _result(
     )
 
 
-def test_skip_v3_with_complete_criteria() -> None:
+def test_v3_complete_is_pending_for_v3_1_rubric() -> None:
     rows = [
         _result(
             judge_version="v3",
+            scores={
+                "trajectory_coherence": 1.0,
+                "routing_decisions": 1.0,
+                "retrieval_fidelity": 1.0,
+                "synthesis_grounding": 1.0,
+                "value_alignment": 1.0,
+            },
+        )
+    ]
+    pending, missing = jb._pending_results(rows, {"item-1": _item()}, "graph-full", force_rescore=False)
+    assert pending == rows
+    assert missing == 0
+
+
+def test_skip_v3_1_with_complete_criteria() -> None:
+    rows = [
+        _result(
+            judge_version="v3.1",
             scores={
                 "trajectory_coherence": 1.0,
                 "routing_decisions": 1.0,

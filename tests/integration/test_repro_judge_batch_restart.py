@@ -57,7 +57,7 @@ def test_judge_batch_restart_only_pending_tail(tmp_path: Path, monkeypatch) -> N
             raise RuntimeError("simulated crash")
         verdict = JudgeVerdict(
             judge_model="mock",
-            judge_version="v3",
+            judge_version="v3.1",
             scores={
                 "trajectory_coherence": 0.8,
                 "routing_decisions": 0.8,

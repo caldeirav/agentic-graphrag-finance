@@ -1,0 +1,43 @@
+[
+  {
+    "id": "numeric_exact",
+    "answer_text": "Net sales were $391,035 million in fiscal 2024.",
+    "ground_truth": {"answer": "391035"},
+    "expected_va_min": 0.9,
+    "expected_va_max": 1.0
+  },
+  {
+    "id": "short_label_match",
+    "answer_text": "Braun is part of the Grooming segment.",
+    "ground_truth": {"answer": "Grooming"},
+    "expected_va_min": 0.9,
+    "expected_va_max": 1.0
+  },
+  {
+    "id": "narrative_partial_claims",
+    "answer_text": "The Grooming segment includes Braun personal care products.",
+    "ground_truth": {
+      "answer": "Grooming",
+      "required_claims": [
+        "Braun is reported under the Grooming segment",
+        "Grooming is a reportable segment"
+      ]
+    },
+    "expected_va_min": 0.25,
+    "expected_va_max": 1.0
+  },
+  {
+    "id": "abstention",
+    "answer_text": "I cannot identify the segment from the available evidence.",
+    "ground_truth": {"answer": "Grooming"},
+    "expected_va_min": 0.0,
+    "expected_va_max": 0.0
+  },
+  {
+    "id": "wrong_answer",
+    "answer_text": "Beauty segment.",
+    "ground_truth": {"answer": "Grooming"},
+    "expected_va_min": 0.0,
+    "expected_va_max": 0.5
+  }
+]

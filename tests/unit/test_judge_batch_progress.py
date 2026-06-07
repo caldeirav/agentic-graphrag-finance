@@ -26,7 +26,7 @@ def _pending_row(item_id: str) -> BenchmarkResult:
     )
 
 
-def _v3_complete_scores() -> dict[str, float]:
+def _v3_1_complete_scores() -> dict[str, float]:
     return {
         "trajectory_coherence": 1.0,
         "routing_decisions": 1.0,
@@ -47,8 +47,8 @@ def test_judge_batch_logs_plan_and_empty_complete(tmp_path: Path) -> None:
                     "judge_status": "ok",
                     "judge_verdict": {
                         "judge_model": "g",
-                        "judge_version": "v3",
-                        "scores": _v3_complete_scores(),
+                        "judge_version": "v3.1",
+                        "scores": _v3_1_complete_scores(),
                     },
                     "trajectory_snapshot": {
                         "evidence_chunks": [
@@ -151,8 +151,8 @@ def test_judge_batch_checkpoints_each_item_for_resume(tmp_path: Path, monkeypatc
             raise RuntimeError("interrupted")
         return JudgeVerdict(
             judge_model="mock",
-            judge_version="v3",
-            scores=_v3_complete_scores(),
+            judge_version="v3.1",
+            scores=_v3_1_complete_scores(),
         )
 
     judge = MagicMock()
@@ -174,8 +174,8 @@ def test_judge_batch_checkpoints_each_item_for_resume(tmp_path: Path, monkeypatc
 
     judge.judge.side_effect = lambda item, answer, trajectory, **kwargs: JudgeVerdict(
         judge_model="mock",
-        judge_version="v3",
-        scores=_v3_complete_scores(),
+        judge_version="v3.1",
+        scores=_v3_1_complete_scores(),
     )
     stats2 = run_judge_batch(
         tmp_path,

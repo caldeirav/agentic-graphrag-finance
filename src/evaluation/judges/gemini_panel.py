@@ -22,6 +22,8 @@ from models.evaluation import (
 from models.query import AnswerPackage, TrajectoryRecord
 from models.trajectory import AgentTrajectorySnapshot
 
+JUDGE_VERSION = "v3.1"
+
 TRAJECTORY_CRITERION_IDS = (
     "trajectory_coherence",
     "routing_decisions",
@@ -107,7 +109,7 @@ class GeminiJudgePanel:
         scores = {c.criterion_id: c.score for c in summary.criteria}
         return JudgeVerdict(
             judge_model=summary.judge_model,
-            judge_version="v3",
+            judge_version=JUDGE_VERSION,
             rationale=summary.overall_summary[:500],
             scores=scores,
             criteria=summary.criteria,
@@ -230,9 +232,26 @@ class GeminiJudgePanel:
             cid: (traj if cid in {"trajectory_coherence", "routing_decisions", "retrieval_fidelity"} else base)
             for cid in criteria_ids
         }
+        if "value_alignment" in scores and item.ground_truth and item.ground_truth.answer:
+            text = (answer.text if answer else "") or ""
+            lower = text.lower()
+            gt_text = item.ground_truth.answer.lower()
+            gt_digits = re.sub(r"[^\d.]", "", gt_text)
+            ans_digits = re.sub(r"[^\d.]", "", lower)
+            if "cannot" in lower or "insufficient evidence" in lower:
+                scores["value_alignment"] = 0.0
+            elif gt_text in lower or (gt_digits and gt_digits in ans_digits):
+                scores["value_alignment"] = 1.0
+            elif item.ground_truth.required_claims:
+                hits = sum(
+                    1 for c in item.ground_truth.required_claims if c[:20].lower() in lower
+                )
+                scores["value_alignment"] = max(0.25, hits / len(item.ground_truth.required_claims))
+            else:
+                scores["value_alignment"] = 0.0
         return JudgeVerdict(
             judge_model="mock-judge",
-            judge_version="v3",
+            judge_version=JUDGE_VERSION,
             rationale=f"mock evaluation for {item.item_id}",
             scores=scores,
         )

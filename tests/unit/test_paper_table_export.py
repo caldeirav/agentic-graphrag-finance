@@ -149,7 +149,7 @@ def test_export_manifest_records_custom_judge_version(tmp_path: Path) -> None:
     write_paper_tables(export, tmp_path)
     manifest = json.loads((tmp_path / "export_manifest.json").read_text(encoding="utf-8"))
     assert manifest["custom_judge_version"] == "1.1.0"
-    assert manifest["min_judge_version"] == "v3"
+    assert manifest["min_judge_version"] == "v3.1"
     assert manifest["outcome_scoring_policy"] == "value_alignment_only"
 
 

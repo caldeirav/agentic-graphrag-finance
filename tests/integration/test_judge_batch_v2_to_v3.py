@@ -55,7 +55,7 @@ def test_v2_partial_verdicts_rejudged_to_v3(tmp_path: Path) -> None:
     assert stats["judged"] == 1
     saved = json.loads(results_path.read_text(encoding="utf-8"))[0]
     verdict = saved["judge_verdict"]
-    assert verdict["judge_version"] == "v3"
+    assert verdict["judge_version"] == "v3.1"
     assert "value_alignment" in verdict["scores"]
 
 

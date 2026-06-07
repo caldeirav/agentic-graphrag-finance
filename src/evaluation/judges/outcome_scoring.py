@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from models.enums import Sufficiency
 from models.evaluation import BenchmarkItem, JudgeVerdict
 from models.query import AnswerPackage
@@ -17,6 +19,16 @@ GRAPH_VARIANTS = frozenset(
     }
 )
 FLAT_VARIANT = "flat-chunk"
+MIN_JUDGE_VERSION = 3.1
+
+
+def _judge_version_number(version: str) -> float:
+    raw = (version or "").strip().lower()
+    match = re.match(r"v?(\d+)(?:\.(\d+))?", raw)
+    if not match:
+        return 0.0
+    minor = int(match.group(2) or 0)
+    return float(f"{int(match.group(1))}.{minor}")
 
 
 def is_abstention_answer(answer: AnswerPackage | None) -> bool:
@@ -91,9 +103,7 @@ def should_skip_judging(
     """True when an existing v3+ verdict has every criterion required for this item/variant."""
     if force_rescore or existing is None:
         return False
-    raw = (existing.judge_version or "").strip().lower()
-    digits = "".join(ch for ch in raw if ch.isdigit())
-    if not digits or int(digits) < 3:
+    if _judge_version_number(existing.judge_version or "") < MIN_JUDGE_VERSION:
         return False
     required = set(criteria_for_item(item, variant_id))
     return required <= set(existing.scores.keys())

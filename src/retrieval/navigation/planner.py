@@ -76,6 +76,8 @@ def _load_mock_fixture(stage: str, query: str) -> HopProposal | None:
         name = "revenue_xbrl"
     elif "risk" in q or "md&a" in q or "mda" in q:
         name = "mda_risk"
+    elif any(k in q for k in ("segment", "business unit", "grooming", "braun", "sector")):
+        name = "segment_business"
     if not name:
         return None
     path = _fixture_dir() / stage / f"{name}.json"

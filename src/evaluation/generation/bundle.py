@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
@@ -16,6 +17,8 @@ from pathlib import Path
 import yaml
 
 from evaluation.generation.gt_classifier import is_numeric_answer_gt
+from evaluation.generation.item_validator import load_graph_paths
+from evaluation.generation.section_paths import resolve_section_paths
 from models.benchmark_generation import (
     CorpusBundle,
     DatasetManifest,
@@ -123,6 +126,75 @@ def manifest_corpus_index_path(bundle_root: Path) -> Path:
     return bundle_root / "corpus" / "graph_node_index.json"
 
 
+def _years_in_text(text: str) -> set[int]:
+    return {int(y) for y in re.findall(r"20\d{2}", text or "")}
+
+
+def question_binding_year_mismatch(item: GeneratedBenchmarkItem) -> tuple[bool, str]:
+    """True when question cites a calendar/filing year absent from fiscal_periods."""
+    q_years = _years_in_text(item.question)
+    period_years: set[int] = set()
+    for period in item.expected_bindings.fiscal_periods or []:
+        period_years.update(_years_in_text(str(period)))
+    if not q_years or not period_years:
+        return False, ""
+    if q_years & period_years:
+        return False, ""
+    extra = sorted(q_years - period_years)
+    bound = sorted(period_years)
+    return True, f"question years {extra} not in bindings {bound}"
+
+
+def validate_section_reachability(
+    bundle_root: Path,
+    items_path: Path,
+) -> dict[str, object]:
+    """Audit answer-GT items for resolvable expected_section_paths in corpus index."""
+    items = [
+        GeneratedBenchmarkItem.model_validate(json.loads(line))
+        for line in items_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    index_path = manifest_corpus_index_path(bundle_root)
+    graph_paths = load_graph_paths(index_path) if index_path.is_file() else set()
+    corpus_accessions = _corpus_accessions(bundle_root)
+    unreachable: list[dict[str, str]] = []
+    for item in items:
+        gt = item.ground_truth
+        if not gt.answer:
+            continue
+        paths = list(item.expected_section_paths or [])
+        if not paths:
+            unreachable.append(
+                {
+                    "item_id": item.item_id,
+                    "reason": "missing_section_paths",
+                    "detail": "answer-GT item has no expected_section_paths",
+                }
+            )
+            continue
+        if not graph_paths:
+            continue
+        resolved, unresolved = resolve_section_paths(
+            paths,
+            graph_paths,
+            snapshot_accessions=corpus_accessions,
+        )
+        if unresolved or not resolved:
+            unreachable.append(
+                {
+                    "item_id": item.item_id,
+                    "reason": "section_unreachable",
+                    "detail": f"unresolved paths: {', '.join(unresolved or paths)}",
+                }
+            )
+    return {
+        "unreachable_answer_gt_count": len(unreachable),
+        "unreachable_items": unreachable,
+        "item_count": len(items),
+    }
+
+
 def validate_bundle_feasibility(
     bundle_root: Path,
     items_path: Path,
@@ -175,10 +247,26 @@ def validate_bundle_feasibility(
                     "detail": "rubric-only item missing rubric text",
                 }
             )
+        mismatched, detail = question_binding_year_mismatch(item)
+        if gt.answer and mismatched:
+            blocked.append(
+                {
+                    "item_id": item.item_id,
+                    "reason": "question_binding_year_mismatch",
+                    "detail": detail,
+                }
+            )
+    reachability = validate_section_reachability(bundle_root, items_path)
+    for entry in reachability["unreachable_items"]:  # type: ignore[union-attr]
+        blocked.append(entry)
     return {
         "blocked_count": len(blocked),
         "blocked_items": blocked,
         "item_count": len(items),
+        "year_mismatch_count": sum(
+            1 for b in blocked if b["reason"] == "question_binding_year_mismatch"
+        ),
+        "unreachable_answer_gt_count": reachability["unreachable_answer_gt_count"],
     }
 
 
@@ -207,13 +295,23 @@ def check_publish_gates(
         items_path = bundle_root / "items" / "dev.jsonl"
         if items_path.is_file():
             feasibility = validate_bundle_feasibility(bundle_root, items_path)
-            if int(feasibility["blocked_count"]) > 0:
+            blocked_count = int(feasibility["blocked_count"])
+            if blocked_count > 0:
                 first = feasibility["blocked_items"][0]  # type: ignore[index]
                 msg = (
-                    f"Publish gate failed: {feasibility['blocked_count']} infeasible item(s); "
+                    f"Publish gate failed: {blocked_count} infeasible item(s); "
                     f"first={first['item_id']} ({first['reason']})"
                 )
                 raise ValueError(msg)
+            reach_path = bundle_root / "reachability_report.json"
+            if reach_path.is_file():
+                reach = json.loads(reach_path.read_text(encoding="utf-8"))
+                if int(reach.get("unreachable_answer_gt_count", 0)) > 0:
+                    msg = (
+                        f"Publish gate failed: {reach['unreachable_answer_gt_count']} "
+                        "unreachable answer-GT item(s)"
+                    )
+                    raise ValueError(msg)
 
 
 def publish_draft(

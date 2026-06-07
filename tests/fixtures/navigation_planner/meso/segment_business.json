@@ -1,0 +1,14 @@
+{
+  "stage": "meso",
+  "source_node_id": "doc-0000080424-25-000012",
+  "candidates": [
+    {
+      "target_node_id": "doc-0000080424-25-000012-business",
+      "edge_type": "CONTAINS",
+      "direction": "outgoing",
+      "score": 0.9
+    }
+  ],
+  "intent_note": "segment and business description",
+  "proposal_source": "mock"
+}

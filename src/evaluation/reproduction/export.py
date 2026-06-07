@@ -464,7 +464,7 @@ def write_paper_tables(export: PaperTableExport, output_dir: Path) -> None:
         payload["stratum_audit"] = export.stratum_audit
     payload["release_tag"] = export.release_tag
     payload["exported_at"] = export.exported_at.isoformat()
-    payload.setdefault("min_judge_version", "v3")
+    payload.setdefault("min_judge_version", "v3.1")
     payload.setdefault("outcome_scoring_policy", "value_alignment_only")
     if export.custom_judge_version:
         payload["custom_judge_version"] = export.custom_judge_version

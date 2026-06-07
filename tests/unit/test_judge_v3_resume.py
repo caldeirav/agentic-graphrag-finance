@@ -22,11 +22,28 @@ def test_v2_never_skips() -> None:
     assert should_skip_judging(verdict, _item(), "graph-full") is False
 
 
-def test_v3_complete_skips() -> None:
+def test_v3_complete_does_not_skip() -> None:
+    """v3 scores must be re-judged under graded v3.1 rubric."""
     item = _item()
     verdict = JudgeVerdict(
         judge_model="m",
         judge_version="v3",
+        scores={
+            "trajectory_coherence": 1.0,
+            "routing_decisions": 1.0,
+            "retrieval_fidelity": 1.0,
+            "synthesis_grounding": 1.0,
+            "value_alignment": 1.0,
+        },
+    )
+    assert should_skip_judging(verdict, item, "graph-full") is False
+
+
+def test_v3_1_complete_skips() -> None:
+    item = _item()
+    verdict = JudgeVerdict(
+        judge_model="m",
+        judge_version="v3.1",
         scores={
             "trajectory_coherence": 1.0,
             "routing_decisions": 1.0,
