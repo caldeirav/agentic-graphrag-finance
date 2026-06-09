@@ -16,10 +16,14 @@ from pathlib import Path
 
 import yaml
 
+from evaluation.generation.comparison_gt import is_comparison_item, validate_comparison_structured
+from evaluation.generation.bundle_version import is_v2_bundle, is_v2_or_later
+from evaluation.generation.feasibility_macro import audit_macro_bindability
 from evaluation.generation.gt_classifier import is_numeric_answer_gt
 from evaluation.generation.item_validator import load_graph_paths
 from evaluation.generation.section_paths import resolve_section_paths
 from models.benchmark_generation import (
+    AnswerType,
     CorpusBundle,
     DatasetManifest,
     DatasetStatus,
@@ -61,6 +65,7 @@ def write_draft_manifest(
     version: str = "0.0.0-draft",
 ) -> DatasetManifest:
     manifest = DatasetManifest(
+        schema_version=config.bundle_schema_version,
         version=version,
         status=DatasetStatus.DRAFT,
         item_count=len([ln for ln in items_path.read_text().splitlines() if ln.strip()]),
@@ -128,6 +133,108 @@ def manifest_corpus_index_path(bundle_root: Path) -> Path:
 
 def _years_in_text(text: str) -> set[int]:
     return {int(y) for y in re.findall(r"20\d{2}", text or "")}
+
+
+def _multi_filing_item(item: GeneratedBenchmarkItem) -> bool:
+    if item.multi_filing_required:
+        return True
+    return _comparison_tag(item.question_type_tag)
+
+
+def _v1_item_id(item_id: str) -> bool:
+    """True when item_id matches v1.x live generation pattern (not v2 net-new pool)."""
+    lowered = item_id.lower()
+    if lowered.startswith("v2-"):
+        return False
+    return lowered.startswith("live-") or bool(re.match(r"^[a-z]+-\d{4}$", lowered))
+
+
+def _validate_v2_item(item: GeneratedBenchmarkItem) -> list[dict[str, str]]:
+    blocked: list[dict[str, str]] = []
+    gt = item.ground_truth
+    answer = (gt.answer or "").strip()
+    if not answer:
+        blocked.append(
+            {
+                "item_id": item.item_id,
+                "reason": "missing_answer_gt",
+                "detail": "v2 item requires non-empty ground_truth.answer",
+            }
+        )
+    if _v1_item_id(item.item_id):
+        blocked.append(
+            {
+                "item_id": item.item_id,
+                "reason": "v1_item_reuse",
+                "detail": "v2 bundle forbids v1.x item_id reuse",
+            }
+        )
+    answer_type = item.answer_type
+    if answer_type in (AnswerType.NARRATIVE, AnswerType.COMPARISON_STRUCTURED):
+        claims = [c.strip() for c in (gt.required_claims or []) if c and c.strip()]
+        min_claims = 3 if answer_type == AnswerType.COMPARISON_STRUCTURED else 2
+        max_claims = 8
+        if len(claims) < min_claims or len(claims) > max_claims:
+            blocked.append(
+                {
+                    "item_id": item.item_id,
+                    "reason": "required_claims",
+                    "detail": f"expected {min_claims}-{max_claims} claims, got {len(claims)}",
+                }
+            )
+    if is_comparison_item(item):
+        if answer_type != AnswerType.COMPARISON_STRUCTURED:
+            blocked.append(
+                {
+                    "item_id": item.item_id,
+                    "reason": "invalid_answer_type",
+                    "detail": "comparison item requires answer_type=comparison_structured",
+                }
+            )
+        for code in validate_comparison_structured(item):
+            blocked.append(
+                {
+                    "item_id": item.item_id,
+                    "reason": code,
+                    "detail": f"comparison_structured validation failed: {code}",
+                }
+            )
+    return blocked
+
+
+def build_scorability_report(items: list[GeneratedBenchmarkItem]) -> dict[str, object]:
+    by_answer_type: dict[str, int] = {}
+    rubric_only = 0
+    scorable = 0
+    for item in items:
+        gt = item.ground_truth
+        has_answer = bool((gt.answer or "").strip())
+        has_rubric_only = bool((gt.rubric or "").strip()) and not has_answer
+        if has_rubric_only:
+            rubric_only += 1
+        if has_answer:
+            scorable += 1
+        key = item.answer_type.value if item.answer_type else "unknown"
+        by_answer_type[key] = by_answer_type.get(key, 0) + 1
+    return {
+        "scorable_item_count": scorable,
+        "item_count": len(items),
+        "by_answer_type": by_answer_type,
+        "rubric_only_count": rubric_only,
+        "answer_gt_coverage": scorable / len(items) if items else 0.0,
+    }
+
+
+def write_scorability_report(bundle_root: Path, items_path: Path) -> Path:
+    items = [
+        GeneratedBenchmarkItem.model_validate(json.loads(line))
+        for line in items_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    report = build_scorability_report(items)
+    path = bundle_root / "scorability_report.json"
+    path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path
 
 
 def question_binding_year_mismatch(item: GeneratedBenchmarkItem) -> tuple[bool, str]:
@@ -198,16 +305,31 @@ def validate_section_reachability(
 def validate_bundle_feasibility(
     bundle_root: Path,
     items_path: Path,
+    *,
+    manifest: DatasetManifest | None = None,
 ) -> dict[str, object]:
     """Return feasibility report; blocked items fail publish gates."""
+    if manifest is None:
+        manifest_path = bundle_root / "manifest.json"
+        if manifest_path.is_file():
+            manifest = DatasetManifest.model_validate(
+                json.loads(manifest_path.read_text(encoding="utf-8"))
+            )
     items = [
         GeneratedBenchmarkItem.model_validate(json.loads(line))
         for line in items_path.read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
+    v2 = manifest is not None and is_v2_bundle(manifest)
+    bundle_version = manifest.version if manifest else None
     corpus_accessions = _corpus_accessions(bundle_root)
     blocked: list[dict[str, str]] = []
+    multi_filing_count = 0
     for item in items:
+        if v2:
+            blocked.extend(_validate_v2_item(item))
+        if _multi_filing_item(item):
+            multi_filing_count += 1
         tag = item.question_type_tag
         accs = list(dict.fromkeys(item.expected_bindings.accessions))
         if _comparison_tag(tag) and len(accs) < 2:
@@ -229,7 +351,7 @@ def validate_bundle_feasibility(
                     }
                 )
         gt = item.ground_truth
-        if gt.answer and not is_numeric_answer_gt(gt.answer):
+        if not v2 and gt.answer and not is_numeric_answer_gt(gt.answer):
             claims = gt.required_claims or []
             if not claims:
                 blocked.append(
@@ -239,7 +361,7 @@ def validate_bundle_feasibility(
                         "detail": "narrative answer-GT missing required_claims",
                     }
                 )
-        if is_rubric_only_routing(item) and not (gt.rubric or "").strip():
+        if is_rubric_only_routing(item, bundle_version=bundle_version) and not (gt.rubric or "").strip():
             blocked.append(
                 {
                     "item_id": item.item_id,
@@ -259,6 +381,12 @@ def validate_bundle_feasibility(
     reachability = validate_section_reachability(bundle_root, items_path)
     for entry in reachability["unreachable_items"]:  # type: ignore[union-attr]
         blocked.append(entry)
+    macro_failures = 0
+    if v2:
+        macro_report = audit_macro_bindability(bundle_root, items)
+        macro_failures = int(macro_report["macro_bindability_failures"])
+        blocked.extend(macro_report["failures"])  # type: ignore[arg-type]
+    scorability = build_scorability_report(items)
     return {
         "blocked_count": len(blocked),
         "blocked_items": blocked,
@@ -267,10 +395,21 @@ def validate_bundle_feasibility(
             1 for b in blocked if b["reason"] == "question_binding_year_mismatch"
         ),
         "unreachable_answer_gt_count": reachability["unreachable_answer_gt_count"],
+        "macro_bindability_failures": macro_failures,
+        "multi_filing_count": multi_filing_count,
+        "answer_gt_coverage": scorability["answer_gt_coverage"],
     }
 
 
-def is_rubric_only_routing(item: GeneratedBenchmarkItem) -> bool:
+def is_rubric_only_routing(
+    item: GeneratedBenchmarkItem,
+    *,
+    bundle_version: str | None = None,
+) -> bool:
+    if bundle_version and is_v2_or_later(bundle_version):
+        return False
+    if item.answer_type is not None:
+        return False
     return _comparison_tag(item.question_type_tag) or _reference_tag(item.question_type_tag)
 
 
@@ -282,6 +421,8 @@ def check_publish_gates(
     min_pass_rate: float = 0.95,
     skip_gates: bool = False,
     bundle_root: Path | None = None,
+    multi_filing_min: int = 0,
+    require_publish_audit: bool = False,
 ) -> None:
     if skip_gates:
         return
@@ -294,7 +435,7 @@ def check_publish_gates(
     if bundle_root is not None:
         items_path = bundle_root / "items" / "dev.jsonl"
         if items_path.is_file():
-            feasibility = validate_bundle_feasibility(bundle_root, items_path)
+            feasibility = validate_bundle_feasibility(bundle_root, items_path, manifest=manifest)
             blocked_count = int(feasibility["blocked_count"])
             if blocked_count > 0:
                 first = feasibility["blocked_items"][0]  # type: ignore[index]
@@ -303,6 +444,27 @@ def check_publish_gates(
                     f"first={first['item_id']} ({first['reason']})"
                 )
                 raise ValueError(msg)
+            if is_v2_bundle(manifest):
+                coverage = float(feasibility.get("answer_gt_coverage", 0.0))
+                if coverage < 1.0:
+                    msg = f"Publish gate failed: answer_gt_coverage {coverage} < 1.0"
+                    raise ValueError(msg)
+                scorability_path = bundle_root / "scorability_report.json"
+                if scorability_path.is_file():
+                    scorability = json.loads(scorability_path.read_text(encoding="utf-8"))
+                    if int(scorability.get("rubric_only_count", 0)) > 0:
+                        msg = "Publish gate failed: rubric_only_count must be 0 for v2 bundles"
+                        raise ValueError(msg)
+                floor = multi_filing_min or 40
+                mf_count = int(feasibility.get("multi_filing_count", 0))
+                if mf_count < floor:
+                    msg = (
+                        f"Publish gate failed: multi_filing_count {mf_count} < {floor}"
+                    )
+                    raise ValueError(msg)
+                if require_publish_audit and not (bundle_root / "publish_audit.json").is_file():
+                    msg = "Publish gate failed: publish_audit.json missing (requires --publish-signoff)"
+                    raise ValueError(msg)
             reach_path = bundle_root / "reachability_report.json"
             if reach_path.is_file():
                 reach = json.loads(reach_path.read_text(encoding="utf-8"))
@@ -322,6 +484,8 @@ def publish_draft(
     published_by: str = "operator",
     min_items: int = 200,
     skip_gates: bool = False,
+    multi_filing_min: int = 0,
+    require_publish_audit: bool = False,
 ) -> Path:
     manifest = DatasetManifest.model_validate(
         json.loads((draft_dir / "manifest.json").read_text(encoding="utf-8"))
@@ -330,7 +494,13 @@ def publish_draft(
         json.loads((draft_dir / "generation_report.json").read_text(encoding="utf-8"))
     )
     check_publish_gates(
-        manifest, report, min_items=min_items, skip_gates=skip_gates, bundle_root=draft_dir
+        manifest,
+        report,
+        min_items=min_items,
+        skip_gates=skip_gates,
+        bundle_root=draft_dir,
+        multi_filing_min=multi_filing_min,
+        require_publish_audit=require_publish_audit,
     )
     dest = published_root / f"v{version}"
     if dest.exists():
@@ -342,6 +512,9 @@ def publish_draft(
             "status": DatasetStatus.PUBLISHED,
             "published_at": datetime.now(UTC),
             "published_by": published_by,
+            "publish_audit_path": "publish_audit.json"
+            if (draft_dir / "publish_audit.json").is_file()
+            else None,
         }
     )
     (dest / "manifest.json").write_text(

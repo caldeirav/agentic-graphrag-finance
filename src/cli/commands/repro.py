@@ -11,7 +11,7 @@ import typer
 from evaluation.reproduction.defer_config import resolve_defer_config
 from evaluation.reproduction.export import export_tables_from_disk, write_paper_tables
 from evaluation.reproduction.judge_batch import run_judge_batch
-from evaluation.reproduction.manifest import load_expected_checksums, load_release_manifest
+from evaluation.reproduction.manifest import load_expected_checksums, load_release_manifest, resolve_release_manifest_path
 from evaluation.reproduction.relevance import materialize_relevance_labels
 from evaluation.reproduction.report_errors import ReportInputError, ReportRenderError
 from evaluation.reproduction.report_loader import load_repro_report_bundle
@@ -27,6 +27,16 @@ app = typer.Typer(
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _manifest_path(manifest: Path | None, release: str | None) -> Path:
+    if manifest is not None and release:
+        raise typer.BadParameter("Use either --manifest or --release, not both")
+    if release:
+        return resolve_release_manifest_path(release, repo_root=REPO_ROOT)
+    if manifest is None:
+        raise typer.BadParameter("Provide --manifest or --release")
+    return manifest
 
 
 def _require_offline() -> None:
@@ -186,7 +196,8 @@ def verify_tables_cmd(
 
 @app.command("run-all")
 def run_all(
-    manifest: Path = typer.Option(..., "--manifest"),
+    manifest: Path | None = typer.Option(None, "--manifest"),
+    release: str | None = typer.Option(None, "--release", help="Release tag e.g. paper-v2.0"),
     output: Path = typer.Option(None, "--output"),
     max_items: int | None = typer.Option(None, "--max-items"),
     skip_relevance: bool = typer.Option(False, "--skip-relevance"),
@@ -201,14 +212,14 @@ def run_all(
     _require_offline()
     if allow_pending_export:
         os.environ["REPRO_ALLOW_PENDING_EXPORT"] = "1"
-    rel = load_release_manifest(manifest)
+    rel = load_release_manifest(_manifest_path(manifest, release))
     out = output or Path(f"reports/repro-{rel.release_tag}")
-    runner = _runner(manifest, defer_judge=defer_judge)
+    runner = _runner(_manifest_path(manifest, release), defer_judge=defer_judge)
     repro = runner.run_all(
         output_dir=out,
         max_items=max_items,
         skip_relevance=skip_relevance,
-        strict_git=strict_git or rel.release_tag == "paper-v1.0",
+        strict_git=strict_git or rel.release_tag in {"paper-v1.0", "paper-v2.0"},
         resume=resume,
         export_only=export_only,
         judge_only=judge_only,

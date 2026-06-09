@@ -13,5 +13,7 @@ required_output_fields:
 prompt_template: |
   Generate a multi-hop agentic financial question requiring at least two filings.
   Style: FinAgentBench. Return JSON with: question, question_type_tag,
-  multi_filing_required=true, ground_truth.answer or rubric, expected_bindings with
-  >=2 accessions, expected_section_paths spanning filings, operation_class.
+  answer_type=comparison_structured, multi_filing_required=true,
+  ground_truth.answer using template "Both {label_a} and {label_b} discuss {topic} in {section}.",
+  required_claims (>=3 per-filing + cross-filing), expected_bindings with >=2 accessions,
+  expected_section_paths spanning filings, operation_class.

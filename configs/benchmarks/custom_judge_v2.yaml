@@ -1,0 +1,48 @@
+config_id: custom_judge_v2
+bundle_schema_version: "2.0.0"
+random_seed: 20260602
+
+allowlist_id: issuer_allowlist_v1
+allowlist_path: configs/benchmarks/issuer_allowlist_v1.json
+
+issuer_sample_count: 20
+
+filing_filters:
+  form_types:
+    - 10-K
+    - 10-Q
+  min_fiscal_year: 2023
+  max_fiscal_year: 2026
+  max_filings_per_issuer: 4
+
+profile_quotas:
+  financebench: 0.34
+  finder: 0.33
+  finagentbench: 0.33
+
+inspiration_profiles:
+  financebench: configs/benchmarks/inspiration_profiles/financebench.yaml
+  finder: configs/benchmarks/inspiration_profiles/finder.yaml
+  finagentbench: configs/benchmarks/inspiration_profiles/finagentbench.yaml
+
+generation_judge_version: gemini-2.5-pro
+generation_judge_config: configs/judges/gemini_2_5_pro.yaml
+
+evaluation_judge_version: gemini-2.5-pro
+evaluation_judge_config: configs/judges/gemini_2_5_pro.yaml
+
+governance:
+  max_issuers: 20
+  max_filings_per_issuer: 4
+  max_items: 240
+  max_judge_api_calls: 800
+  max_storage_bytes: 5368709120
+  max_wall_clock_seconds: 14400
+  validation_pass_rate: 0.95
+  dedup_similarity_threshold: 0.85
+  judge_retries_per_item: 2
+  multi_filing_min: 40
+
+output:
+  drafts_root: data/benchmarks/custom-judge/drafts
+  published_root: data/benchmarks/custom-judge

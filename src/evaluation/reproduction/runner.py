@@ -721,6 +721,7 @@ class ReproRunner:
             summaries,
             release_tag=self._manifest.release_tag,
             relevance_by_item=rel,
+            custom_judge_version=self._manifest.custom_judge_version,
         )
         write_paper_tables(export, output_dir)
         repro.completed_at = datetime.now(UTC)

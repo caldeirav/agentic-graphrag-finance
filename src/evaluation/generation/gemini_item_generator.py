@@ -12,8 +12,9 @@ from langchain_core.messages import HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from evaluation.generation.api_retry import with_transient_retry
+from evaluation.generation.comparison_gt import derive_comparison_claims
 from evaluation.judges.gemini_panel import JudgeParseError, _extract_json
-from models.benchmark_generation import GeneratedBenchmarkItem, GenerationConfig, SamplingManifest
+from models.benchmark_generation import AnswerType, GeneratedBenchmarkItem, GenerationConfig, SamplingManifest
 from models.enums import OperationClass
 from models.evaluation import ExpectedBindings, GroundTruth
 
@@ -63,6 +64,7 @@ class GeminiItemGenerator:
     ) -> str:
         profile_cfg = self._load_profile(profile)
         template = str(profile_cfg.get("prompt_template", ""))
+        v2 = self._config.bundle_schema_version.startswith("2")
         issuers = [
             {
                 "ticker": i.ticker,
@@ -78,6 +80,16 @@ class GeminiItemGenerator:
                 f"\nPrevious attempt failed validation:\n{validation_feedback}\n"
                 "Fix the JSON so all section paths exist in available_section_paths.\n"
             )
+        rules_tail = (
+            "- v2 bundle: ground_truth.answer is REQUIRED for every profile (non-empty).\n"
+            "- v2 bundle: narrative items need 2-8 required_claims; comparison_structured needs >=3.\n"
+            "- v2 comparison answer template: Both {label_a} and {label_b} discuss {topic} in {section}.\n"
+            if v2
+            else (
+                "- finder profile MUST include ground_truth.rubric.\n"
+                "- financebench profile MUST include ground_truth.answer.\n"
+            )
+        )
         return (
             "You author evaluation benchmark items grounded in a materialized SEC/XBRL corpus.\n"
             f"Inspiration profile: {profile}\n"
@@ -92,7 +104,8 @@ class GeminiItemGenerator:
             "{\n"
             '  "question": "string",\n'
             '  "question_type_tag": "string",\n'
-            '  "ground_truth": {"answer": "string or null", "rubric": "string or null"},\n'
+            '  "answer_type": "numeric|short_label|narrative|comparison_structured",\n'
+            '  "ground_truth": {"answer": "string", "required_claims": ["..."], "rubric": null},\n'
             '  "expected_bindings": {"accessions": ["..."], "fiscal_periods": ["..."]},\n'
             '  "expected_section_paths": ["accession/section_slug", "..."],\n'
             '  "multi_filing_required": false,\n'
@@ -102,8 +115,7 @@ class GeminiItemGenerator:
             "- Every expected_bindings.accessions value MUST appear in sampled issuers.\n"
             "- Every expected_section_paths entry MUST be copied exactly from available_section_paths.\n"
             "- finagentbench profile MUST use >=2 accessions and set multi_filing_required true.\n"
-            "- finder profile MUST include ground_truth.rubric.\n"
-            "- financebench profile MUST include ground_truth.answer.\n"
+            f"{rules_tail}"
         )
 
     def generate_one(
@@ -146,19 +158,41 @@ class GeminiItemGenerator:
         gt_raw = data.get("ground_truth") or {}
         bindings_raw = data.get("expected_bindings") or {}
         op_raw = str(data.get("operation_class", OperationClass.QUALITATIVE.value)).upper()
+        answer_type_raw = data.get("answer_type")
+        answer_type: AnswerType | None = None
+        if answer_type_raw:
+            try:
+                answer_type = AnswerType(str(answer_type_raw).lower())
+            except ValueError:
+                answer_type = None
         try:
             operation_class = OperationClass(op_raw)
         except ValueError:
             operation_class = OperationClass.QUALITATIVE
+        answer = gt_raw.get("answer")
+        required_claims = list(gt_raw.get("required_claims") or [])
+        v2 = self._config.bundle_schema_version.startswith("2")
+        if v2 and answer_type == AnswerType.COMPARISON_STRUCTURED and not required_claims and answer:
+            required_claims = derive_comparison_claims(
+                str(answer),
+                label_a="FY2025 10-K",
+                label_b="FY2024 10-K",
+                topic="the question topic",
+                section="Item 7 MD&A",
+            )
+        item_id = str(data.get("item_id") or f"v2-{profile}-{seq:04d}" if v2 else f"live-{profile}-{seq:04d}")
         return GeneratedBenchmarkItem(
-            item_id=str(data.get("item_id") or f"live-{profile}-{seq:04d}"),
+            item_id=item_id,
             question=str(data.get("question", "")).strip(),
             question_type_tag=str(data.get("question_type_tag", f"{profile}-generated")),
+            answer_type=answer_type,
             inspiration_profile=profile,  # type: ignore[arg-type]
             ground_truth=GroundTruth(
-                answer=gt_raw.get("answer"),
+                answer=answer,
                 rubric=gt_raw.get("rubric"),
                 relevant_chunk_ids=list(gt_raw.get("relevant_chunk_ids") or []),
+                required_claims=required_claims or None,
+                answer_type=answer_type.value if answer_type else None,
             ),
             expected_bindings=ExpectedBindings(
                 accessions=[str(a) for a in bindings_raw.get("accessions") or []],

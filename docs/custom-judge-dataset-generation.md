@@ -413,6 +413,30 @@ After you **publish** a bundle (or keep a draft for smoke), run phase 2 on the f
 - **[Research reproduction guide](research-reproduction.md)** — `repro run-all`, five variants, live judge + LM Studio
 - **`releases/paper-live-smoke`** — 2-item live smoke (draft from `--run-id live-repro-smoke`)
 - **`releases/paper-v1.0`** — full published split (LFS corpus)
+- **`releases/paper-v2.0`** — net-new v2.0.0 bundle (200 answer-GT items, unified `task_success`)
+
+---
+
+## Bundle v2.0 (net-new pool)
+
+v2.0 is a **greenfield** dataset: new seed, refreshed fiscal window, 100% non-empty `ground_truth.answer`, and no reuse of v1.2.0 item IDs. Use `configs/benchmarks/custom_judge_v2.yaml`.
+
+```bash
+uv run agent-query benchmark-dataset generate \
+  --config configs/benchmarks/custom_judge_v2.yaml \
+  --run-id v2-draft-YYYYMMDD \
+  --bundle-version 2.0.0
+
+# After 20-item stratified audit:
+uv run agent-query benchmark-dataset publish \
+  data/benchmarks/custom-judge/drafts/v2-draft-YYYYMMDD \
+  --version 2.0.0 \
+  --publish-signoff \
+  --operator-id "${USER}"
+```
+
+Paper reproduction: `uv run agent-query repro run-all --release paper-v2.0`.  
+See [017 quickstart](../specs/017-custom-judge-v2/quickstart.md) and [017 spec](../specs/017-custom-judge-v2/spec.md).
 
 ---
 

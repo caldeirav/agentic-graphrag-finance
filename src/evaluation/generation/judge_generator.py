@@ -118,12 +118,14 @@ def _revalidate_candidates(
     *,
     graph_paths: set[str],
     snapshot_accessions: set[str],
+    bundle_version: str | None = None,
 ) -> list[GeneratedBenchmarkItem]:
     return [
         validate_item(
             item,
             graph_paths=graph_paths,
             snapshot_accessions=snapshot_accessions,
+            bundle_version=bundle_version,
         )
         for item in items
     ]
@@ -222,6 +224,7 @@ def _generate_one_candidate(
                 item,
                 graph_paths=graph_paths,
                 snapshot_accessions=snapshot_accessions,
+                bundle_version=config.bundle_schema_version,
             )
             if validated.validation_status == "accepted":
                 break
@@ -280,6 +283,7 @@ def generate_items(
         existing,
         graph_paths=graph_paths,
         snapshot_accessions=snapshot_accessions,
+        bundle_version=config.bundle_schema_version,
     )
     if candidates and candidates != existing:
         _rewrite_checkpoint(checkpoint_path, candidates)

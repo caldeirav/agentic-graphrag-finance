@@ -51,6 +51,20 @@ class MetricDefinition(BaseModel):
     source: str
 
 
+from evaluation.generation.bundle_version import is_v2_or_later
+
+TASK_SUCCESS_V2_DEFINITION = (
+    "Mean value_alignment (outcome_score) over all headline-eligible dev items (n=200 for full split). "
+    "Missing value_alignment contributes 0.0; rubric-only bridging is not used on v2 bundles."
+)
+
+
+def task_success_definition(*, custom_judge_version: str | None = None) -> str:
+    if custom_judge_version and is_v2_or_later(custom_judge_version):
+        return TASK_SUCCESS_V2_DEFINITION
+    return METRIC_CATALOG["task_success"].definition
+
+
 METRIC_CATALOG: dict[str, MetricDefinition] = {
     "task_success": MetricDefinition(
         metric_id="task_success",

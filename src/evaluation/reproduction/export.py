@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from evaluation.judges.outcome_scoring import is_abstention_answer
+from evaluation.generation.bundle_version import is_v2_or_later
 from evaluation.reproduction.stratum import assign_primary_evidence_source
 from models.evaluation import BenchmarkResult, RankingMetrics
 from models.reproduction import (
@@ -141,8 +142,12 @@ def build_variant_summary(
     )
 
 
-def _task_success_score(record: VariantItemRecord) -> float | None:
+def _task_success_score(record: VariantItemRecord, *, v2_bundle: bool = False) -> float | None:
     """Unified judge score: value_alignment (answer-GT) or claim_presence (rubric-only)."""
+    if v2_bundle:
+        if not _headline_eligible(record):
+            return None
+        return float(record.result.outcome_score or 0.0)
     if record.has_answer_gt:
         return float(record.result.outcome_score or 0.0)
     if record.has_rubric_gt:
@@ -150,16 +155,19 @@ def _task_success_score(record: VariantItemRecord) -> float | None:
     return None
 
 
-def _aggregate_metrics(summary: VariantRunSummary) -> dict[str, float | None]:
+def _aggregate_metrics(summary: VariantRunSummary, *, v2_bundle: bool = False) -> dict[str, float | None]:
     eligible = [r for r in summary.records if _headline_eligible(r)]
     out: dict[str, float | None] = {}
     ans = [r.result.outcome_score for r in eligible if r.has_answer_gt]
     rub = [r.result.alignment_score for r in eligible if r.has_rubric_gt]
-    task = [s for r in eligible if (s := _task_success_score(r)) is not None]
+    if v2_bundle:
+        task = [float(r.result.outcome_score or 0.0) for r in eligible]
+    else:
+        task = [s for r in eligible if (s := _task_success_score(r)) is not None]
     fid = [r.result.trajectory_fidelity for r in eligible]
     out["task_success"] = _mean(task) if task else None
     out["outcome_accuracy"] = _mean(ans) if ans else None
-    out["rubric_alignment"] = _mean(rub) if rub else None
+    out["rubric_alignment"] = None if v2_bundle else (_mean(rub) if rub else None)
     out["trajectory_fidelity"] = _mean(fid) if fid else None
 
     rank_eligible = [r for r in eligible if r.has_relevance_labels]
@@ -217,6 +225,8 @@ def _append_stratum_exports(
     summaries: list[VariantRunSummary],
     relevance_by_item: dict[str, list[str]],
     metric_names: list[str],
+    *,
+    v2_bundle: bool = False,
 ) -> None:
     unknown_items = {
         r.item_id
@@ -239,7 +249,7 @@ def _append_stratum_exports(
             )
 
     agg_by_variant_stratum = {
-        key: _aggregate_metrics(sub) for key, sub in stratum_summaries.items()
+        key: _aggregate_metrics(sub, v2_bundle=v2_bundle) for key, sub in stratum_summaries.items()
     }
 
     for (variant_id, stratum), sub in stratum_summaries.items():
@@ -321,19 +331,24 @@ def export_paper_tables(
     *,
     release_tag: str,
     relevance_by_item: dict[str, list[str]] | None = None,
+    custom_judge_version: str | None = None,
 ) -> PaperTableExport:
+    v2_bundle = is_v2_or_later(custom_judge_version or "")
     export = PaperTableExport(release_tag=release_tag)
     metric_names = [
         "task_success",
         "outcome_accuracy",
-        "rubric_alignment",
         "trajectory_fidelity",
         "mrr",
         "map",
         "ndcg_at_10",
     ]
+    if not v2_bundle:
+        metric_names.insert(2, "rubric_alignment")
 
-    agg_by_variant = {s.variant_id: _aggregate_metrics(s) for s in summaries}
+    agg_by_variant = {
+        s.variant_id: _aggregate_metrics(s, v2_bundle=v2_bundle) for s in summaries
+    }
 
     for summary in summaries:
         metrics = agg_by_variant[summary.variant_id]
@@ -382,7 +397,7 @@ def export_paper_tables(
                 excluded_incomplete=summary.excluded_incomplete,
                 excluded_degraded=summary.excluded_degraded,
             )
-            prof_metrics = _aggregate_metrics(sub)
+            prof_metrics = _aggregate_metrics(sub, v2_bundle=v2_bundle)
             profile_outcome_gt = sum(
                 1 for r in records if _headline_eligible(r) and r.has_answer_gt
             )
@@ -437,8 +452,11 @@ def export_paper_tables(
             )
 
     if relevance_by_item:
-        _append_stratum_exports(export, summaries, relevance_by_item, metric_names)
+        _append_stratum_exports(
+            export, summaries, relevance_by_item, metric_names, v2_bundle=v2_bundle
+        )
 
+    export.custom_judge_version = custom_judge_version
     return export
 
 
@@ -481,7 +499,9 @@ def write_paper_tables(export: PaperTableExport, output_dir: Path) -> None:
     payload.setdefault("outcome_scoring_policy", "value_alignment_only")
     payload.setdefault(
         "task_success_policy",
-        "value_alignment_or_claim_presence_over_all_eligible_items",
+        "mean_value_alignment_over_all_eligible_items_v2"
+        if export.custom_judge_version and is_v2_or_later(export.custom_judge_version)
+        else "value_alignment_or_claim_presence_over_all_eligible_items",
     )
     if export.custom_judge_version:
         payload["custom_judge_version"] = export.custom_judge_version
@@ -619,6 +639,7 @@ def export_tables_from_disk(
         summaries,
         release_tag=release_tag,
         relevance_by_item=relevance_by_item,
+        custom_judge_version=manifest.custom_judge_version if manifest else None,
     )
     if manifest is not None:
         export.custom_judge_version = manifest.custom_judge_version

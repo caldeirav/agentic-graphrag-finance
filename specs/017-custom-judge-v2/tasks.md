@@ -33,9 +33,9 @@ description: "Task list for custom-judge bundle v2.0 and unified task_success (0
 
 **Purpose**: Confirm branch baseline and v2 design contracts
 
-- [ ] T001 Confirm branch `017-custom-judge-v2` is rebased on `main` with 016 outcome scoring and `task_success` export present (`src/evaluation/reproduction/export.py`)
-- [ ] T002 [P] Review normative contracts in `specs/017-custom-judge-v2/contracts/` against current `src/evaluation/generation/bundle.py` and `src/evaluation/reproduction/export.py`
-- [ ] T003 [P] Add `configs/benchmarks/custom_judge_v2.yaml` skeleton per `specs/017-custom-judge-v2/contracts/generation-v2-cli.md` (new seed, fiscal window, `multi_filing_min: 40`)
+- [X] T001 Confirm branch `017-custom-judge-v2` is rebased on `main` with 016 outcome scoring and `task_success` export present (`src/evaluation/reproduction/export.py`)
+- [X] T002 [P] Review normative contracts in `specs/017-custom-judge-v2/contracts/` against current `src/evaluation/generation/bundle.py` and `src/evaluation/reproduction/export.py`
+- [X] T003 [P] Add `configs/benchmarks/custom_judge_v2.yaml` skeleton per `specs/017-custom-judge-v2/contracts/generation-v2-cli.md` (new seed, fiscal window, `multi_filing_min: 40`)
 
 **Checkpoint**: `uv run pytest tests/unit/test_bundle_feasibility_gates.py tests/unit/test_paper_table_export.py -q` passes on feature branch
 
@@ -47,11 +47,11 @@ description: "Task list for custom-judge bundle v2.0 and unified task_success (0
 
 **⚠️ CRITICAL**: Blocks all user stories
 
-- [ ] T004 Add `AnswerType` enum and required `answer_type` on `GeneratedBenchmarkItem` in `src/models/benchmark_generation.py` per `specs/017-custom-judge-v2/data-model.md`
-- [ ] T005 [P] Add optional `answer_type` on `GroundTruth` in `src/models/evaluation.py` per `data-model.md`
-- [ ] T006 [P] Add `PublishAuditRecord` model and `schema_version: "2.0.0"` manifest fields in `src/models/benchmark_generation.py`
-- [ ] T007 [P] Add `is_v2_bundle(manifest)` / semver helper in `src/evaluation/generation/bundle.py` for v2 gate routing
-- [ ] T008 Disable rubric-only routing when `is_v2_bundle` in `src/evaluation/generation/bundle.py` (`is_rubric_only_routing` returns False for v2)
+- [X] T004 Add `AnswerType` enum and required `answer_type` on `GeneratedBenchmarkItem` in `src/models/benchmark_generation.py` per `specs/017-custom-judge-v2/data-model.md`
+- [X] T005 [P] Add optional `answer_type` on `GroundTruth` in `src/models/evaluation.py` per `data-model.md`
+- [X] T006 [P] Add `PublishAuditRecord` model and `schema_version: "2.0.0"` manifest fields in `src/models/benchmark_generation.py`
+- [X] T007 [P] Add `is_v2_bundle(manifest)` / semver helper in `src/evaluation/generation/bundle.py` for v2 gate routing
+- [X] T008 Disable rubric-only routing when `is_v2_bundle` in `src/evaluation/generation/bundle.py` (`is_rubric_only_routing` returns False for v2)
 
 **Checkpoint**: `uv run python -c "from models.benchmark_generation import AnswerType; print(AnswerType.COMPARISON_STRUCTURED)"` succeeds
 
@@ -65,13 +65,13 @@ description: "Task list for custom-judge bundle v2.0 and unified task_success (0
 
 ### Tests for User Story 1
 
-- [ ] T009 [P] [US1] Add unit tests `tests/unit/test_task_success_v2_export.py` per `contracts/task-success-v2.md`: n=200 denominator, VA-only scores, zero when VA missing, v1.x backward compat
+- [X] T009 [P] [US1] Add unit tests `tests/unit/test_task_success_v2_export.py` per `contracts/task-success-v2.md`: n=200 denominator, VA-only scores, zero when VA missing, v1.x backward compat
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Update `_task_success_score` in `src/evaluation/reproduction/export.py` to return `outcome_score` (VA) for all eligible items when release/bundle version ≥ 2.0.0 per FR-009
-- [ ] T011 [US1] Update `_aggregate_metrics` in `src/evaluation/reproduction/export.py` to set `rubric_alignment` to None and exclude from headline row list for v2 bundles per FR-012
-- [ ] T012 [P] [US1] Add `bundle_version` / release-tag detection helper in `src/evaluation/reproduction/export.py` reading `releases/paper-v2.0/manifest.yaml` or repro metadata
+- [X] T010 [US1] Update `_task_success_score` in `src/evaluation/reproduction/export.py` to return `outcome_score` (VA) for all eligible items when release/bundle version ≥ 2.0.0 per FR-009
+- [X] T011 [US1] Update `_aggregate_metrics` in `src/evaluation/reproduction/export.py` to set `rubric_alignment` to None and exclude from headline row list for v2 bundles per FR-012
+- [X] T012 [P] [US1] Add `bundle_version` / release-tag detection helper in `src/evaluation/reproduction/export.py` reading `releases/paper-v2.0/manifest.yaml` or repro metadata
 
 **Checkpoint**: `uv run pytest tests/unit/test_task_success_v2_export.py -q` passes; fixture export shows task_success n=200
 
@@ -85,14 +85,14 @@ description: "Task list for custom-judge bundle v2.0 and unified task_success (0
 
 ### Tests for User Story 2
 
-- [ ] T013 [P] [US2] Add unit tests `tests/unit/test_bundle_v2_gates.py` for `missing_answer_gt`, `required_claims`, and `rubric_only_count` gates per `contracts/bundle-v2.0.md`
+- [X] T013 [P] [US2] Add unit tests `tests/unit/test_bundle_v2_gates.py` for `missing_answer_gt`, `required_claims`, and `rubric_only_count` gates per `contracts/bundle-v2.0.md`
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] Extend `src/evaluation/generation/item_validator.py` to reject empty `ground_truth.answer` for v2 bundles per FR-002
-- [ ] T015 [US2] Validate `answer_type` vs `required_claims` rules (numeric/short_label omit; narrative/comparison require claims) in `src/evaluation/generation/item_validator.py` per FR-003
-- [ ] T016 [US2] Extend `validate_bundle_feasibility` in `src/evaluation/generation/bundle.py` with v2 `answer_gt_coverage` and `rubric_only_count: 0` per `contracts/bundle-v2.0.md`
-- [ ] T017 [P] [US2] Extend `check_publish_gates` in `src/evaluation/generation/bundle.py` to invoke v2 feasibility branch when `is_v2_bundle`
+- [X] T014 [US2] Extend `src/evaluation/generation/item_validator.py` to reject empty `ground_truth.answer` for v2 bundles per FR-002
+- [X] T015 [US2] Validate `answer_type` vs `required_claims` rules (numeric/short_label omit; narrative/comparison require claims) in `src/evaluation/generation/item_validator.py` per FR-003
+- [X] T016 [US2] Extend `validate_bundle_feasibility` in `src/evaluation/generation/bundle.py` with v2 `answer_gt_coverage` and `rubric_only_count: 0` per `contracts/bundle-v2.0.md`
+- [X] T017 [P] [US2] Extend `check_publish_gates` in `src/evaluation/generation/bundle.py` to invoke v2 feasibility branch when `is_v2_bundle`
 
 **Checkpoint**: `uv run pytest tests/unit/test_bundle_v2_gates.py tests/unit/test_item_validator.py -q` passes; draft with null answer fails publish
 
@@ -106,13 +106,13 @@ description: "Task list for custom-judge bundle v2.0 and unified task_success (0
 
 ### Tests for User Story 3
 
-- [ ] T018 [P] [US3] Add unit tests `tests/unit/test_comparison_gt_template.py` for template validation and claim derivation per `contracts/comparison-gt-template.md`
+- [X] T018 [P] [US3] Add unit tests `tests/unit/test_comparison_gt_template.py` for template validation and claim derivation per `contracts/comparison-gt-template.md`
 
 ### Implementation for User Story 3
 
-- [ ] T019 [US3] Add v2 comparison_structured prompt blocks to `configs/benchmarks/inspiration_profiles/finagentbench.yaml` per `contracts/comparison-gt-template.md`
-- [ ] T020 [P] [US3] Extend `src/evaluation/generation/gemini_item_generator.py` to emit mandatory `ground_truth.answer`, `answer_type`, and derived `required_claims` for v2 profiles
-- [ ] T021 [US3] Validate comparison items require `answer_type: comparison_structured`, ≥2 accessions, ≥3 claims in `src/evaluation/generation/item_validator.py` per FR-004
+- [X] T019 [US3] Add v2 comparison_structured prompt blocks to `configs/benchmarks/inspiration_profiles/finagentbench.yaml` per `contracts/comparison-gt-template.md`
+- [X] T020 [P] [US3] Extend `src/evaluation/generation/gemini_item_generator.py` to emit mandatory `ground_truth.answer`, `answer_type`, and derived `required_claims` for v2 profiles
+- [X] T021 [US3] Validate comparison items require `answer_type: comparison_structured`, ≥2 accessions, ≥3 claims in `src/evaluation/generation/item_validator.py` per FR-004
 
 **Checkpoint**: `uv run pytest tests/unit/test_comparison_gt_template.py -q` passes; generated comparison fixture item passes validator
 
@@ -126,10 +126,10 @@ description: "Task list for custom-judge bundle v2.0 and unified task_success (0
 
 ### Implementation for User Story 5
 
-- [ ] T022 [P] [US5] Implement `src/evaluation/generation/feasibility_macro.py` calling `validate_macro_binding` per item against bundled snapshot per `research.md` R4
-- [ ] T023 [US5] Wire `macro_bindability` gate into `validate_bundle_feasibility` in `src/evaluation/generation/bundle.py` for v2 bundles per FR-010
-- [ ] T024 [US5] Add `multi_filing_floor` gate (≥40 items) to `check_publish_gates` in `src/evaluation/generation/bundle.py` per FR-013
-- [ ] T025 [P] [US5] Emit `scorability_report.json` on draft completion in `src/evaluation/generation/bundle.py` per `data-model.md`
+- [X] T022 [P] [US5] Implement `src/evaluation/generation/feasibility_macro.py` calling `validate_macro_binding` per item against bundled snapshot per `research.md` R4
+- [X] T023 [US5] Wire `macro_bindability` gate into `validate_bundle_feasibility` in `src/evaluation/generation/bundle.py` for v2 bundles per FR-010
+- [X] T024 [US5] Add `multi_filing_floor` gate (≥40 items) to `check_publish_gates` in `src/evaluation/generation/bundle.py` per FR-013
+- [X] T025 [P] [US5] Emit `scorability_report.json` on draft completion in `src/evaluation/generation/bundle.py` per `data-model.md`
 
 **Checkpoint**: Macro failure fixture blocks publish; scorability report shows `rubric_only_count: 0`
 
@@ -143,15 +143,15 @@ description: "Task list for custom-judge bundle v2.0 and unified task_success (0
 
 ### Tests for User Story 4
 
-- [ ] T026 [P] [US4] Add integration smoke `tests/integration/test_v2_publish_smoke.py` for publish gate blocking and sign-off requirement
+- [X] T026 [P] [US4] Add integration smoke `tests/integration/test_v2_publish_smoke.py` for publish gate blocking and sign-off requirement
 
 ### Implementation for User Story 4
 
-- [ ] T027 [US4] Implement `src/evaluation/generation/publish_audit.py` with stratified 20-item sample and sign-off record per FR-011
-- [ ] T028 [US4] Add `--publish-signoff`, `--operator-id`, and `--bundle-version 2.0.0` to generate/publish in `src/cli/commands/benchmark_dataset.py` per `contracts/generation-v2-cli.md`
-- [ ] T029 [US4] Create `releases/paper-v2.0/manifest.yaml` per `contracts/paper-v2-release.md` with `full_reproduction_policy.selective_agent_skip: false`
-- [ ] T030 [P] [US4] Extend `src/cli/commands/repro.py` to resolve `--release paper-v2.0` bundle path from `releases/paper-v2.0/manifest.yaml`
-- [ ] T031 [US4] Document net-new generation (no `--migrate-from`) and forbid v1.2.0 item reuse in `src/evaluation/generation/bundle.py` publish path per FR-006
+- [X] T027 [US4] Implement `src/evaluation/generation/publish_audit.py` with stratified 20-item sample and sign-off record per FR-011
+- [X] T028 [US4] Add `--publish-signoff`, `--operator-id`, and `--bundle-version 2.0.0` to generate/publish in `src/cli/commands/benchmark_dataset.py` per `contracts/generation-v2-cli.md`
+- [X] T029 [US4] Create `releases/paper-v2.0/manifest.yaml` per `contracts/paper-v2-release.md` with `full_reproduction_policy.selective_agent_skip: false`
+- [X] T030 [P] [US4] Extend `src/cli/commands/repro.py` to resolve `--release paper-v2.0` bundle path from `releases/paper-v2.0/manifest.yaml`
+- [X] T031 [US4] Document net-new generation (no `--migrate-from`) and forbid v1.2.0 item reuse in `src/evaluation/generation/bundle.py` publish path per FR-006
 
 **Checkpoint**: Publish with `--publish-signoff` writes `publish_audit.json`; `git diff data/benchmarks/custom-judge/v1.2.0` empty after publish
 
@@ -165,9 +165,9 @@ description: "Task list for custom-judge bundle v2.0 and unified task_success (0
 
 ### Implementation for User Story 6
 
-- [ ] T032 [P] [US6] Update `task_success` definition in `METRIC_CATALOG` in `src/evaluation/reproduction/report_models.py` for v2 single-criterion semantics
-- [ ] T033 [US6] Omit `rubric_alignment` from headline and stratum sections when release is paper-v2.0 in `src/evaluation/reproduction/report_render.py` per FR-012
-- [ ] T034 [P] [US6] Add paper-v2.0 release detection and metric notes in `src/evaluation/reproduction/report_loader.py`
+- [X] T032 [P] [US6] Update `task_success` definition in `METRIC_CATALOG` in `src/evaluation/reproduction/report_models.py` for v2 single-criterion semantics
+- [X] T033 [US6] Omit `rubric_alignment` from headline and stratum sections when release is paper-v2.0 in `src/evaluation/reproduction/report_render.py` per FR-012
+- [X] T034 [P] [US6] Add paper-v2.0 release detection and metric notes in `src/evaluation/reproduction/report_loader.py`
 
 **Checkpoint**: Fixture report HTML contains task_success n=200 note and no rubric_alignment headline row
 
@@ -177,10 +177,10 @@ description: "Task list for custom-judge bundle v2.0 and unified task_success (0
 
 **Purpose**: Documentation, acceptance validation, immutability checks
 
-- [ ] T035 [P] Update `docs/custom-judge-dataset-generation.md` with v2.0 net-new workflow and paper-v2.0 pointers
-- [ ] T036 [P] Add operator checklist `specs/017-custom-judge-v2/checklists/v2.0-publish.md` mirroring quickstart Phases 1–6
-- [ ] T037 Run quickstart validation steps in `specs/017-custom-judge-v2/quickstart.md` (fixture or dry-run) and record SC-001–SC-008 status
-- [ ] T038 Verify ranking metrics unchanged: extend `tests/unit/test_paper_table_export.py` asserting MRR/nDCG definitions identical for v1 vs v2 export paths
+- [X] T035 [P] Update `docs/custom-judge-dataset-generation.md` with v2.0 net-new workflow and paper-v2.0 pointers
+- [X] T036 [P] Add operator checklist `specs/017-custom-judge-v2/checklists/v2.0-publish.md` mirroring quickstart Phases 1–6
+- [X] T037 Run quickstart validation steps in `specs/017-custom-judge-v2/quickstart.md` (fixture or dry-run) and record SC-001–SC-008 status
+- [X] T038 Verify ranking metrics unchanged: extend `tests/unit/test_paper_table_export.py` asserting MRR/nDCG definitions identical for v1 vs v2 export paths
 
 ---
 

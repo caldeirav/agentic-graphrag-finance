@@ -38,9 +38,17 @@ class ModelPins(BaseModel):
 class ToleranceBands(BaseModel):
     mean_outcome_accuracy: float = 0.02
     mean_rubric_alignment: float = 0.02
+    mean_task_success: float = 0.02
     mean_trajectory_fidelity: float = 0.02
     ranking_metrics_exact: bool = True
     structural_metrics_exact: bool = True
+
+
+class FullReproductionPolicy(BaseModel):
+    selective_agent_skip: bool = False
+    changelog_based_skip: bool = False
+    required_variants: int = 5
+    required_items_per_variant: int = 200
 
 
 class SystemVariantConfig(BaseModel):
@@ -77,6 +85,7 @@ class ReleaseManifest(BaseModel):
     model_pins: ModelPins
     tolerance_bands: ToleranceBands = Field(default_factory=ToleranceBands)
     expected_checksums_path: str = "expected_checksums.json"
+    full_reproduction_policy: FullReproductionPolicy | None = None
 
     def validate_paper_v1(self) -> None:
         if self.release_tag != "paper-v1.0":

@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from evaluation.generation.bundle_version import is_v2_or_later
 from evaluation.reproduction.manifest import load_release_manifest
 from evaluation.reproduction.report_errors import ReportInputError
 from evaluation.reproduction.report_models import (
@@ -198,9 +199,10 @@ def load_repro_report_bundle(
     release_manifest: dict[str, Any] | None = None
     resolved_manifest = manifest_path
     if resolved_manifest is None:
-        for candidate in root.glob("releases/*/manifest.yaml"):
-            resolved_manifest = candidate
-            break
+        repo_root = Path(__file__).resolve().parents[3]
+        tag_candidate = repo_root / "releases" / repro_run.release_tag / "manifest.yaml"
+        if tag_candidate.is_file():
+            resolved_manifest = tag_candidate
     if resolved_manifest and resolved_manifest.is_file():
         try:
             rel = load_release_manifest(resolved_manifest)
@@ -223,6 +225,23 @@ def load_repro_report_bundle(
         warnings=warnings,
         incomplete_variants=incomplete_variants,
     )
+
+
+def custom_judge_version_for_bundle(bundle: ReproOutputBundle) -> str | None:
+    if bundle.export_manifest:
+        version = bundle.export_manifest.get("custom_judge_version")
+        if version:
+            return str(version)
+    if bundle.release_manifest:
+        version = bundle.release_manifest.get("custom_judge_version")
+        if version:
+            return str(version)
+    return None
+
+
+def is_v2_repro_bundle(bundle: ReproOutputBundle) -> bool:
+    version = custom_judge_version_for_bundle(bundle)
+    return bool(version and is_v2_or_later(version))
 
 
 def bundle_source_hashes(bundle: ReproOutputBundle) -> dict[str, str]:

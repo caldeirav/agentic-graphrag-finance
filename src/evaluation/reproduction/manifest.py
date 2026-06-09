@@ -15,6 +15,16 @@ from models.reproduction import (
 )
 
 
+def resolve_release_manifest_path(release_tag: str, *, repo_root: Path | None = None) -> Path:
+    """Resolve releases/{release_tag}/manifest.yaml from repo root."""
+    root = repo_root or Path.cwd()
+    path = root / "releases" / release_tag / "manifest.yaml"
+    if not path.is_file():
+        msg = f"Release manifest not found: {path}"
+        raise FileNotFoundError(msg)
+    return path
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
     return f"sha256:{digest}"
@@ -68,8 +78,8 @@ def enforce_max_items_policy(
     manifest: ReleaseManifest,
     max_items: int | None,
 ) -> None:
-    if manifest.release_tag == "paper-v1.0" and max_items is not None:
-        msg = "paper-v1.0 repro does not allow --max-items; use paper-smoke manifest for CI"
+    if manifest.release_tag in {"paper-v1.0", "paper-v2.0"} and max_items is not None:
+        msg = f"{manifest.release_tag} repro does not allow --max-items; use paper-smoke manifest for CI"
         raise ValueError(msg)
 
 

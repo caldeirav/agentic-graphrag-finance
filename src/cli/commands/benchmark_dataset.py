@@ -13,7 +13,13 @@ import typer
 from cli.benchmark_catalog import build_accession_catalog
 from cli.benchmark_materialize import materialize_sampled_corpus
 from cli.benchmark_trace import BenchmarkTraceReporter
-from evaluation.generation.bundle import publish_draft, write_draft_manifest
+from evaluation.generation.bundle import (
+    publish_draft,
+    validate_bundle_feasibility,
+    write_draft_manifest,
+    write_scorability_report,
+)
+from evaluation.generation.publish_audit import write_audit_sample, write_publish_audit
 from evaluation.generation.config_loader import load_allowlist, load_generation_config
 from evaluation.generation.gemini_item_generator import GeminiItemGenerator
 from evaluation.generation.judge_generator import generate_items, write_items_jsonl
@@ -92,6 +98,11 @@ def generate(
         None,
         "--target-items",
         help="Override item count for judge phase (default: config governance.max_items)",
+    ),
+    bundle_version: str | None = typer.Option(
+        None,
+        "--bundle-version",
+        help="Target bundle semver (e.g. 2.0.0 for v2 net-new generation)",
     ),
     trace: str | None = typer.Option(
         None,
@@ -205,7 +216,27 @@ def generate(
             bundle=bundle,
             report=report,
             items_path=items_path,
+            version=bundle_version or "0.0.0-draft",
         )
+        items = [
+            json.loads(line)
+            for line in items_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        from models.benchmark_generation import GeneratedBenchmarkItem
+
+        parsed_items = [GeneratedBenchmarkItem.model_validate(row) for row in items]
+        write_scorability_report(draft, items_path)
+        feasibility = validate_bundle_feasibility(draft, items_path)
+        (draft / "feasibility_report.json").write_text(
+            json.dumps(feasibility, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        write_audit_sample(draft, parsed_items, seed=cfg.random_seed)
+        if int(feasibility.get("blocked_count", 0)) > 0:
+            raise typer.Exit(code=1)
+        if cfg.governance.multi_filing_min and int(feasibility.get("multi_filing_count", 0)) < cfg.governance.multi_filing_min:
+            raise typer.Exit(code=1)
         reporter.phase_end(
             "judge",
             f"accepted={report.accepted_count} rejected={report.rejected_count} "
@@ -230,15 +261,32 @@ def publish(
     version: str = typer.Option(..., "--version", help="Semver version to publish"),
     min_items: int = typer.Option(200, "--min-items"),
     skip_gates: bool = typer.Option(False, "--skip-gates", help="Skip item count/pass-rate gates"),
+    publish_signoff: bool = typer.Option(False, "--publish-signoff", help="Required for v2 publish"),
+    operator_id: str | None = typer.Option(None, "--operator-id", help="Operator id for audit record"),
 ) -> None:
     """Promote a draft bundle to a published version."""
     cfg = load_generation_config(draft_dir / "generation_config.yaml", base=REPO_ROOT)
+    v2 = cfg.bundle_schema_version.startswith("2")
+    if v2 and not publish_signoff and not skip_gates:
+        raise typer.BadParameter("v2 publish requires --publish-signoff")
+    if v2 and publish_signoff:
+        sample_path = draft_dir / "publish_audit.sample.json"
+        if not sample_path.is_file():
+            raise typer.BadParameter("Missing publish_audit.sample.json in draft")
+        sample = json.loads(sample_path.read_text(encoding="utf-8"))
+        write_publish_audit(
+            draft_dir,
+            operator_id=operator_id or os.environ.get("USER", "operator"),
+            audit_item_ids=list(sample.get("audit_sample_item_ids") or []),
+        )
     dest = publish_draft(
         draft_dir,
         version=version,
         published_root=Path(cfg.output.published_root),
         min_items=1 if skip_gates else min_items,
         skip_gates=skip_gates,
+        multi_filing_min=cfg.governance.multi_filing_min,
+        require_publish_audit=v2 and publish_signoff and not skip_gates,
     )
     typer.echo(f"Published custom-judge v{version} -> {dest}")
 

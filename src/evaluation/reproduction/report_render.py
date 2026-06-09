@@ -16,7 +16,7 @@ from evaluation.reproduction.report_formatters import (
     rows_to_markdown,
     table_provenance,
 )
-from evaluation.reproduction.report_loader import bundle_source_hashes
+from evaluation.reproduction.report_loader import bundle_source_hashes, is_v2_repro_bundle
 from evaluation.reproduction.report_models import (
     AUDIT_COLUMN_LABELS,
     METRIC_CATALOG,
@@ -46,22 +46,26 @@ _EXPECTED_ZERO_CITATION_VARIANTS = frozenset({"ablation-no-walker", "ablation-xb
 
 def build_paper_table_views(bundle: ReproOutputBundle) -> list[PaperTableView]:
     release_tag = bundle.repro_run.release_tag
+    v2 = is_v2_repro_bundle(bundle)
     views: list[PaperTableView] = []
     for table_id in PaperTableId:
         data = bundle.tables.get(table_id.value)
         if data is None:
             continue
-        prov = table_provenance(table_id, data.rows, release_tag)
+        rows = data.rows
+        if v2 and table_id in (PaperTableId.HEADLINE, PaperTableId.BY_PROFILE, PaperTableId.BY_EVIDENCE_SOURCE):
+            rows = [r for r in rows if r.get("metric_name") != "rubric_alignment"]
+        prov = table_provenance(table_id, rows, release_tag)
         views.append(
             PaperTableView(
                 table_id=table_id,
                 columns=data.columns,
-                rows=data.rows,
+                rows=rows,
                 latex_copy=build_booktabs_latex(
-                    table_id, data.columns, data.rows, release_tag=release_tag, provenance=prov
+                    table_id, data.columns, rows, release_tag=release_tag, provenance=prov
                 ),
-                csv_copy=rows_to_csv(data.columns, data.rows),
-                markdown_copy=rows_to_markdown(data.columns, data.rows),
+                csv_copy=rows_to_csv(data.columns, rows),
+                markdown_copy=rows_to_markdown(data.columns, rows),
                 provenance=prov,
             )
         )
@@ -400,7 +404,7 @@ def aggregate_investigation_notes(bundle: ReproOutputBundle) -> list[AggregatedI
         rubric_vals = [
             float(r["value"]) for r in headline.rows if r["metric_name"] == "rubric_alignment"
         ]
-        if rubric_vals and all(v == 0.0 for v in rubric_vals):
+        if rubric_vals and all(v == 0.0 for v in rubric_vals) and not is_v2_repro_bundle(bundle):
             notes.append(
                 AggregatedInvestigationNote(
                     severity="warning",
@@ -863,8 +867,14 @@ def _render_comparison_html(comparison: VariantComparisonView, bundle: ReproOutp
         (r.get("item_count", "") for r in primary_rows if r.get("metric_name") == "task_success"),
         "",
     )
+    v2_note = (
+        " Value-alignment only (paper-v2.0); missing VA counts as 0."
+        if is_v2_repro_bundle(bundle)
+        else ""
+    )
     n_note = (
         f" <code>task_success</code> aggregates all eligible items (n={html.escape(task_n)})."
+        f"{v2_note}"
         if task_n
         else ""
     )
