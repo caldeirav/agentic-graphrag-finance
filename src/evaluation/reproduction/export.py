@@ -141,12 +141,23 @@ def build_variant_summary(
     )
 
 
+def _task_success_score(record: VariantItemRecord) -> float | None:
+    """Unified judge score: value_alignment (answer-GT) or claim_presence (rubric-only)."""
+    if record.has_answer_gt:
+        return float(record.result.outcome_score or 0.0)
+    if record.has_rubric_gt:
+        return float(record.result.alignment_score or 0.0)
+    return None
+
+
 def _aggregate_metrics(summary: VariantRunSummary) -> dict[str, float | None]:
     eligible = [r for r in summary.records if _headline_eligible(r)]
     out: dict[str, float | None] = {}
     ans = [r.result.outcome_score for r in eligible if r.has_answer_gt]
     rub = [r.result.alignment_score for r in eligible if r.has_rubric_gt]
+    task = [s for r in eligible if (s := _task_success_score(r)) is not None]
     fid = [r.result.trajectory_fidelity for r in eligible]
+    out["task_success"] = _mean(task) if task else None
     out["outcome_accuracy"] = _mean(ans) if ans else None
     out["rubric_alignment"] = _mean(rub) if rub else None
     out["trajectory_fidelity"] = _mean(fid) if fid else None
@@ -313,6 +324,7 @@ def export_paper_tables(
 ) -> PaperTableExport:
     export = PaperTableExport(release_tag=release_tag)
     metric_names = [
+        "task_success",
         "outcome_accuracy",
         "rubric_alignment",
         "trajectory_fidelity",
@@ -331,9 +343,10 @@ def export_paper_tables(
         )
         for name in metric_names:
             value = metrics.get(name)
-            metric_item_count = (
-                outcome_gt_count if name == "outcome_accuracy" else eligible_count
-            )
+            if name == "outcome_accuracy":
+                metric_item_count = outcome_gt_count
+            else:
+                metric_item_count = eligible_count
             if value is None:
                 export.headline_rows.append(
                     MetricRow(
@@ -466,6 +479,10 @@ def write_paper_tables(export: PaperTableExport, output_dir: Path) -> None:
     payload["exported_at"] = export.exported_at.isoformat()
     payload.setdefault("min_judge_version", "v3.1")
     payload.setdefault("outcome_scoring_policy", "value_alignment_only")
+    payload.setdefault(
+        "task_success_policy",
+        "value_alignment_or_claim_presence_over_all_eligible_items",
+    )
     if export.custom_judge_version:
         payload["custom_judge_version"] = export.custom_judge_version
     manifest_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")

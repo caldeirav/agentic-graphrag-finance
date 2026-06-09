@@ -96,6 +96,30 @@ def test_profile_without_answer_gt_marks_outcome_na() -> None:
     assert finder_outcome[0].item_count == 0
 
 
+def test_task_success_unifies_answer_and_rubric_gt_with_full_n() -> None:
+    results = [
+        _result("a1", outcome=1.0, rubric=0.0),
+        _result("r1", outcome=0.5, rubric=0.6),
+    ]
+    summary = build_variant_summary(
+        "graph-full",
+        results,
+        profiles_by_item={"a1": "financebench", "r1": "finder"},
+        relevance_by_item={"a1": ["c1"], "r1": ["c2"]},
+        ground_truth_by_item={"a1": {"answer": "42"}, "r1": {"rubric": "only rubric"}},
+    )
+    export = export_paper_tables([summary], release_tag="paper-smoke")
+    task = next(r for r in export.headline_rows if r.metric_name == "task_success")
+    assert task.item_count == 2
+    assert task.value == 0.8
+    outcome = next(r for r in export.headline_rows if r.metric_name == "outcome_accuracy")
+    assert outcome.item_count == 1
+    assert outcome.value == 1.0
+    rubric = next(r for r in export.headline_rows if r.metric_name == "rubric_alignment")
+    assert rubric.item_count == 2
+    assert rubric.value == 0.6
+
+
 def test_headline_outcome_item_count_is_answer_gt_only() -> None:
     results = [
         _result("a1", outcome=1.0),

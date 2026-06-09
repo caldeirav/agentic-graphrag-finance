@@ -857,7 +857,17 @@ def _render_comparison_html(comparison: VariantComparisonView, bundle: ReproOutp
     if headline is None or not headline.rows:
         return ""
 
-    columns, rows = pivot_headline_table(headline.rows)
+    primary_rows = [r for r in headline.rows if r.get("metric_name") in PRIMARY_METRICS]
+    columns, rows = pivot_headline_table(primary_rows)
+    task_n = next(
+        (r.get("item_count", "") for r in primary_rows if r.get("metric_name") == "task_success"),
+        "",
+    )
+    n_note = (
+        f" <code>task_success</code> aggregates all eligible items (n={html.escape(task_n)})."
+        if task_n
+        else ""
+    )
     matrix = _render_score_matrix_html(
         columns,
         rows,
@@ -865,8 +875,9 @@ def _render_comparison_html(comparison: VariantComparisonView, bundle: ReproOutp
     )
     return (
         '<section id="comparison"><h2>Variant comparison</h2>'
-        "<p>Variants as rows, evaluation metrics as columns "
+        "<p>Variants as rows, primary evaluation metrics as columns "
         f"(baseline: <code>{html.escape(comparison.baseline_variant)}</code>). "
+        f"{n_note} "
         "Hover column headers for definitions.</p>"
         f'<div class="score-table-wrap">{matrix}</div>'
         f"{_render_metric_glossary_html(columns)}</section>"

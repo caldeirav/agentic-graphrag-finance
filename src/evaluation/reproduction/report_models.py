@@ -39,7 +39,7 @@ STANDARD_VARIANTS: tuple[str, ...] = (
     "ablation-no-walker",
     "ablation-xbrl-only",
 )
-PRIMARY_METRICS: tuple[str, ...] = ("outcome_accuracy", "ndcg_at_10", "trajectory_fidelity")
+PRIMARY_METRICS: tuple[str, ...] = ("task_success", "ndcg_at_10", "trajectory_fidelity")
 
 SMOKE_ITEM_THRESHOLD = 5
 
@@ -52,12 +52,22 @@ class MetricDefinition(BaseModel):
 
 
 METRIC_CATALOG: dict[str, MetricDefinition] = {
+    "task_success": MetricDefinition(
+        metric_id="task_success",
+        display_name="Task success",
+        definition=(
+            "Mean external-judge score over all eligible items (n = full dev split): "
+            "value_alignment when ground_truth.answer is set, otherwise claim_presence "
+            "for rubric-only items. Unifies answer-GT and rubric-GT pools into one headline."
+        ),
+        source="Judge verdict → outcome_score or alignment_score per item GT type",
+    ),
     "outcome_accuracy": MetricDefinition(
         metric_id="outcome_accuracy",
         display_name="Outcome accuracy",
         definition=(
-            "Mean external-judge outcome score on items with answer ground truth "
-            "(synthesis grounding vs expected answer). Excludes incomplete and degraded items."
+            "Mean value_alignment on items with answer ground truth only (subset of task_success). "
+            "Excludes incomplete and degraded items."
         ),
         source="Judge verdict → outcome_score",
     ),
