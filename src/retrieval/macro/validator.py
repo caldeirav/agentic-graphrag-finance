@@ -12,7 +12,12 @@ from retrieval.macro.models import (
     MisalignmentCode,
     ValidationStatus,
 )
-from retrieval.macro.pairing import detect_quarterly_metric_cue, materialize_proposal_filings
+from retrieval.macro.pairing import (
+    detect_quarterly_metric_cue,
+    materialize_proposal_filings,
+    pair_qoq,
+    pair_yoy,
+)
 from retrieval.temporal import fiscal_period_label
 
 
@@ -196,6 +201,17 @@ def validate_macro_binding(
 
     mode = _normalize_comparison_mode(proposal.comparison_mode)
     if mode in (ComparisonMode.YOY, ComparisonMode.QOQ, ComparisonMode.SEQUENTIAL):
+        if len(materialized) < 2:
+            expanded: list[FilingRef] | None = None
+            if mode == ComparisonMode.YOY:
+                if len(materialized) == 1 and materialized[0].form_type == "10-K":
+                    expanded = pair_yoy(snapshot, quarterly_metric=False)
+                if expanded is None:
+                    expanded = pair_yoy(snapshot, quarterly_metric=quarterly_cue)
+            elif mode in (ComparisonMode.QOQ, ComparisonMode.SEQUENTIAL):
+                expanded = pair_qoq(snapshot)
+            if expanded and len(expanded) >= 2:
+                materialized = expanded
         if len(materialized) < 2:
             if _intra_filing_yoy_xbrl(query, materialized):
                 fy_end = infer_fiscal_year_end_month(materialized)

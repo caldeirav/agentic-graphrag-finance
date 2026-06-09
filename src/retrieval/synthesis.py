@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from datetime import date
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -20,11 +21,45 @@ from retrieval.context_budget import (
 )
 from retrieval.evidence_scope import (
     filter_evidence_for_filing_set,
+    parse_period_end_from_excerpt,
     period_matches_anchor,
 )
 from retrieval.orchestration.llm import create_chat_llm
 from retrieval.orchestration.state import AgentState
 from tracing.console_trace.llm import traced_llm_invoke
+
+
+def _yoy_comparison_intent(query: str, state: AgentState | None) -> bool:
+    q = query.lower()
+    yoy = any(
+        k in q
+        for k in ("year over year", "year-over-year", "yoy", "compared to last year")
+    )
+    if not state:
+        return yoy
+    macro = state.get("macro_plan")
+    if macro and getattr(macro.temporal_scope, "comparison_mode", None):
+        from models.enums import ComparisonMode
+
+        yoy = yoy or macro.temporal_scope.comparison_mode == ComparisonMode.YOY
+    record = state.get("macro_binding_record")
+    if record and getattr(record, "validation", None):
+        from models.enums import ComparisonMode
+
+        yoy = yoy or record.validation.comparison_mode == ComparisonMode.YOY
+    return yoy
+
+
+def _yoy_intra_filing_10k(
+    state: AgentState | None,
+    query: str,
+    filing_set: list[FilingRef],
+) -> bool:
+    return (
+        len(filing_set) == 1
+        and filing_set[0].form_type == "10-K"
+        and _yoy_comparison_intent(query, state)
+    )
 
 
 def _tag_synthesis_path(result: dict, path: str) -> dict:
@@ -47,7 +82,11 @@ def synthesize(state: AgentState) -> dict:
     filing_set: list[FilingRef] = list(state.get("filing_set") or [])
 
     if filing_set:
-        evidence = filter_evidence_for_filing_set(evidence, filing_set)
+        evidence = filter_evidence_for_filing_set(
+            evidence,
+            filing_set,
+            include_comparative_periods=_yoy_intra_filing_10k(state, query, filing_set),
+        )
 
     if not evidence or not filing_set:
         return {
@@ -305,21 +344,19 @@ def _synthesize_with_llm(
             "Focus on qualitative disclosures, not taxonomy numbers."
         )
     else:
-        yoy_query = any(
-            k in query.lower()
-            for k in ("year over year", "year-over-year", "yoy", "compared to last year")
-        )
-        macro_plan = state.get("macro_plan") if state else None
-        if macro_plan and getattr(macro_plan.temporal_scope, "comparison_mode", None):
-            from models.enums import ComparisonMode
-
-            yoy_query = yoy_query or macro_plan.temporal_scope.comparison_mode == ComparisonMode.YOY
+        yoy_query = _yoy_comparison_intent(query, state)
         yoy_extra = ""
         if yoy_query and len(filing_set) >= 2:
             yoy_extra = (
                 "- This is a year-over-year comparison: use RevenueFromContractWithCustomer "
                 "(or equivalent net sales/revenue) from EACH bound annual filing, one figure per "
                 "fiscal year, then state the change.\n"
+            )
+        elif yoy_query and _yoy_intra_filing_10k(state, query, filing_set):
+            yoy_extra = (
+                "- This is a year-over-year comparison within one 10-K: use current and prior "
+                "fiscal year RevenueFromContractWithCustomer (net sales) from the comparative "
+                "XBRL periods in the evidence, then state the change.\n"
             )
         ignore_prior = (
             ""
@@ -554,20 +591,13 @@ def _is_yoy_revenue_query(
     state: AgentState | None,
     filing_set: list[FilingRef],
 ) -> bool:
-    if len(filing_set) < 2:
+    if not _is_revenue_metric_query(query):
         return False
-    q = query.lower()
-    yoy = any(
-        k in q
-        for k in ("year over year", "year-over-year", "yoy", "compared to last year")
-    )
-    if state:
-        macro = state.get("macro_plan")
-        if macro and getattr(macro.temporal_scope, "comparison_mode", None):
-            from models.enums import ComparisonMode
-
-            yoy = yoy or macro.temporal_scope.comparison_mode == ComparisonMode.YOY
-    return yoy and _is_revenue_metric_query(query)
+    if not _yoy_comparison_intent(query, state):
+        return False
+    if len(filing_set) >= 2:
+        return True
+    return len(filing_set) == 1 and filing_set[0].form_type == "10-K"
 
 
 def _parse_billions_from_excerpt(excerpt: str) -> float | None:
@@ -578,6 +608,40 @@ def _parse_billions_from_excerpt(excerpt: str) -> float | None:
         return float(m.group(1).replace(",", ""))
     except ValueError:
         return None
+
+
+def _revenue_rows_for_filing(
+    evidence: list[EvidenceChunk],
+    filing: FilingRef,
+    *,
+    fy_end: int,
+    intra_filing: bool = False,
+) -> list[tuple[str, float, FilingRef]]:
+    doc_id = f"doc-{filing.accession}"
+    anchors = [filing.period_end]
+    by_period: dict[date, tuple[str, float, FilingRef]] = {}
+    for chunk in evidence:
+        if not chunk.chunk_node_id.startswith(doc_id):
+            continue
+        if "RevenueFromContract" not in chunk.excerpt:
+            continue
+        if not intra_filing and not period_matches_anchor(
+            None, anchors, excerpt=chunk.excerpt
+        ):
+            continue
+        val = _parse_billions_from_excerpt(chunk.excerpt)
+        if val is None:
+            continue
+        period_end = parse_period_end_from_excerpt(chunk.excerpt) or filing.period_end
+        existing = by_period.get(period_end)
+        if existing is None or val > existing[1]:
+            label = FiscalPeriodLabel.from_filing(
+                filing, fiscal_year_end_month=fy_end
+            ).label
+            if period_end != filing.period_end:
+                label = f"FY ending {period_end}"
+            by_period[period_end] = (label, val, filing)
+    return [row for _, row in sorted(by_period.items(), key=lambda item: item[0], reverse=True)]
 
 
 def _revenue_chunk_for_filing(
@@ -616,15 +680,20 @@ def _synthesize_yoy_net_sales(
     ordered = sorted(filing_set, key=lambda f: f.period_end, reverse=True)
     fy_end = infer_fiscal_year_end_month(filing_set)
     rows: list[tuple[str, float, FilingRef]] = []
-    for filing in ordered:
-        chunk = _revenue_chunk_for_filing(evidence, filing)
-        if chunk is None:
-            continue
-        val = _parse_billions_from_excerpt(chunk.excerpt)
-        if val is None:
-            continue
-        label = FiscalPeriodLabel.from_filing(filing, fiscal_year_end_month=fy_end).label
-        rows.append((label, val, filing))
+    if len(ordered) == 1 and ordered[0].form_type == "10-K":
+        rows = _revenue_rows_for_filing(
+            evidence, ordered[0], fy_end=fy_end, intra_filing=True
+        )
+    else:
+        for filing in ordered:
+            chunk = _revenue_chunk_for_filing(evidence, filing)
+            if chunk is None:
+                continue
+            val = _parse_billions_from_excerpt(chunk.excerpt)
+            if val is None:
+                continue
+            label = FiscalPeriodLabel.from_filing(filing, fiscal_year_end_month=fy_end).label
+            rows.append((label, val, filing))
     if len(rows) < 2:
         return None
     label_new, val_new, _ = rows[0]

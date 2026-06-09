@@ -143,6 +143,8 @@ def period_alignment_score(
 def filter_evidence_for_filing_set(
     evidence: list[EvidenceChunk],
     filings: list[FilingRef],
+    *,
+    include_comparative_periods: bool = False,
 ) -> list[EvidenceChunk]:
     """Keep bound-filing evidence; prefer facts whose period matches period_end."""
     if not filings:
@@ -172,6 +174,15 @@ def filter_evidence_for_filing_set(
     ]
     if not aligned_numeric:
         aligned_numeric = numeric_chunks
+    elif include_comparative_periods and len(filings) == 1 and filings[0].form_type == "10-K":
+        seen = {c.chunk_node_id for c in aligned_numeric}
+        for chunk in numeric_chunks:
+            if chunk.chunk_node_id in seen:
+                continue
+            if "RevenueFromContract" not in chunk.excerpt:
+                continue
+            aligned_numeric.append(chunk)
+            seen.add(chunk.chunk_node_id)
 
     if html_chunks:
         return html_chunks + aligned_numeric

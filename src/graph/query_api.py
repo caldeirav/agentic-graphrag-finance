@@ -52,20 +52,6 @@ class LocalGraphQueryAPI:
             self._cache[snapshot_id] = load_snapshot(self._issuer_id, snapshot_id, self._base)
         return self._cache[snapshot_id]
 
-
-class InMemoryGraphQueryAPI(LocalGraphQueryAPI):
-    """Serve a pre-loaded composite snapshot (multi-issuer repro bundles)."""
-
-    def __init__(self, snapshot: GraphSnapshot) -> None:
-        super().__init__(Path("."), snapshot.issuer_id)
-        self._snapshot = snapshot
-        self._cache = {snapshot.snapshot_id: snapshot}
-
-    def get_snapshot(self, snapshot_id: str) -> GraphSnapshot:
-        if snapshot_id in self._cache:
-            return self._cache[snapshot_id]
-        return self._snapshot
-
     def get_node(self, snapshot_id: str, node_id: str) -> GraphNode:
         snap = self.get_snapshot(snapshot_id)
         for node in snap.nodes:
@@ -160,3 +146,17 @@ class InMemoryGraphQueryAPI(LocalGraphQueryAPI):
     ) -> tuple[list[str], list[str]] | None:
         snap = self.get_snapshot(snapshot_id)
         return shortest_structural_path(snap, from_doc_id, to_node_id, hop_budget=hop_budget)
+
+
+class InMemoryGraphQueryAPI(LocalGraphQueryAPI):
+    """Serve a pre-loaded composite snapshot (multi-issuer repro bundles)."""
+
+    def __init__(self, snapshot: GraphSnapshot) -> None:
+        super().__init__(Path("."), snapshot.issuer_id)
+        self._snapshot = snapshot
+        self._cache = {snapshot.snapshot_id: snapshot}
+
+    def get_snapshot(self, snapshot_id: str) -> GraphSnapshot:
+        if snapshot_id in self._cache:
+            return self._cache[snapshot_id]
+        return self._snapshot
