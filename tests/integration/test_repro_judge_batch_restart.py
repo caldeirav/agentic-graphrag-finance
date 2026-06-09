@@ -51,14 +51,20 @@ def test_judge_batch_restart_only_pending_tail(tmp_path: Path, monkeypatch) -> N
     calls = {"n": 0}
     saved: dict[str, JudgeVerdict] = {}
 
-    def _judge(item, answer, trajectory):
+    def _judge(item, answer, trajectory, **kwargs):
         calls["n"] += 1
         if calls["n"] > 10:
             raise RuntimeError("simulated crash")
         verdict = JudgeVerdict(
             judge_model="mock",
-            judge_version="v2",
-            scores={"synthesis_grounding": 0.8},
+            judge_version="v3.1",
+            scores={
+                "trajectory_coherence": 0.8,
+                "routing_decisions": 0.8,
+                "retrieval_fidelity": 0.8,
+                "synthesis_grounding": 0.8,
+                "value_alignment": 0.8,
+            },
         )
         saved[item.item_id] = verdict
         return verdict
@@ -78,10 +84,16 @@ def test_judge_batch_restart_only_pending_tail(tmp_path: Path, monkeypatch) -> N
     mid = json.loads(results_path.read_text(encoding="utf-8"))
     assert sum(1 for r in mid if r["judge_status"] == "ok") == 10
 
-    judge.judge.side_effect = lambda item, answer, trajectory: JudgeVerdict(
+    judge.judge.side_effect = lambda item, answer, trajectory, **kwargs: JudgeVerdict(
         judge_model="mock",
-        judge_version="v2",
-        scores={"synthesis_grounding": 0.8},
+        judge_version="v3",
+        scores={
+            "trajectory_coherence": 0.8,
+            "routing_decisions": 0.8,
+            "retrieval_fidelity": 0.8,
+            "synthesis_grounding": 0.8,
+            "value_alignment": 0.8,
+        },
     )
     stats = run_judge_batch(
         tmp_path,

@@ -8,9 +8,9 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from models.evaluation import BenchmarkResult, RankingMetrics
 from evaluation.judges.outcome_scoring import is_abstention_answer
 from evaluation.reproduction.stratum import assign_primary_evidence_source
+from models.evaluation import BenchmarkResult, RankingMetrics
 from models.reproduction import (
     AuditRow,
     DeltaRow,
@@ -141,12 +141,23 @@ def build_variant_summary(
     )
 
 
+def _task_success_score(record: VariantItemRecord) -> float | None:
+    """Unified judge score: value_alignment (answer-GT) or claim_presence (rubric-only)."""
+    if record.has_answer_gt:
+        return float(record.result.outcome_score or 0.0)
+    if record.has_rubric_gt:
+        return float(record.result.alignment_score or 0.0)
+    return None
+
+
 def _aggregate_metrics(summary: VariantRunSummary) -> dict[str, float | None]:
     eligible = [r for r in summary.records if _headline_eligible(r)]
     out: dict[str, float | None] = {}
     ans = [r.result.outcome_score for r in eligible if r.has_answer_gt]
     rub = [r.result.alignment_score for r in eligible if r.has_rubric_gt]
+    task = [s for r in eligible if (s := _task_success_score(r)) is not None]
     fid = [r.result.trajectory_fidelity for r in eligible]
+    out["task_success"] = _mean(task) if task else None
     out["outcome_accuracy"] = _mean(ans) if ans else None
     out["rubric_alignment"] = _mean(rub) if rub else None
     out["trajectory_fidelity"] = _mean(fid) if fid else None
@@ -313,6 +324,7 @@ def export_paper_tables(
 ) -> PaperTableExport:
     export = PaperTableExport(release_tag=release_tag)
     metric_names = [
+        "task_success",
         "outcome_accuracy",
         "rubric_alignment",
         "trajectory_fidelity",
@@ -326,15 +338,22 @@ def export_paper_tables(
     for summary in summaries:
         metrics = agg_by_variant[summary.variant_id]
         eligible_count = sum(1 for r in summary.records if _headline_eligible(r))
+        outcome_gt_count = sum(
+            1 for r in summary.records if _headline_eligible(r) and r.has_answer_gt
+        )
         for name in metric_names:
             value = metrics.get(name)
+            if name == "outcome_accuracy":
+                metric_item_count = outcome_gt_count
+            else:
+                metric_item_count = eligible_count
             if value is None:
                 export.headline_rows.append(
                     MetricRow(
                         variant_id=summary.variant_id,
                         metric_name=name,
                         value=0.0,
-                        item_count=eligible_count,
+                        item_count=metric_item_count,
                         excluded_incomplete=summary.excluded_incomplete,
                         excluded_degraded=summary.excluded_degraded,
                         na_reason="no_eligible_items",
@@ -346,7 +365,7 @@ def export_paper_tables(
                     variant_id=summary.variant_id,
                     metric_name=name,
                     value=float(value),
-                    item_count=eligible_count,
+                    item_count=metric_item_count,
                     excluded_incomplete=summary.excluded_incomplete,
                     excluded_degraded=summary.excluded_degraded,
                 )
@@ -364,19 +383,25 @@ def export_paper_tables(
                 excluded_degraded=summary.excluded_degraded,
             )
             prof_metrics = _aggregate_metrics(sub)
+            profile_outcome_gt = sum(
+                1 for r in records if _headline_eligible(r) and r.has_answer_gt
+            )
             for name in metric_names:
                 value = prof_metrics.get(name)
                 na = ""
-                if profile == "finder" and name == "outcome_accuracy":
-                    na = "rubric_only"
-                    value = None
+                row_item_count = len(records)
+                if name == "outcome_accuracy":
+                    row_item_count = profile_outcome_gt
+                    if profile_outcome_gt == 0:
+                        na = "no_answer_gt"
+                        value = None
                 export.by_profile_rows.append(
                     ProfileMetricRow(
                         variant_id=summary.variant_id,
                         inspiration_profile=profile,
                         metric_name=name,
                         value=float(value) if value is not None else 0.0,
-                        item_count=len(records),
+                        item_count=row_item_count,
                         na_reason=na,
                     )
                 )
@@ -444,15 +469,23 @@ def _write_headline_tex(path: Path, rows: list) -> None:
 def write_paper_tables(export: PaperTableExport, output_dir: Path) -> None:
     tables = output_dir / "tables"
     tables.mkdir(parents=True, exist_ok=True)
+    manifest_path = output_dir / "export_manifest.json"
+    payload: dict = {}
+    if manifest_path.is_file():
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
     if export.stratum_audit:
-        manifest_path = output_dir / "export_manifest.json"
-        payload: dict = {}
-        if manifest_path.is_file():
-            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
         payload["stratum_audit"] = export.stratum_audit
-        payload["release_tag"] = export.release_tag
-        payload["exported_at"] = export.exported_at.isoformat()
-        manifest_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    payload["release_tag"] = export.release_tag
+    payload["exported_at"] = export.exported_at.isoformat()
+    payload.setdefault("min_judge_version", "v3.1")
+    payload.setdefault("outcome_scoring_policy", "value_alignment_only")
+    payload.setdefault(
+        "task_success_policy",
+        "value_alignment_or_claim_presence_over_all_eligible_items",
+    )
+    if export.custom_judge_version:
+        payload["custom_judge_version"] = export.custom_judge_version
+    manifest_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     def _write_csv(path: Path, rows: list[dict], fieldnames: list[str]) -> None:
         with path.open("w", encoding="utf-8", newline="") as fh:
@@ -534,6 +567,7 @@ def write_paper_tables(export: PaperTableExport, output_dir: Path) -> None:
                 "na_reason",
             ],
         )
+    _write_headline_tex(tables / "headline.tex", export.headline_rows)
 
 
 def export_tables_from_disk(
@@ -581,8 +615,11 @@ def export_tables_from_disk(
                 ground_truth_by_item,
             )
         )
-    return export_paper_tables(
+    export = export_paper_tables(
         summaries,
         release_tag=release_tag,
         relevance_by_item=relevance_by_item,
     )
+    if manifest is not None:
+        export.custom_judge_version = manifest.custom_judge_version
+    return export

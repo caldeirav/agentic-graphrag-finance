@@ -287,9 +287,14 @@ def _synthesize_with_llm(
     temporal_guidance = _temporal_synthesis_guidance(
         temporal_anchor, filing_set, period_ends=period_ends
     )
+    anti_abstain = (
+        "- When evidence excerpts are present and on-topic, provide your best direct answer; "
+        "do not refuse with 'cannot identify' or 'cannot answer' unless evidence is empty or wrong issuer.\n"
+    )
     if qualitative:
         instructions = (
-            "- Answer from HTML narrative excerpts (Item 1A risk factors, MD&A, business description).\n"
+            anti_abstain
+            + "- Answer from HTML narrative excerpts (Item 1A risk factors, MD&A, business description).\n"
             "- Summarize principal risks in prose; do not reply with only XBRL numeric facts.\n"
             "- Prefer the annual report (10-K) when multiple filings are bound.\n"
             "- If risk-factor narrative is present in evidence, extract and list the main themes.\n"
@@ -325,7 +330,8 @@ def _synthesize_with_llm(
             )
         )
         instructions = (
-            "- Give a direct, definitive answer in the first sentence (include dollar amounts and period when present).\n"
+            anti_abstain
+            + "- Give a direct, definitive answer in the first sentence (include dollar amounts and period when present).\n"
             "- Use XBRL fact lines that match the question (e.g. RevenueFromContractWithCustomer for net sales/revenue).\n"
             f"- {temporal_guidance}\n"
             f"{yoy_extra}"

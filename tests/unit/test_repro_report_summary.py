@@ -21,7 +21,8 @@ def test_variant_comparison_primary_metrics(tmp_path: Path) -> None:
     write_minimal_repro_bundle(tmp_path)
     bundle = load_repro_report_bundle(tmp_path)
     comparison = build_variant_comparison(bundle)
-    assert "outcome_accuracy" in comparison.metric_names
+    assert "task_success" in comparison.metric_names
+    assert comparison.metric_names[0] == "task_success"
     ids = [s.variant_id for s in comparison.series]
     assert "graph-full" in ids
     assert "flat-chunk" in ids

@@ -299,14 +299,28 @@ uv run agent-query repro report \
 
 The report consumes existing artifacts only (`repro_run.json`, `tables/*.csv`, optional `{variant}/results.json`); it does not re-run agents or judges. Investigation notes are aggregated (≤25 per run). Optional stratified tables: `by_evidence_source.csv`, `variant_delta_by_source.csv`. Operator quickstart: [014 quickstart](../specs/014-repro-results-viewer/quickstart.md) | [015 quickstart](../specs/015-repro-eval-validity/quickstart.md). Troubleshooting partial runs: missing variant checkpoints produce warnings, not hard failures.
 
-## Re-judge workflow (015)
+## Fair outcome scoring (016)
 
-After P0 scoring fixes on `main`, re-score an existing checkpoint without re-running agents:
+Feature **016** corrects reproduction outcome scoring and publishes custom-judge bundle **v1.1.0**:
+
+| Change | Effect |
+|--------|--------|
+| **Outcome policy** | Answer-GT `outcome_accuracy` uses `value_alignment` only (missing → 0.0); no `synthesis_grounding` fallback |
+| **Judge v3** | Variant-aware criteria; resume skips only v3-complete verdicts |
+| **Bundle v1.1.0** | Rubric routing, `required_claims` on narrative answers, binding feasibility gates |
+| **Report** | Outcome-by-profile and outcome-by-stratum sections; `OUTCOME_ORDERING_REGRESSION` when SC-001 fails |
+
+Release manifest `releases/paper-v1.0/manifest.yaml` points at `data/benchmarks/custom-judge/v1.1.0`. Migrate from v1.0.0 with `evaluation.generation.migrate_v1_1_0.build_draft_from_parent`, then publish. Items flagged `requires_agent_rerun: true` in `CHANGELOG.md` need a selective agent re-run before citing new rubric routes.
+
+### v3 re-judge workflow
+
+Re-score existing checkpoints without re-running agents (all variants need v3 verdicts):
 
 ```bash
 uv run agent-query repro judge-batch \
   --manifest releases/paper-v1.0/manifest.yaml \
-  --input reports/repro-paper-v1.0
+  --input reports/repro-paper-v1.0 \
+  --force-rescore
 
 uv run agent-query repro export-tables \
   --manifest releases/paper-v1.0/manifest.yaml \
@@ -317,7 +331,9 @@ uv run agent-query repro report \
   --output reports/repro-paper-v1.0/report.html
 ```
 
-Use `--force-rescore` on `judge-batch` to bypass the v2 resume skip. `--input` is an alias for `--output` on `judge-batch`.
+Resume without `--force-rescore` skips only items with complete v3 criteria. `export_manifest.json` records `min_judge_version: v3` and `outcome_scoring_policy: value_alignment_only`. Operator quickstart: [016 quickstart](../specs/016-fair-outcome-scoring/quickstart.md).
+
+If headline `outcome_accuracy` remains low (~0.14) after v3 re-score on v1.1.0, that reflects retrieval failure on the 61-item answer-GT pool (not synthesis fallback). Follow the **[v1.2.0 migration checklist](../specs/016-fair-outcome-scoring/checklists/v1.2.0-migration.md)** for dataset, agent, judge, and full-repro phases targeting **0.45–0.60** graph-full outcome.
 
 ## Output layout
 

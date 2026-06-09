@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from evaluation.reproduction.accession_index import AccessionIndex
-from evaluation.reproduction.errors import MissingAccessionsError, MissingBindingsError
+from evaluation.reproduction.errors import MissingBindingsError
 from evaluation.reproduction.snapshot_loader import load_bundle_snapshot, load_item_subgraph
 
 

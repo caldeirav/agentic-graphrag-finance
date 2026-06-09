@@ -22,6 +22,8 @@ from models.evaluation import (
 from models.query import AnswerPackage, TrajectoryRecord
 from models.trajectory import AgentTrajectorySnapshot
 
+JUDGE_VERSION = "v3.1"
+
 TRAJECTORY_CRITERION_IDS = (
     "trajectory_coherence",
     "routing_decisions",
@@ -64,9 +66,11 @@ class GeminiJudgePanel:
         item: BenchmarkItem,
         answer: AnswerPackage | None,
         trajectory: TrajectoryRecord | None,
+        *,
+        variant_id: str = "graph-full",
     ) -> JudgeVerdict:
         if os.environ.get("USE_MOCK_JUDGE", "0") == "1":
-            return self._mock_verdict_legacy(item, answer, trajectory)
+            return self._mock_verdict_legacy(item, answer, trajectory, variant_id=variant_id)
 
         snapshot = None
         if trajectory is not None:
@@ -93,18 +97,19 @@ class GeminiJudgePanel:
                     chosen_path_rationale="no trajectory",
                 ),
             )
-        criteria_ids = criteria_for_item(item)
+        criteria_ids = criteria_for_item(item, variant_id)
         summary = self.judge_trajectory(
             snapshot,
             answer,
             item.question,
             ground_truth=item.ground_truth,
             criteria_ids=criteria_ids,
+            variant_id=variant_id,
         )
         scores = {c.criterion_id: c.score for c in summary.criteria}
         return JudgeVerdict(
             judge_model=summary.judge_model,
-            judge_version="v2",
+            judge_version=JUDGE_VERSION,
             rationale=summary.overall_summary[:500],
             scores=scores,
             criteria=summary.criteria,
@@ -118,6 +123,7 @@ class GeminiJudgePanel:
         *,
         ground_truth: GroundTruth | None = None,
         criteria_ids: tuple[str, ...] | None = None,
+        variant_id: str = "graph-full",
     ) -> JudgeRunSummary:
         if os.environ.get("USE_MOCK_JUDGE", "0") == "1":
             return self._mock_summary(snapshot, answer, question, criteria_ids=criteria_ids)
@@ -129,6 +135,7 @@ class GeminiJudgePanel:
             question,
             ground_truth=ground_truth,
             criteria_ids=expected,
+            variant_id=variant_id,
         )
         from langchain_core.messages import HumanMessage
         from langchain_google_genai import ChatGoogleGenerativeAI
@@ -213,24 +220,40 @@ class GeminiJudgePanel:
         item: BenchmarkItem,
         answer: AnswerPackage | None,
         trajectory: TrajectoryRecord | None,
+        *,
+        variant_id: str = "graph-full",
     ) -> JudgeVerdict:
         has_answer = answer is not None and len(answer.text) > 0
         has_traj = trajectory is not None and len(trajectory.evidence) > 0
         base = 0.9 if has_answer else 0.2
         traj = 0.85 if has_traj else 0.3
+        criteria_ids = criteria_for_item(item, variant_id)
+        scores = {
+            cid: (traj if cid in {"trajectory_coherence", "routing_decisions", "retrieval_fidelity"} else base)
+            for cid in criteria_ids
+        }
+        if "value_alignment" in scores and item.ground_truth and item.ground_truth.answer:
+            text = (answer.text if answer else "") or ""
+            lower = text.lower()
+            gt_text = item.ground_truth.answer.lower()
+            gt_digits = re.sub(r"[^\d.]", "", gt_text)
+            ans_digits = re.sub(r"[^\d.]", "", lower)
+            if "cannot" in lower or "insufficient evidence" in lower:
+                scores["value_alignment"] = 0.0
+            elif gt_text in lower or (gt_digits and gt_digits in ans_digits):
+                scores["value_alignment"] = 1.0
+            elif item.ground_truth.required_claims:
+                hits = sum(
+                    1 for c in item.ground_truth.required_claims if c[:20].lower() in lower
+                )
+                scores["value_alignment"] = max(0.25, hits / len(item.ground_truth.required_claims))
+            else:
+                scores["value_alignment"] = 0.0
         return JudgeVerdict(
             judge_model="mock-judge",
-            judge_version="mock-v1",
+            judge_version=JUDGE_VERSION,
             rationale=f"mock evaluation for {item.item_id}",
-            scores={
-                "trajectory_coherence": traj,
-                "routing_decisions": base,
-                "retrieval_fidelity": traj,
-                "synthesis_grounding": base,
-                "value_alignment": base,
-                "claim_presence": base,
-                "trajectory_fidelity": traj,
-            },
+            scores=scores,
         )
 
     def _build_trajectory_prompt(
@@ -241,6 +264,7 @@ class GeminiJudgePanel:
         *,
         ground_truth: GroundTruth | None = None,
         criteria_ids: tuple[str, ...] | None = None,
+        variant_id: str = "graph-full",
     ) -> str:
         rubrics = self._cfg.get("rubrics", {})
         as_of = snapshot.evaluation_as_of or date.today().isoformat()
@@ -253,6 +277,9 @@ class GeminiJudgePanel:
                 gt_parts.append(f"- expected_answer: {ground_truth.answer[:2000]}")
             if ground_truth.rubric:
                 gt_parts.append(f"- expected_rubric: {ground_truth.rubric[:2000]}")
+            if ground_truth.required_claims:
+                claims = "\n".join(f"  - {c}" for c in ground_truth.required_claims[:12])
+                gt_parts.append(f"- required_claims for value_alignment:\n{claims}")
             if gt_parts:
                 gt_block = (
                     "\nGround truth for this item (use only when scoring value_alignment "
@@ -278,6 +305,7 @@ class GeminiJudgePanel:
             "- trajectory_coherence measures internal consistency (plan → route → hops → "
             "evidence), NOT whether fiscal year labels match your training cutoff.\n"
             f"{gt_block}\n"
+            f"Variant: {variant_id}\n"
             f"Question: {question}\n"
             f"Answer: {answer.text if answer else 'N/A'}\n"
             f"Trajectory JSON:\n{traj_json}\n\n"

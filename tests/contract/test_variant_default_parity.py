@@ -1,6 +1,9 @@
 """Contract test: default variant profile preserves production stage set (012)."""
 
-from evaluation.reproduction.manifest import default_variant_capabilities, production_stage_ids_with_profile
+from evaluation.reproduction.manifest import (
+    default_variant_capabilities,
+    production_stage_ids_with_profile,
+)
 from models.reproduction import VariantCapabilities
 from retrieval.orchestration.graph import build_agent_graph, get_ask_graph_stage_ids
 

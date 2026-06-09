@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from evaluation.reproduction.corpus_verify import verify_corpus_hashes, dry_run_registry_check
+from evaluation.reproduction.corpus_verify import dry_run_registry_check, verify_corpus_hashes
 from evaluation.reproduction.manifest import load_release_manifest
 
 

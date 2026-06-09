@@ -6,10 +6,8 @@ import uuid
 from datetime import date
 from typing import Any
 
-from models.enums import EvidenceSourceType
-
 from graph.accession import accession_from_node_id
-from models.enums import QueryStatus
+from models.enums import EvidenceSourceType, QueryStatus
 from models.filing import FilingRef
 from models.query import EvidenceChunk, IntentRouterTrace, MacroPlan
 from models.trajectory import (
@@ -200,6 +198,19 @@ def _parse_iso_date(value: object) -> date:
     return date.fromisoformat(str(value)[:10])
 
 
+def _filing_dict_to_ref(route: dict[str, Any]) -> FilingRef:
+    filed_at = _parse_iso_date(route.get("filed_at") or "1970-01-01")
+    period_end = _parse_iso_date(route.get("period_end") or filed_at)
+    return FilingRef(
+        cik=str(route.get("cik") or ""),
+        accession=str(route.get("accession") or ""),
+        form_type=str(route.get("form_type") or "10-K"),
+        filed_at=filed_at,
+        period_end=period_end,
+        source_uri=str(route.get("source_uri") or ""),
+    )
+
+
 def _evidence_dict_to_chunk(entry: dict[str, Any]) -> EvidenceChunk:
     raw_type = str(entry.get("source_type") or "narrative").upper()
     try:
@@ -220,8 +231,18 @@ def _evidence_dict_to_chunk(entry: dict[str, Any]) -> EvidenceChunk:
 def normalize_trajectory_state(state: dict[str, Any]) -> dict[str, Any]:
     """Hydrate LangGraph fields from a serialized AgentTrajectorySnapshot dict."""
     normalized = dict(state)
-    if not normalized.get("evidence_chunks") and normalized.get("evidence"):
+    if normalized.get("evidence_chunks"):
         chunks: list[EvidenceChunk] = []
+        for entry in normalized["evidence_chunks"]:
+            if isinstance(entry, EvidenceChunk):
+                chunks.append(entry)
+            elif isinstance(entry, dict):
+                chunks.append(_evidence_dict_to_chunk(entry))
+            elif hasattr(entry, "model_dump"):
+                chunks.append(_evidence_dict_to_chunk(entry.model_dump()))
+        normalized["evidence_chunks"] = chunks
+    elif normalized.get("evidence"):
+        chunks = []
         for entry in normalized["evidence"]:
             if isinstance(entry, EvidenceChunk):
                 chunks.append(entry)
@@ -231,31 +252,42 @@ def normalize_trajectory_state(state: dict[str, Any]) -> dict[str, Any]:
                 chunks.append(_evidence_dict_to_chunk(entry.model_dump()))
         normalized["evidence_chunks"] = chunks
 
-    if not normalized.get("filing_set") and normalized.get("document_route"):
+    if normalized.get("filing_set"):
         filing_set: list[FilingRef] = []
+        for entry in normalized["filing_set"]:
+            if isinstance(entry, FilingRef):
+                filing_set.append(entry)
+            elif isinstance(entry, dict):
+                filing_set.append(_filing_dict_to_ref(entry))
+        normalized["filing_set"] = filing_set
+    elif normalized.get("document_route"):
+        filing_set = []
         for route in normalized["document_route"]:
             if isinstance(route, FilingRef):
                 filing_set.append(route)
                 continue
             if not isinstance(route, dict):
                 continue
-            filed_at = _parse_iso_date(route.get("filed_at") or "1970-01-01")
-            period_end = _parse_iso_date(route.get("period_end") or filed_at)
-            filing_set.append(
-                FilingRef(
-                    cik=str(route.get("cik") or ""),
-                    accession=str(route.get("accession") or ""),
-                    form_type=str(route.get("form_type") or "10-K"),
-                    filed_at=filed_at,
-                    period_end=period_end,
-                    source_uri="",
-                )
-            )
+            filing_set.append(_filing_dict_to_ref(route))
         normalized["filing_set"] = filing_set
 
     if normalized.get("query_text") and not normalized.get("query"):
         normalized["query"] = normalized["query_text"]
     return normalized
+
+
+def serialize_trajectory_state(state: dict[str, Any]) -> dict[str, Any]:
+    """Convert hydrated trajectory models back to JSON-safe dicts for persistence."""
+    serialized = dict(state)
+    for key in ("evidence_chunks", "filing_set"):
+        values = serialized.get(key)
+        if not isinstance(values, list):
+            continue
+        serialized[key] = [
+            entry.model_dump(mode="json") if hasattr(entry, "model_dump") else entry
+            for entry in values
+        ]
+    return serialized
 
 
 def _resolve_absent_reason(state: dict[str, Any]) -> str | None:

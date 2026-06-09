@@ -77,7 +77,7 @@ def test_excludes_degraded_from_headline_means() -> None:
     assert outcome_rows[0].excluded_degraded == 1
 
 
-def test_finder_profile_marks_rubric_only_outcome() -> None:
+def test_profile_without_answer_gt_marks_outcome_na() -> None:
     results = [_result("f1")]
     summary = build_variant_summary(
         "graph-full",
@@ -92,7 +92,50 @@ def test_finder_profile_marks_rubric_only_outcome() -> None:
         for r in export.by_profile_rows
         if r.inspiration_profile == "finder" and r.metric_name == "outcome_accuracy"
     ]
-    assert finder_outcome[0].na_reason == "rubric_only"
+    assert finder_outcome[0].na_reason == "no_answer_gt"
+    assert finder_outcome[0].item_count == 0
+
+
+def test_task_success_unifies_answer_and_rubric_gt_with_full_n() -> None:
+    results = [
+        _result("a1", outcome=1.0, rubric=0.0),
+        _result("r1", outcome=0.5, rubric=0.6),
+    ]
+    summary = build_variant_summary(
+        "graph-full",
+        results,
+        profiles_by_item={"a1": "financebench", "r1": "finder"},
+        relevance_by_item={"a1": ["c1"], "r1": ["c2"]},
+        ground_truth_by_item={"a1": {"answer": "42"}, "r1": {"rubric": "only rubric"}},
+    )
+    export = export_paper_tables([summary], release_tag="paper-smoke")
+    task = next(r for r in export.headline_rows if r.metric_name == "task_success")
+    assert task.item_count == 2
+    assert task.value == 0.8
+    outcome = next(r for r in export.headline_rows if r.metric_name == "outcome_accuracy")
+    assert outcome.item_count == 1
+    assert outcome.value == 1.0
+    rubric = next(r for r in export.headline_rows if r.metric_name == "rubric_alignment")
+    assert rubric.item_count == 2
+    assert rubric.value == 0.6
+
+
+def test_headline_outcome_item_count_is_answer_gt_only() -> None:
+    results = [
+        _result("a1", outcome=1.0),
+        _result("r1", outcome=0.5),
+    ]
+    summary = build_variant_summary(
+        "graph-full",
+        results,
+        profiles_by_item={"a1": "financebench", "r1": "finder"},
+        relevance_by_item={"a1": ["c1"], "r1": ["c2"]},
+        ground_truth_by_item={"a1": {"answer": "42"}, "r1": {"rubric": "only rubric"}},
+    )
+    export = export_paper_tables([summary], release_tag="paper-smoke")
+    outcome = next(r for r in export.headline_rows if r.metric_name == "outcome_accuracy")
+    assert outcome.item_count == 1
+    assert outcome.value == 1.0
 
 
 def _test_manifest(bundle_path: str = "bundle") -> ReleaseManifest:
@@ -114,6 +157,24 @@ def _test_manifest(bundle_path: str = "bundle") -> ReleaseManifest:
             embedding_config_hash="sha256:x",
         ),
     )
+
+
+def test_export_manifest_records_custom_judge_version(tmp_path: Path) -> None:
+    results = [_result("i1")]
+    summary = build_variant_summary(
+        "graph-full",
+        results,
+        profiles_by_item={"i1": "financebench"},
+        relevance_by_item={"i1": ["c1"]},
+        ground_truth_by_item={"i1": {"answer": "a"}},
+    )
+    export = export_paper_tables([summary], release_tag="paper-smoke")
+    export.custom_judge_version = "1.1.0"
+    write_paper_tables(export, tmp_path)
+    manifest = json.loads((tmp_path / "export_manifest.json").read_text(encoding="utf-8"))
+    assert manifest["custom_judge_version"] == "1.1.0"
+    assert manifest["min_judge_version"] == "v3.1"
+    assert manifest["outcome_scoring_policy"] == "value_alignment_only"
 
 
 def test_export_tables_from_disk_loads_item_context(tmp_path: Path) -> None:
@@ -175,6 +236,49 @@ def test_export_tables_from_disk_without_manifest_has_no_eligible_items(tmp_path
     export = export_tables_from_disk(tmp_path, release_tag="test")
     outcome_rows = [r for r in export.headline_rows if r.metric_name == "outcome_accuracy"]
     assert outcome_rows[0].na_reason == "no_eligible_items"
+
+
+def test_ranking_metrics_unchanged_when_only_outcome_fields_differ() -> None:
+    """SC-002: MRR/MAP/nDCG export rows are independent of outcome/judge scores."""
+    base_kwargs = {
+        "profiles_by_item": {"i1": "financebench"},
+        "relevance_by_item": {"i1": ["c1"]},
+        "ground_truth_by_item": {"i1": {"answer": "a", "rubric": "r"}},
+    }
+    ranking = RankingMetrics(mrr=0.42, map_score=0.33, ndcg_at_10=0.51)
+    before = _result("i1", outcome=0.9, rubric=0.8, fidelity=0.7, mrr=0.42)
+    before = before.model_copy(update={"ranking_metrics": ranking})
+    after = before.model_copy(
+        update={
+            "outcome_score": 0.1,
+            "alignment_score": 0.0,
+            "trajectory_fidelity": 0.0,
+        }
+    )
+    export_before = export_paper_tables(
+        [
+            build_variant_summary("graph-full", [before], **base_kwargs),
+            build_variant_summary("flat-chunk", [before], **base_kwargs),
+        ],
+        release_tag="ranking-check",
+    )
+    export_after = export_paper_tables(
+        [
+            build_variant_summary("graph-full", [after], **base_kwargs),
+            build_variant_summary("flat-chunk", [after], **base_kwargs),
+        ],
+        release_tag="ranking-check",
+    )
+    ranking_names = {"mrr", "map", "ndcg_at_10"}
+
+    def _ranking_rows(export):
+        return {
+            (r.variant_id, r.metric_name): r.value
+            for r in export.headline_rows
+            if r.metric_name in ranking_names and not r.na_reason
+        }
+
+    assert _ranking_rows(export_before) == _ranking_rows(export_after)
 
 
 def test_writes_headline_tex(tmp_path: Path) -> None:

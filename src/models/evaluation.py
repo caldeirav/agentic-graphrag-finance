@@ -58,6 +58,7 @@ class GroundTruth(BaseModel):
     answer: str | None = None
     relevant_chunk_ids: list[str] = Field(default_factory=list)
     rubric: str | None = None
+    required_claims: list[str] | None = None
 
 
 class ExpectedBindings(BaseModel):

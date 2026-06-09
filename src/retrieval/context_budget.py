@@ -201,7 +201,29 @@ def compact_evidence_for_llm(
         if html:
             q = query.lower()
             mda_targeted = is_mda_query(q)
-            if "risk" in q and not mda_targeted:
+            segment_query = any(
+                k in q
+                for k in (
+                    "segment",
+                    "business unit",
+                    "sector",
+                    "grooming",
+                    "braun",
+                    "product category",
+                    "reportable",
+                )
+            )
+            if segment_query and not mda_targeted:
+                segment_chunks = [
+                    c
+                    for c in html
+                    if any(
+                        k in c.excerpt.lower() or k in (c.section_id or "").lower()
+                        for k in ("business", "segment", "product", "grooming")
+                    )
+                ]
+                html = segment_chunks or html
+            elif "risk" in q and not mda_targeted:
                 filtered = [
                     c
                     for c in html

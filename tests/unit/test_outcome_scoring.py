@@ -66,7 +66,26 @@ def test_criteria_for_item_includes_gt_rubrics() -> None:
         question="q",
         ground_truth=GroundTruth(answer="a", rubric="must mention risk"),
     )
-    ids = criteria_for_item(item)
+    ids = criteria_for_item(item, "graph-full")
     assert "value_alignment" in ids
     assert "claim_presence" in ids
     assert len(ids) == 6
+
+
+def test_outcome_zero_when_value_alignment_missing() -> None:
+    item = BenchmarkItem(
+        item_id="i1",
+        dataset="custom-judge",
+        question="q",
+        ground_truth=GroundTruth(answer="42"),
+    )
+    answer = AnswerPackage(text="Revenue was 42 million.", citations=[EvidenceChunk(
+        chunk_node_id="c1", excerpt="x", content_hash="h"
+    )])
+    verdict = JudgeVerdict(
+        judge_model="m",
+        judge_version="v3",
+        scores={"synthesis_grounding": 1.0},
+    )
+    outcome, _ = compute_outcome_scores(item, answer, verdict)
+    assert outcome == 0.0

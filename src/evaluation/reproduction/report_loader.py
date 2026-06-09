@@ -138,6 +138,7 @@ def load_repro_report_bundle(
         raise ReportInputError("Missing required tables/ directory", path=tables_dir)
 
     tables: dict[str, TableData] = {}
+    warnings: list[str] = []
     for table_id in REQUIRED_PAPER_TABLE_IDS:
         csv_path = tables_dir / f"{table_id.value}.csv"
         if not csv_path.is_file():
@@ -147,8 +148,13 @@ def load_repro_report_bundle(
         csv_path = tables_dir / f"{table_id.value}.csv"
         if csv_path.is_file():
             tables[table_id.value] = _read_csv(csv_path, table_id)
+        elif table_id in (PaperTableId.BY_EVIDENCE_SOURCE, PaperTableId.BY_PROFILE):
+            warnings.append(
+                f"Optional {csv_path.name} not found; outcome-by-"
+                f"{'stratum' if table_id == PaperTableId.BY_EVIDENCE_SOURCE else 'profile'} "
+                "report section will be omitted"
+            )
 
-    warnings: list[str] = []
     incomplete_variants: list[str] = []
     variant_results: dict[str, list[ItemResultRecord]] = {}
 
