@@ -18,7 +18,7 @@ from evaluation.reproduction.io import write_json_atomic
 from evaluation.reproduction.result_write import prepare_result_for_write
 from models.evaluation import BenchmarkItem, BenchmarkResult
 from tracing.mlflow_langgraph import build_trajectory_from_state
-from tracing.trajectory_export import normalize_trajectory_state
+from tracing.trajectory_export import normalize_trajectory_state, serialize_trajectory_state
 
 _RESERVED_DIRS = frozenset({"tables", "assets", "__pycache__"})
 
@@ -109,7 +109,9 @@ def _judge_one(
     variant_id: str,
 ) -> BenchmarkResult:
     if result.trajectory_snapshot:
-        trajectory = build_trajectory_from_state(result.trajectory_snapshot)
+        trajectory = build_trajectory_from_state(
+            normalize_trajectory_state(dict(result.trajectory_snapshot))
+        )
     else:
         citations = result.answer.citations if result.answer else []
         trajectory = build_trajectory_from_state(
@@ -127,15 +129,17 @@ def _judge_one(
     outcome_score, alignment_score = compute_outcome_scores(item, result.answer, verdict)
     snapshot = dict(result.trajectory_snapshot or {})
     if result.answer and result.answer.citations:
-        snapshot = normalize_trajectory_state(
-            {
-                **snapshot,
-                "evidence_chunks": [
-                    c.model_dump(mode="json") if hasattr(c, "model_dump") else c
-                    for c in result.answer.citations
-                ],
-                "query": item.question,
-            }
+        snapshot = serialize_trajectory_state(
+            normalize_trajectory_state(
+                {
+                    **snapshot,
+                    "evidence_chunks": [
+                        c.model_dump(mode="json") if hasattr(c, "model_dump") else c
+                        for c in result.answer.citations
+                    ],
+                    "query": item.question,
+                }
+            )
         )
     return result.model_copy(
         update={
