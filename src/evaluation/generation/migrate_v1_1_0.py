@@ -41,15 +41,27 @@ def is_rubric_only_tag(tag: str) -> bool:
     return any(kw in lowered for kw in RUBRIC_ONLY_TAG_KEYWORDS)
 
 
-def derive_required_claims(answer: str) -> list[str]:
+def derive_required_claims(answer: str, *, min_claims: int = 2) -> list[str]:
     text = (answer or "").strip()
     if not text:
         return []
     sentences = [s.strip() for s in re.split(r"[.;]\s+", text) if len(s.strip()) > 15]
-    if len(sentences) >= 3:
-        return sentences[:8]
-    chunks = [text[i : i + 120].strip() for i in range(0, len(text), 120) if text[i : i + 120].strip()]
-    return chunks[:8] if chunks else [text[:200]]
+    claims = sentences[:8] if len(sentences) >= min_claims else []
+    if len(claims) < min_claims:
+        chunks = [
+            text[i : i + 120].strip()
+            for i in range(0, len(text), 120)
+            if text[i : i + 120].strip()
+        ]
+        claims = chunks[:8]
+    if len(claims) < min_claims and text:
+        words = text.split()
+        if len(words) >= 4:
+            mid = max(1, len(words) // 2)
+            claims = [" ".join(words[:mid]).strip(), " ".join(words[mid:]).strip()]
+        else:
+            claims = [text, text]
+    return [c for c in claims if c][:8]
 
 
 def repair_bindings(

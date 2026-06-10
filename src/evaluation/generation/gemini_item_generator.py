@@ -12,7 +12,7 @@ from langchain_core.messages import HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from evaluation.generation.api_retry import with_transient_retry
-from evaluation.generation.comparison_gt import derive_comparison_claims
+from evaluation.generation.v2_item_normalize import normalize_v2_item
 from evaluation.judges.gemini_panel import JudgeParseError, _extract_json
 from models.benchmark_generation import AnswerType, GeneratedBenchmarkItem, GenerationConfig, SamplingManifest
 from models.enums import OperationClass
@@ -80,10 +80,29 @@ class GeminiItemGenerator:
                 f"\nPrevious attempt failed validation:\n{validation_feedback}\n"
                 "Fix the JSON so all section paths exist in available_section_paths.\n"
             )
+        profile_v2 = ""
+        if v2:
+            if profile == "financebench":
+                profile_v2 = (
+                    "- financebench v2: use answer_type numeric or short_label for numeric answers; "
+                    "omit required_claims for numeric/short_label.\n"
+                )
+            elif profile == "finder":
+                profile_v2 = (
+                    "- finder v2: ground_truth.answer is REQUIRED (prose evidence summary); "
+                    "answer_type narrative with 2-8 required_claims decomposed from the answer.\n"
+                )
+            elif profile == "finagentbench":
+                profile_v2 = (
+                    "- finagentbench v2: answer_type comparison_structured; >=2 accessions; "
+                    "canonical answer: Both {FY_a} and {FY_b} discuss {topic} in {section}; "
+                    ">=3 required_claims (per-filing + cross-filing).\n"
+                )
         rules_tail = (
             "- v2 bundle: ground_truth.answer is REQUIRED for every profile (non-empty).\n"
             "- v2 bundle: narrative items need 2-8 required_claims; comparison_structured needs >=3.\n"
             "- v2 comparison answer template: Both {label_a} and {label_b} discuss {topic} in {section}.\n"
+            f"{profile_v2}"
             if v2
             else (
                 "- finder profile MUST include ground_truth.rubric.\n"
@@ -172,16 +191,8 @@ class GeminiItemGenerator:
         answer = gt_raw.get("answer")
         required_claims = list(gt_raw.get("required_claims") or [])
         v2 = self._config.bundle_schema_version.startswith("2")
-        if v2 and answer_type == AnswerType.COMPARISON_STRUCTURED and not required_claims and answer:
-            required_claims = derive_comparison_claims(
-                str(answer),
-                label_a="FY2025 10-K",
-                label_b="FY2024 10-K",
-                topic="the question topic",
-                section="Item 7 MD&A",
-            )
         item_id = str(data.get("item_id") or f"v2-{profile}-{seq:04d}" if v2 else f"live-{profile}-{seq:04d}")
-        return GeneratedBenchmarkItem(
+        item = GeneratedBenchmarkItem(
             item_id=item_id,
             question=str(data.get("question", "")).strip(),
             question_type_tag=str(data.get("question_type_tag", f"{profile}-generated")),
@@ -202,3 +213,6 @@ class GeminiItemGenerator:
             multi_filing_required=bool(data.get("multi_filing_required", profile == "finagentbench")),
             operation_class=operation_class,
         )
+        if v2:
+            item = normalize_v2_item(item)
+        return item

@@ -8,20 +8,44 @@ from pathlib import Path
 from evaluation.reproduction.snapshot_loader import load_bundle_snapshot
 from models.benchmark_generation import GeneratedBenchmarkItem
 from models.filing import FilingRef
+from models.graph import GraphSnapshot
 from retrieval.macro.models import MacroBindingProposal, ProposalSource, ValidationStatus
 from retrieval.macro.validator import validate_macro_binding
 
 
+def filing_refs_for_accessions(
+    accessions: list[str],
+    snapshot: GraphSnapshot,
+) -> tuple[list[FilingRef], list[str]]:
+    """Resolve full FilingRef rows from snapshot manifest (cli_bound needs all fields)."""
+    by_accession = {ref.accession: ref for ref in snapshot.manifest.filing_refs}
+    resolved: list[FilingRef] = []
+    missing: list[str] = []
+    for acc in accessions:
+        ref = by_accession.get(acc)
+        if ref is None:
+            missing.append(acc)
+        else:
+            resolved.append(ref)
+    return resolved, missing
+
+
 def check_item_macro_bindable(
     item: GeneratedBenchmarkItem,
-    snapshot,
+    snapshot: GraphSnapshot,
 ) -> tuple[bool, str]:
     """Return (ok, detail) after validating expected_bindings against bundled snapshot."""
     accessions = list(dict.fromkeys(item.expected_bindings.accessions))
     if not accessions:
         return False, "missing accessions"
-    cli_bound = [FilingRef(accession=acc) for acc in accessions]
-    proposal = MacroBindingProposal(proposal_source=ProposalSource.DETERMINISTIC)
+    cli_bound, missing = filing_refs_for_accessions(accessions, snapshot)
+    if missing:
+        return False, f"accessions not in corpus manifest: {', '.join(missing)}"
+    proposal = MacroBindingProposal(
+        intent_summary="benchmark item expected_bindings",
+        proposed_accessions=accessions,
+        proposal_source=ProposalSource.DETERMINISTIC,
+    )
     result = validate_macro_binding(
         proposal,
         snapshot,
