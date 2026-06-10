@@ -77,7 +77,7 @@ def _write_min_v2_draft(draft: Path, *, item_count: int = 200, multi_filing: int
                         [
                             "FY2025 10-K discusses revenue in Item 7 MD&A.",
                             "FY2024 10-K discusses revenue in Item 7 MD&A.",
-                            "The comparison spans both bound filings.",
+                            "Both filings compare the topic across the cited sections.",
                         ]
                         if multi
                         else None
@@ -123,6 +123,89 @@ def test_v2_publish_blocked_without_audit(tmp_path: Path) -> None:
             multi_filing_min=40,
             require_publish_audit=True,
         )
+
+
+def test_v2_publish_selects_balanced_subset_from_pool(tmp_path: Path) -> None:
+    draft = tmp_path / "draft"
+    quotas = {"financebench": 0.34, "finder": 0.33, "finagentbench": 0.33}
+    _write_min_v2_draft(draft, item_count=68, multi_filing=20)
+    (draft / "generation_config.yaml").write_text(
+        "bundle_schema_version: '2.0.0'\n"
+        "random_seed: 20260602\n"
+        f"profile_quotas: {json.dumps(quotas)}\n",
+        encoding="utf-8",
+    )
+    pool_rows = []
+    for profile, count in [("financebench", 80), ("finder", 75), ("finagentbench", 70)]:
+        for index in range(count):
+            multi = profile == "finagentbench"
+            pool_rows.append(
+                {
+                    "item_id": f"v2-{profile}-{index:03d}",
+                    "question": "What is revenue?",
+                    "question_type_tag": "cross-filing-comparison" if multi else "metrics-generated",
+                    "answer_type": "comparison_structured" if multi else "numeric",
+                    "inspiration_profile": profile,
+                    "ground_truth": {
+                        "answer": "42"
+                        if not multi
+                        else "Both FY2025 and FY2024 10-K filings discuss revenue in Item 7 MD&A.",
+                        "required_claims": (
+                            [
+                                "FY2025 10-K discusses revenue in Item 7 MD&A.",
+                                "FY2024 10-K discusses revenue in Item 7 MD&A.",
+                                "Both filings compare the topic across the cited sections.",
+                            ]
+                            if multi
+                            else None
+                        ),
+                    },
+                    "expected_bindings": {
+                        "accessions": (
+                            ["0000320193-25-000079", "0000320193-24-000123"]
+                            if multi
+                            else ["0000320193-24-000123"]
+                        ),
+                    },
+                    "expected_section_paths": ["0000320193-24-000123/item_7"],
+                    "multi_filing_required": multi,
+                    "operation_class": "QUALITATIVE",
+                    "validation_status": "accepted",
+                }
+            )
+    pool_path = draft / "items" / "dev_pool.jsonl"
+    pool_path.write_text("\n".join(json.dumps(row) for row in pool_rows) + "\n", encoding="utf-8")
+    write_publish_audit(
+        draft,
+        operator_id="tester",
+        audit_item_ids=[pool_rows[0]["item_id"], pool_rows[70]["item_id"]],
+    )
+    published = tmp_path / "published"
+    dest = publish_draft(
+        draft,
+        version="2.0.0",
+        published_root=published,
+        multi_filing_min=40,
+        require_publish_audit=True,
+        profile_quotas=quotas,
+        selection_seed=20260602,
+    )
+    dev_lines = [
+        json.loads(line)
+        for line in (dest / "items" / "dev.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert len(dev_lines) == 200
+    counts: dict[str, int] = {}
+    for row in dev_lines:
+        profile = row["inspiration_profile"]
+        counts[profile] = counts.get(profile, 0) + 1
+    assert counts["financebench"] == 68
+    assert counts["finder"] == 66
+    assert counts["finagentbench"] == 66
+    manifest = json.loads((dest / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["item_count"] == 200
+    assert manifest["profile_counts"]["finagentbench"] == 66
 
 
 def test_v2_publish_with_signoff(tmp_path: Path) -> None:

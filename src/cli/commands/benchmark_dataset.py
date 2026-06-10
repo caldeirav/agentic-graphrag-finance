@@ -14,6 +14,7 @@ from cli.benchmark_catalog import build_accession_catalog
 from cli.benchmark_materialize import materialize_sampled_corpus
 from cli.benchmark_trace import BenchmarkTraceReporter
 from evaluation.generation.bundle import (
+    apply_profile_balanced_dev_split,
     publish_draft,
     validate_bundle_feasibility,
     write_draft_manifest,
@@ -22,7 +23,7 @@ from evaluation.generation.bundle import (
 from evaluation.generation.publish_audit import write_audit_sample, write_publish_audit
 from evaluation.generation.config_loader import load_allowlist, load_generation_config
 from evaluation.generation.gemini_item_generator import GeminiItemGenerator
-from evaluation.generation.judge_generator import generate_items, write_items_jsonl
+from evaluation.generation.judge_generator import PUBLISH_MIN_ACCEPTED, generate_items, write_items_jsonl
 from evaluation.generation.sampler import (
     run_sampling,
     sampling_manifest_hash,
@@ -208,7 +209,27 @@ def generate(
             tracer=reporter,
         )
         items_path = draft / "items" / "dev.jsonl"
-        write_items_jsonl(accepted, items_path)
+        selection: dict[str, object] | None = None
+        if cfg.bundle_schema_version.startswith("2"):
+            pool_path = draft / "items" / "dev_pool.jsonl"
+            write_items_jsonl(accepted, pool_path)
+            selection = apply_profile_balanced_dev_split(
+                draft,
+                profile_quotas=cfg.profile_quotas,
+                target_count=PUBLISH_MIN_ACCEPTED,
+                seed=cfg.random_seed,
+            )
+            selected_counts = selection.get("selected_counts") or {}
+            reporter.log(
+                "dev_selection "
+                f"{selection.get('selected_count')}/{selection.get('pool_count')} items → "
+                + ", ".join(
+                    f"{profile}={selected_counts.get(profile, 0)}"
+                    for profile in cfg.profile_quotas
+                )
+            )
+        else:
+            write_items_jsonl(accepted, items_path)
         write_draft_manifest(
             draft_dir=draft,
             config=cfg,
@@ -237,22 +258,47 @@ def generate(
             raise typer.Exit(code=1)
         if cfg.governance.multi_filing_min and int(feasibility.get("multi_filing_count", 0)) < cfg.governance.multi_filing_min:
             raise typer.Exit(code=1)
-        reporter.phase_end(
-            "judge",
-            f"accepted={report.accepted_count} rejected={report.rejected_count} "
-            f"pass_rate={report.pass_rate:.0%}",
-        )
-        reporter.summary(
-            "Generate complete",
-            [
+        if cfg.bundle_schema_version.startswith("2") and selection is not None:
+            selected_counts = selection.get("selected_counts") or {}
+            phase_detail = (
+                f"dev_selected={selection.get('selected_count')} "
+                f"from_pool={selection.get('pool_count')} "
+                + " ".join(
+                    f"{profile}={selected_counts.get(profile, 0)}"
+                    for profile in cfg.profile_quotas
+                )
+            )
+            summary_lines = [
+                f"draft={draft}",
+                f"dev_selected={selection.get('selected_count')} "
+                f"(profile-balanced from pool of {selection.get('pool_count')})",
+                "dev_profile_counts="
+                + ", ".join(
+                    f"{profile}={selected_counts.get(profile, 0)}"
+                    for profile in cfg.profile_quotas
+                ),
+                f"pool_accepted={report.accepted_count}/{report.candidates_total} "
+                f"(candidate validation yield {report.pass_rate:.1%}, indicative only)",
+                f"judge_api_calls={report.judge_api_calls}",
+                f"duration={report.duration_seconds:.1f}s",
+                f"items={items_path}",
+                f"pool={draft / 'items' / 'dev_pool.jsonl'}",
+            ]
+        else:
+            phase_detail = (
+                f"accepted={report.accepted_count} rejected={report.rejected_count} "
+                f"pass_rate={report.pass_rate:.0%}"
+            )
+            summary_lines = [
                 f"draft={draft}",
                 f"accepted={report.accepted_count}/{report.candidates_total}",
                 f"pass_rate={report.pass_rate:.1%}",
                 f"judge_api_calls={report.judge_api_calls}",
                 f"duration={report.duration_seconds:.1f}s",
                 f"items={items_path}",
-            ],
-        )
+            ]
+        reporter.phase_end("judge", phase_detail)
+        reporter.summary("Generate complete", summary_lines)
 
 
 @app.command("publish")
@@ -287,8 +333,32 @@ def publish(
         skip_gates=skip_gates,
         multi_filing_min=cfg.governance.multi_filing_min,
         require_publish_audit=v2 and publish_signoff and not skip_gates,
+        profile_quotas=cfg.profile_quotas if v2 else None,
+        selection_seed=cfg.random_seed,
     )
+    published_manifest = json.loads((dest / "manifest.json").read_text(encoding="utf-8"))
+    report = json.loads((draft_dir / "generation_report.json").read_text(encoding="utf-8"))
     typer.echo(f"Published custom-judge v{version} -> {dest}")
+    if cfg.bundle_schema_version.startswith("2"):
+        profile_counts = published_manifest.get("profile_counts") or {}
+        typer.echo(
+            "Published dev split: "
+            f"{published_manifest.get('item_count', 0)} items — "
+            + ", ".join(f"{profile}={profile_counts.get(profile, 0)}" for profile in cfg.profile_quotas)
+        )
+        selection_path = dest / "dev_selection_report.json"
+        if selection_path.is_file():
+            selection = json.loads(selection_path.read_text(encoding="utf-8"))
+            typer.echo(
+                f"Selection pool={selection.get('pool_count')} "
+                f"seed={selection.get('seed')}"
+            )
+        typer.echo(
+            "Generation yield (indicative, not a publish gate): "
+            f"pass_rate={report.get('pass_rate', 0):.1%} "
+            f"({report.get('accepted_count', 0)} pool-accepted / "
+            f"{report.get('candidates_total', 0)} candidates)"
+        )
 
 
 @app.command("reproduce")

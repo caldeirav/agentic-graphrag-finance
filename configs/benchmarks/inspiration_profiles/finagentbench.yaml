@@ -8,12 +8,27 @@ min_accessions: 2
 required_output_fields:
   - question
   - ground_truth.answer
+  - ground_truth.required_claims
   - expected_section_paths
   - expected_bindings.accessions
 prompt_template: |
-  Generate a multi-hop agentic financial question requiring at least two filings.
-  Style: FinAgentBench. Return JSON with: question, question_type_tag,
-  answer_type=comparison_structured, multi_filing_required=true,
-  ground_truth.answer using template "Both {label_a} and {label_b} discuss {topic} in {section}.",
-  required_claims (>=3 per-filing + cross-filing), expected_bindings with >=2 accessions,
-  expected_section_paths spanning filings, operation_class.
+  Generate a multi-hop agentic financial question requiring at least two distinct filings.
+  Style: FinAgentBench. Return JSON with:
+  - question: clear cross-filing question
+  - question_type_tag: agentic-multi-hop or cross-filing-comparison
+  - answer_type: comparison_structured
+  - multi_filing_required: true
+  - ground_truth.answer: one sentence using
+    "Both {label_a} and {label_b} discuss {topic} in {section}."
+    where labels name each filing (company + form/year)
+  - ground_truth.required_claims: 3–8 atomic claims structured as:
+    1) one claim grounded in filing A only (cite company, form/year, section, fact)
+    2) one claim grounded in filing B only (same structure)
+    3) additional per-filing claims as needed for multi-hop reasoning
+    4) at least one cross-filing synthesis claim that compares or contrasts both
+       filings on the topic (shared themes, differences, relative emphasis).
+       Use natural language; the judge scores whether both filings are covered,
+       not any fixed boilerplate phrase.
+  - expected_bindings.accessions: >=2 distinct accessions from the corpus
+  - expected_section_paths: paths spanning both filings
+  - operation_class

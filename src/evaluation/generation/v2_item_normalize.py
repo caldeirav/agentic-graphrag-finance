@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import re
 
-from evaluation.generation.comparison_gt import derive_comparison_claims, is_comparison_item
+from evaluation.generation.comparison_gt import (
+    comparison_claims_are_structured,
+    derive_comparison_claims,
+    is_comparison_item,
+)
 from evaluation.generation.gt_classifier import is_numeric_answer_gt
 from evaluation.generation.migrate_v1_1_0 import derive_required_claims
 from models.benchmark_generation import AnswerType, GeneratedBenchmarkItem
@@ -69,8 +73,14 @@ def ensure_required_claims(item: GeneratedBenchmarkItem) -> list[str]:
         return []
 
     if answer_type == AnswerType.COMPARISON_STRUCTURED:
-        if len(existing) >= 3:
+        accessions = list(item.expected_bindings.accessions)
+        if comparison_claims_are_structured(existing, answer=answer, accessions=accessions):
             return existing[:8]
+        augmented = list(existing)
+        if answer and answer not in augmented:
+            augmented.append(answer)
+        if comparison_claims_are_structured(augmented, answer=answer, accessions=accessions):
+            return augmented[:8]
         label_a, label_b = _comparison_labels_from_answer(answer)
         topic = _topic_from_question(item.question)
         section_match = re.search(r"item\s*\d+[a-z]?", answer, re.I)

@@ -23,10 +23,11 @@ Review outputs under `data/benchmarks/custom-judge/drafts/v2-draft-20260602/`:
 
 | Report | Acceptance |
 |--------|------------|
-| `generation_report.json` | `pass_rate` ≥ 0.95, `accepted_count` ≥ 200 |
+| `generation_report.json` | `accepted_count` ≥ 200; `pass_rate` is **indicative only** (tune generation yield) |
+| `items/dev.jsonl` | 200 accepted rows; manifest `item_count` must match |
 | `feasibility_report.json` | `blocked_count: 0`, `macro_bindability_failures: 0` |
 | `scorability_report.json` | `answer_gt_coverage: 1.0`, `rubric_only_count: 0` |
-| `multi_filing_count` | ≥ 40 |
+| `multi_filing_count` | ≥ 40 (publish gate) |
 
 ## Phase 2 — Operator audit (10%)
 

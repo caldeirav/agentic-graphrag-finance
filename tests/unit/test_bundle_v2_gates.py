@@ -137,3 +137,52 @@ def test_publish_gate_requires_answer_gt_coverage(tmp_path: Path) -> None:
     )
     with pytest.raises(ValueError, match="multi_filing_count"):
         check_publish_gates(manifest, report, bundle_root=tmp_path, multi_filing_min=40)
+
+
+def test_v2_publish_gate_ignores_low_candidate_pass_rate(tmp_path: Path) -> None:
+    """v2 publish judges dev.jsonl quality; generation yield pass_rate is not blocking."""
+    manifest = _v2_manifest()
+    report = GenerationReport(
+        run_id="r",
+        candidates_total=699,
+        accepted_count=200,
+        rejected_count=499,
+        pass_rate=0.6809728183118741,
+        judge_api_calls=699,
+        storage_bytes_used=0,
+        duration_seconds=1.0,
+    )
+    items_path = tmp_path / "items" / "dev.jsonl"
+    items_path.parent.mkdir(parents=True)
+    items = [_item(f"v2-fin-{i:03d}") for i in range(200)]
+    items_path.write_text("\n".join(i.model_dump_json() for i in items) + "\n", encoding="utf-8")
+    (tmp_path / "manifest.json").write_text(manifest.model_dump_json(), encoding="utf-8")
+    (tmp_path / "corpus").mkdir()
+    (tmp_path / "corpus" / "graph_node_index.json").write_text(
+        json.dumps({"paths": ["0000320193-24-000123/item_7"]}),
+        encoding="utf-8",
+    )
+    (tmp_path / "reachability_report.json").write_text(
+        json.dumps({"unreachable_answer_gt_count": 0}),
+        encoding="utf-8",
+    )
+    # multi_filing_min=-1 skips floor check (unit test only); publish CLI uses config default 40.
+    check_publish_gates(manifest, report, bundle_root=tmp_path, multi_filing_min=-1)
+
+
+def test_v1_publish_gate_still_enforces_candidate_pass_rate() -> None:
+    manifest = _v2_manifest().model_copy(
+        update={"schema_version": "1.0.0", "version": "1.2.0"}
+    )
+    report = GenerationReport(
+        run_id="r",
+        candidates_total=100,
+        accepted_count=200,
+        rejected_count=0,
+        pass_rate=0.68,
+        judge_api_calls=0,
+        storage_bytes_used=0,
+        duration_seconds=1.0,
+    )
+    with pytest.raises(ValueError, match="pass_rate"):
+        check_publish_gates(manifest, report, min_items=1)

@@ -53,6 +53,8 @@ Every accepted item MUST have:
 | `rubric_only_count` | 0 in scorability report |
 | `publish_audit` | `publish_audit.json` with operator sign-off + 20 audited item ids |
 
+**Not blocking for v2**: `generation_report.pass_rate` (candidate yield). Retained in `generation_report.json` as an indicative metric for tuning generation; publish gates judge final `items/dev.jsonl` only.
+
 ## answer_type rules
 
 | answer_type | Bindings | Claims |

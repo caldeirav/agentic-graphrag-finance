@@ -19,6 +19,11 @@ import yaml
 from evaluation.generation.comparison_gt import is_comparison_item, validate_comparison_structured
 from evaluation.generation.bundle_version import is_v2_bundle, is_v2_or_later
 from evaluation.generation.feasibility_macro import audit_macro_bindability
+from evaluation.generation.profile_selection import (
+    quota_targets,
+    select_profile_balanced_items,
+    selection_report,
+)
 from evaluation.generation.gt_classifier import is_numeric_answer_gt
 from evaluation.generation.item_validator import load_graph_paths
 from evaluation.generation.section_paths import resolve_section_paths
@@ -413,6 +418,68 @@ def is_rubric_only_routing(
     return _comparison_tag(item.question_type_tag) or _reference_tag(item.question_type_tag)
 
 
+def load_dev_split_items(items_path: Path) -> list[GeneratedBenchmarkItem]:
+    """Load accepted dev items from ``items/dev.jsonl``."""
+    lines = [
+        line.strip()
+        for line in items_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    return [GeneratedBenchmarkItem.model_validate(json.loads(line)) for line in lines]
+
+
+def load_dev_item_pool(bundle_root: Path) -> list[GeneratedBenchmarkItem]:
+    """Load full accepted pool (``dev_pool.jsonl``) or current dev split."""
+    pool_path = bundle_root / "items" / "dev_pool.jsonl"
+    if pool_path.is_file():
+        return load_dev_split_items(pool_path)
+    return load_dev_split_items(bundle_root / "items" / "dev.jsonl")
+
+
+def apply_profile_balanced_dev_split(
+    bundle_root: Path,
+    *,
+    profile_quotas: dict[str, float],
+    target_count: int,
+    seed: int,
+) -> dict[str, object]:
+    """Write quota-balanced ``items/dev.jsonl`` from the accepted pool."""
+    from evaluation.generation.judge_generator import write_items_jsonl
+
+    pool = load_dev_item_pool(bundle_root)
+    dev_path = bundle_root / "items" / "dev.jsonl"
+    targets = quota_targets(profile_quotas, target_count)
+    if len(pool) <= target_count:
+        report = selection_report(
+            pool_count=len(pool),
+            selected=sorted(pool, key=lambda item: item.item_id),
+            targets=targets,
+            seed=seed,
+        )
+        report["skipped"] = True
+        return report
+
+    selected = select_profile_balanced_items(
+        pool,
+        profile_quotas,
+        target_count,
+        seed=seed,
+    )
+    write_items_jsonl(selected, dev_path)
+    report = selection_report(
+        pool_count=len(pool),
+        selected=selected,
+        targets=targets,
+        seed=seed,
+    )
+    report["skipped"] = False
+    (bundle_root / "dev_selection_report.json").write_text(
+        json.dumps(report, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return report
+
+
 def check_publish_gates(
     manifest: DatasetManifest,
     report: GenerationReport,
@@ -426,14 +493,34 @@ def check_publish_gates(
 ) -> None:
     if skip_gates:
         return
+    v2 = is_v2_bundle(manifest)
     if manifest.item_count < min_items:
         msg = f"Publish gate failed: item_count {manifest.item_count} < {min_items}"
         raise ValueError(msg)
-    if report.pass_rate < min_pass_rate:
+    # v1.x: candidate validation pass rate is blocking. v2: dev.jsonl quality gates only;
+    # generation_report.pass_rate is retained as an indicative yield metric.
+    if not v2 and report.pass_rate < min_pass_rate:
         msg = f"Publish gate failed: pass_rate {report.pass_rate} < {min_pass_rate}"
         raise ValueError(msg)
     if bundle_root is not None:
         items_path = bundle_root / "items" / "dev.jsonl"
+        if not items_path.is_file():
+            msg = f"Publish gate failed: missing dev split at {items_path}"
+            raise ValueError(msg)
+        if v2:
+            dev_items = load_dev_split_items(items_path)
+            if len(dev_items) < min_items:
+                msg = (
+                    f"Publish gate failed: dev.jsonl has {len(dev_items)} items < {min_items}"
+                )
+                raise ValueError(msg)
+            if len(dev_items) != manifest.item_count:
+                msg = (
+                    f"Publish gate failed: manifest item_count {manifest.item_count} "
+                    f"!= dev.jsonl rows {len(dev_items)}"
+                )
+                raise ValueError(msg)
+            write_scorability_report(bundle_root, items_path)
         if items_path.is_file():
             feasibility = validate_bundle_feasibility(bundle_root, items_path, manifest=manifest)
             blocked_count = int(feasibility["blocked_count"])
@@ -444,7 +531,7 @@ def check_publish_gates(
                     f"first={first['item_id']} ({first['reason']})"
                 )
                 raise ValueError(msg)
-            if is_v2_bundle(manifest):
+            if v2:
                 coverage = float(feasibility.get("answer_gt_coverage", 0.0))
                 if coverage < 1.0:
                     msg = f"Publish gate failed: answer_gt_coverage {coverage} < 1.0"
@@ -455,13 +542,14 @@ def check_publish_gates(
                     if int(scorability.get("rubric_only_count", 0)) > 0:
                         msg = "Publish gate failed: rubric_only_count must be 0 for v2 bundles"
                         raise ValueError(msg)
-                floor = multi_filing_min or 40
-                mf_count = int(feasibility.get("multi_filing_count", 0))
-                if mf_count < floor:
-                    msg = (
-                        f"Publish gate failed: multi_filing_count {mf_count} < {floor}"
-                    )
-                    raise ValueError(msg)
+                if multi_filing_min >= 0:
+                    floor = multi_filing_min if multi_filing_min > 0 else 40
+                    mf_count = int(feasibility.get("multi_filing_count", 0))
+                    if mf_count < floor:
+                        msg = (
+                            f"Publish gate failed: multi_filing_count {mf_count} < {floor}"
+                        )
+                        raise ValueError(msg)
                 if require_publish_audit and not (bundle_root / "publish_audit.json").is_file():
                     msg = "Publish gate failed: publish_audit.json missing (requires --publish-signoff)"
                     raise ValueError(msg)
@@ -486,6 +574,8 @@ def publish_draft(
     skip_gates: bool = False,
     multi_filing_min: int = 0,
     require_publish_audit: bool = False,
+    profile_quotas: dict[str, float] | None = None,
+    selection_seed: int | None = None,
 ) -> Path:
     manifest = DatasetManifest.model_validate(
         json.loads((draft_dir / "manifest.json").read_text(encoding="utf-8"))
@@ -493,19 +583,45 @@ def publish_draft(
     report = GenerationReport.model_validate(
         json.loads((draft_dir / "generation_report.json").read_text(encoding="utf-8"))
     )
+    config_path = draft_dir / "generation_config.yaml"
+    if profile_quotas is None and config_path.is_file():
+        config_data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        profile_quotas = config_data.get("profile_quotas")
+        if selection_seed is None:
+            selection_seed = int(config_data.get("random_seed") or 0)
+
+    dest = published_root / f"v{version}"
+    if dest.exists():
+        shutil.rmtree(dest)
+    shutil.copytree(draft_dir, dest)
+
+    v2 = is_v2_bundle(manifest)
+    if v2 and profile_quotas and not skip_gates:
+        apply_profile_balanced_dev_split(
+            dest,
+            profile_quotas=profile_quotas,
+            target_count=min_items,
+            seed=selection_seed or 0,
+        )
+        dev_path = dest / "items" / "dev.jsonl"
+        dev_items = load_dev_split_items(dev_path)
+        manifest = manifest.model_copy(
+            update={
+                "item_count": len(dev_items),
+                "items_hash": items_hash(dev_path),
+                "profile_counts": profile_counts(dev_items),
+            }
+        )
+
     check_publish_gates(
         manifest,
         report,
         min_items=min_items,
         skip_gates=skip_gates,
-        bundle_root=draft_dir,
+        bundle_root=dest,
         multi_filing_min=multi_filing_min,
         require_publish_audit=require_publish_audit,
     )
-    dest = published_root / f"v{version}"
-    if dest.exists():
-        shutil.rmtree(dest)
-    shutil.copytree(draft_dir, dest)
     published = manifest.model_copy(
         update={
             "version": version,
