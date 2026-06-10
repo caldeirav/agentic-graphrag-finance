@@ -14,9 +14,21 @@ GeneratedBenchmarkItem (v2.0)
     ├── multi_filing_required           ──► floor count (≥40 across split)
     └── question_type_tag               ──► comparison detection
 
+DevItemPool (v2.0 draft/publish)
+    └── items/dev_pool.jsonl          ──► all unique accepted items (≥200)
+
+DevSelectionReport (v2.0)
+    ├── pool_count
+    ├── selected_count (200)
+    ├── targets{profile → int}
+    ├── selected_counts{profile → int}
+    └── seed
+
 BundleManifest (v2.0.0)
     ├── schema_version: "2.0.0"
     ├── parent_version: "1.2.0"
+    ├── item_count: 200
+    ├── profile_counts{profile → int}
     ├── items_hash, corpus hashes
     └── publish_audit_path
 
@@ -42,7 +54,7 @@ task_success (v2.0 export)
 | `numeric` | Percentage, currency, integer | omitted |
 | `short_label` | ≤4 tokens, canonical label | omitted |
 | `narrative` | Prose answer | 2–8 claims |
-| `comparison_structured` | Both-filings template answer | ≥3 claims (per-filing + cross-filing) |
+| `comparison_structured` | Both-filings template answer | ≥3 claims (per-filing + semantic cross-filing synthesis) |
 
 ## GroundTruth (v2.0 constraints)
 
@@ -129,4 +141,6 @@ draft → validated → audit_pending → published
     gates pass       + 20-item audit
 ```
 
-Publish blocked unless: all feasibility gates pass, scorability report clean, `publish_audit.json` present with sign-off.
+Publish blocked unless: quota-balanced `dev.jsonl` (200 items), all feasibility gates pass, scorability report clean, `publish_audit.json` present with sign-off.
+
+**Not blocking for v2**: `generation_report.pass_rate` (candidate pool yield; indicative for tuning generation).

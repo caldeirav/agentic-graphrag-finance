@@ -8,7 +8,9 @@
 | File | Purpose |
 |------|---------|
 | `manifest.json` | `schema_version: "2.0.0"`, `version: "2.0.0"`, `parent_version: "1.2.0"` |
-| `items/dev.jsonl` | 200 net-new accepted items |
+| `items/dev_pool.jsonl` | Full accepted pool (may exceed 200; source for quota selection) |
+| `items/dev.jsonl` | 200 net-new quota-balanced dev items |
+| `dev_selection_report.json` | Selection metadata (pool, targets, selected_counts, seed) |
 | `CHANGELOG.md` | Thematic lineage notes only (no v1.2.0 item IDs) |
 | `feasibility_report.json` | All gates including macro-bindability |
 | `scorability_report.json` | answer-GT coverage confirmation |
@@ -41,7 +43,8 @@ Every accepted item MUST have:
 
 | Gate | Rule |
 |------|------|
-| `item_count` | exactly 200 accepted dev items |
+| `item_count` | exactly 200 accepted dev items in `dev.jsonl` |
+| `profile_counts` | matches `profile_quotas` targets (largest-remainder on 200) |
 | `answer_gt_coverage` | 200/200 items have non-empty `ground_truth.answer` |
 | `required_claims` | narrative + comparison_structured: 2–8 atomic claims |
 | `comparison_bindings` | comparison/multi-filing items: ≥2 accessions in corpus |

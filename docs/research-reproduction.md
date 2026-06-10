@@ -335,6 +335,34 @@ Resume without `--force-rescore` skips only items with complete v3 criteria. `ex
 
 If headline `outcome_accuracy` remains low (~0.14) after v3 re-score on v1.1.0, that reflects retrieval failure on the 61-item answer-GT pool (not synthesis fallback). Follow the **[v1.2.0 migration checklist](../specs/016-fair-outcome-scoring/checklists/v1.2.0-migration.md)** for dataset, agent, judge, and full-repro phases targeting **0.45–0.60** graph-full outcome.
 
+## Bundle v2.0 and paper-v2.0 (017)
+
+Custom-judge **v2.0.0** is a net-new 200-item dev split with **100% answer-GT**, quota-balanced profiles (~68 / 66 / 66), and ≥40 multi-filing `comparison_structured` items. Generation details: [custom-judge-dataset-generation.md § Bundle v2.0](custom-judge-dataset-generation.md#bundle-v20-net-new-pool).
+
+Published bundle: `data/benchmarks/custom-judge/v2.0.0/`. Release lock: `releases/paper-v2.0/manifest.yaml`.
+
+### Full paper-v2.0 reproduction
+
+```bash
+git lfs pull --include="data/benchmarks/custom-judge/v2.0.0/corpus/**"
+export OFFLINE_BENCHMARK=1 USE_MOCK_LLM=0 USE_MOCK_JUDGE=0
+
+uv run agent-query repro run-all \
+  --manifest releases/paper-v2.0/manifest.yaml \
+  --output reports/repro-paper-v2.0 \
+  --defer-judge --resume
+
+uv run agent-query repro export-tables \
+  --manifest releases/paper-v2.0/manifest.yaml \
+  --input reports/repro-paper-v2.0
+
+uv run agent-query repro report --input reports/repro-paper-v2.0
+```
+
+**v2 headline semantics**: `task_success` = mean value_alignment over n=200; no `rubric_alignment` row in exports. Judge v3.1 + `required_claims` on all items.
+
+Operator quickstart: [017 quickstart](../specs/017-custom-judge-v2/quickstart.md).
+
 ## Output layout
 
 ```text

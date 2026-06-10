@@ -82,11 +82,14 @@ specs/017-custom-judge-v2/
 src/
 ├── evaluation/
 │   ├── generation/
-│   │   ├── bundle.py                   # EXTEND: v2 publish gates, scorability report
-│   │   ├── item_validator.py           # EXTEND: answer-GT required, answer_type rules
-│   │   ├── gemini_item_generator.py    # EXTEND: v2 prompts (comparison_structured)
-│   │   ├── feasibility_macro.py        # NEW: macro-bindability gate per item
-│   │   └── publish_audit.py            # NEW: 10% audit checklist + sign-off record
+│   │   ├── bundle.py                   # v2 publish gates, dev split selection hook, scorability
+│   │   ├── profile_selection.py        # quota-balanced dev split from dev_pool
+│   │   ├── comparison_gt.py            # semantic comparison_structured validation
+│   │   ├── v2_item_normalize.py        # answer_type + required_claims repair
+│   │   ├── item_validator.py           # answer-GT required, answer_type rules
+│   │   ├── gemini_item_generator.py    # v2 prompts (comparison_structured)
+│   │   ├── feasibility_macro.py        # macro-bindability gate per item
+│   │   └── publish_audit.py            # 10% audit checklist + sign-off record
 │   ├── reproduction/
 │   │   ├── export.py                   # MODIFY: task_success v2 = VA-only when bundle ≥2.0
 │   │   ├── report_models.py            # MODIFY: metric catalog for v2 semantics
@@ -108,7 +111,7 @@ configs/benchmarks/
 
 data/benchmarks/custom-judge/
 ├── v1.2.0/                             # UNCHANGED (audit)
-└── v2.0.0/                             # NEW: net-new items + corpus
+└── v2.0.0/                             # PUBLISHED: net-new 200-item balanced dev split + corpus
 
 releases/
 ├── paper-v1.0/                         # UNCHANGED
