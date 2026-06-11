@@ -107,14 +107,31 @@ class FlatChunkBaseline:
             return None
 
     def _vectors_cache_path(self) -> Path:
-        return self._cache_dir / f"vectors-{self._snapshot.snapshot_id}.json"
+        model_tag = "minilm" if self._st_model is not None else "hash"
+        return self._cache_dir / f"vectors-{model_tag}-{self._snapshot.snapshot_id}.json"
+
+    def _expected_embed_dim(self) -> int:
+        if self._st_model is not None:
+            dim_fn = getattr(self._st_model, "get_embedding_dimension", None)
+            if callable(dim_fn):
+                return int(dim_fn())
+            return int(self._st_model.get_sentence_embedding_dimension())
+        return _HASH_EMBED_DIM
+
+    def _cache_is_valid(self, cached: dict[str, list], expected_ids: set[str]) -> bool:
+        if set(cached.keys()) != expected_ids:
+            return False
+        if not cached:
+            return True
+        sample = cached[next(iter(cached))]
+        return len(sample) == self._expected_embed_dim()
 
     def _load_or_build_chunk_vectors(self) -> dict[str, list[float]]:
         expected_ids = {rec.node_id for rec in self._records}
         cache_path = self._vectors_cache_path()
         if cache_path.is_file():
             cached = json.loads(cache_path.read_text(encoding="utf-8"))
-            if set(cached.keys()) == expected_ids:
+            if self._cache_is_valid(cached, expected_ids):
                 return {node_id: _to_vector(vec) for node_id, vec in cached.items()}
 
         vectors = self._encode_records(self._records)
