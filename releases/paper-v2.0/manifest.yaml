@@ -1,16 +1,16 @@
 schema_version: "1.0.0"
 release_tag: paper-v2.0
-git_sha: TBD
+git_sha: "718bb5585f1ac0553bcef21e4b6b8bed7fa47239"
 custom_judge_version: "2.0.0"
 custom_judge_bundle_path: data/benchmarks/custom-judge/v2.0.0
 eval_split: dev
 reproduction_mode: live_reexecution
 
 corpus_hashes:
-  corpus/graph_node_index.json: "sha256:TBD"
+  corpus/graph_node_index.json: "sha256:718c7f3ed65fc0f4e50dedda3c34440bdebdbb686de0efc31866a96638f8b3a5"
 
 items_hash: "sha256:TBD"
-relevance_labels_hash: "sha256:TBD"
+relevance_labels_hash: "sha256:eaa3cc98a7d7de1b8a679f0c30bd205e997160f7da8696dc73996fafd317e6bd"
 relevance_coverage_rate: 1.0
 
 variant_ids:
