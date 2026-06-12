@@ -133,6 +133,9 @@ class GeminiItemGenerator:
             "Rules:\n"
             "- Every expected_bindings.accessions value MUST appear in sampled issuers.\n"
             "- Every expected_section_paths entry MUST be copied exactly from available_section_paths.\n"
+            "- NEVER paste answer text, dollar amounts, or sentence fragments into expected_section_paths; "
+            "use section slugs only (e.g. Item 1A. Risk Factors, Item 7. Management's Discussion, "
+            "XBRL Financial Facts).\n"
             "- finagentbench profile MUST use >=2 accessions and set multi_filing_required true.\n"
             f"{rules_tail}"
         )

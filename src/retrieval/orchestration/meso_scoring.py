@@ -98,6 +98,9 @@ def score_section(
         if "risk_factors" in section_id_lower or "html-risk" in node_id:
             components["risk_section_boost"] = 12.0
             score += 12.0
+        if "business_description" in section_id_lower or "item_1" in section_id_lower:
+            components["risk_query_business_penalty"] = -6.0
+            score -= 6.0
     elif prefer_html and _RISK_QUERY.search(q):
         if any(
             k in label_lower or section_id_lower
@@ -105,6 +108,13 @@ def score_section(
         ):
             components["risk_keyword"] = 3.0
             score += 3.0
+
+    if "risk_factors" in section_id_lower or section_id_lower.endswith("risk_factors"):
+        components["section_slug_risk"] = 1.5
+        score += 1.5
+    if "md_and_a" in section_id_lower or section_id_lower.endswith("md_and_a"):
+        components["section_slug_mda"] = 1.5
+        score += 1.5
 
     if prefer_html and not is_mda_query(q) and any(
         k in label_lower for k in ("risk", "management", "md&a", "business", "item 7")

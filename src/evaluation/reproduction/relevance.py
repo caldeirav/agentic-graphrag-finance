@@ -7,6 +7,12 @@ from collections import deque
 from pathlib import Path
 
 from evaluation.generation.item_validator import load_graph_paths
+from evaluation.generation.numeric_gt import (
+    is_numeric_gt_string,
+    xbrl_excerpt_matches_gt,
+)
+from evaluation.generation.path_sanitize import filter_canonical_graph_paths
+from parsing.xbrl_facts import xbrl_concept_matches_query
 from evaluation.generation.section_paths import (
     item_number_key,
     normalize_section_key,
@@ -172,6 +178,54 @@ def collect_chunks_under_section(
     return sorted(out)
 
 
+def refine_xbrl_relevance_chunks(
+    snapshot: GraphSnapshot,
+    chunk_ids: list[str],
+    *,
+    question: str,
+    gt_answer: str,
+) -> list[str]:
+    """Narrow XBRL-bucket labels to concept- and value-matching facts."""
+    if not chunk_ids:
+        return chunk_ids
+    node_by_id = {n.node_id: n for n in snapshot.nodes}
+    xbrl_ids = [
+        cid
+        for cid in chunk_ids
+        if node_by_id.get(cid) is not None
+        and node_by_id[cid].node_type == GraphNodeType.CHUNK_XBRL_FACT
+    ]
+    if not xbrl_ids or len(xbrl_ids) < len(chunk_ids):
+        return chunk_ids
+
+    concept_matched = [
+        cid
+        for cid in xbrl_ids
+        if xbrl_concept_matches_query(
+            str(
+                (node_by_id[cid].properties or {}).get("xbrl_concept")
+                or node_by_id[cid].label
+                or ""
+            ),
+            question,
+        )
+    ]
+    pool = concept_matched or xbrl_ids
+
+    if gt_answer and is_numeric_gt_string(gt_answer):
+        value_matched = [
+            cid
+            for cid in pool
+            if xbrl_excerpt_matches_gt(
+                (node_by_id[cid].source_ref or node_by_id[cid].label or ""),
+                gt_answer,
+            )
+        ]
+        if value_matched:
+            return sorted(value_matched)
+    return sorted(pool) if concept_matched else chunk_ids
+
+
 def resolve_item_chunk_ids(
     snapshot: GraphSnapshot,
     section_paths: list[str],
@@ -200,7 +254,8 @@ def materialize_relevance_labels(
 ) -> RelevanceLabelSet:
     snapshot_id, snapshot = load_bundle_snapshots(bundle_root)
     index_path = bundle_root / "corpus" / "graph_node_index.json"
-    graph_paths = load_graph_paths(index_path) if index_path.is_file() else set()
+    raw_graph_paths = load_graph_paths(index_path) if index_path.is_file() else set()
+    graph_paths = filter_canonical_graph_paths(raw_graph_paths)
     snapshot_accessions = {ref.accession for ref in snapshot.manifest.filing_refs}
     items_path = bundle_root / "items" / f"{split}.jsonl"
     rows: list[dict] = []
@@ -223,6 +278,13 @@ def materialize_relevance_labels(
                 snapshot_accessions=snapshot_accessions,
             )
         chunk_ids, unresolved = resolve_item_chunk_ids(snapshot, paths)
+        gt_answer = str((row.get("ground_truth") or {}).get("answer") or "")
+        chunk_ids = refine_xbrl_relevance_chunks(
+            snapshot,
+            chunk_ids,
+            question=str(row.get("question") or ""),
+            gt_answer=gt_answer,
+        )
         labels_by_item_id[item_id] = chunk_ids
         row["relevant_chunk_ids"] = chunk_ids
         if not chunk_ids:

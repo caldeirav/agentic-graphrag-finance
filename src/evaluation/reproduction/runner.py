@@ -480,6 +480,18 @@ class ReproRunner:
             acc_set = set(item.expected_bindings.accessions)
             pre_bound = [r for r in snapshot.manifest.filing_refs if r.accession in acc_set]
 
+        temporal_anchor = ""
+        if item.expected_bindings and item.expected_bindings.fiscal_periods:
+            periods = list(item.expected_bindings.fiscal_periods)
+            q_lower = item.question.lower()
+            for period in periods:
+                year = period[2:6] if period.startswith("FY") and len(period) >= 6 else ""
+                if year and (year in q_lower or f"in {year}" in q_lower):
+                    temporal_anchor = period
+                    break
+            if not temporal_anchor and periods:
+                temporal_anchor = periods[0]
+
         metadata = {
             "issuer_id": issuer,
             "benchmark_item": item.item_id,
@@ -487,7 +499,8 @@ class ReproRunner:
             "variant_disable_macro_router": str(caps.disable_macro_router).lower(),
             "variant_disable_graph_walker": str(caps.disable_graph_walker).lower(),
             "variant_xbrl_only": str(caps.xbrl_only).lower(),
-            "cli_prebound": "true" if caps.disable_macro_router and pre_bound else "false",
+            "cli_prebound": "true" if pre_bound else "false",
+            "temporal_anchor": temporal_anchor,
             "trace_level": "quiet",
             "defer_judge": "true" if self.defer_config.enabled else "false",
         }

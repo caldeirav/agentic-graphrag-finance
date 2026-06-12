@@ -8,6 +8,10 @@ from pathlib import Path
 from evaluation.generation.bundle_version import is_v2_or_later
 from evaluation.generation.comparison_gt import is_comparison_item, validate_comparison_structured
 from evaluation.generation.gt_classifier import is_numeric_answer_gt
+from evaluation.generation.path_sanitize import (
+    filter_canonical_graph_paths,
+    is_corrupt_section_path,
+)
 from evaluation.generation.section_paths import resolve_section_paths
 from models.benchmark_generation import AnswerType, GeneratedBenchmarkItem
 
@@ -63,9 +67,15 @@ def validate_item(
     if not item.expected_section_paths:
         errors.append("missing_section_paths")
     else:
+        filtered_paths = graph_paths
+        if graph_paths:
+            filtered_paths = filter_canonical_graph_paths(graph_paths)
+        for path in item.expected_section_paths:
+            if is_corrupt_section_path(path):
+                errors.append(f"corrupt_section_path:{path[:80]}")
         canonical_paths, unresolved = resolve_section_paths(
             item.expected_section_paths,
-            graph_paths,
+            filtered_paths,
             snapshot_accessions=snapshot_accessions,
         )
         for path in unresolved:

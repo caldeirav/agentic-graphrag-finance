@@ -30,5 +30,7 @@ prompt_template: |
        Use natural language; the judge scores whether both filings are covered,
        not any fixed boilerplate phrase.
   - expected_bindings.accessions: >=2 distinct accessions from the corpus
-  - expected_section_paths: paths spanning both filings
+  - expected_section_paths: paths spanning both filings (copy exact slugs from
+    available_section_paths — Item 1A, Item 7, XBRL Financial Facts; never answer
+    sentences or dollar amounts)
   - operation_class

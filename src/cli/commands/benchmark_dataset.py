@@ -379,6 +379,37 @@ def reproduce(
     typer.echo(f"Reproduce OK: version={version} items_hash={computed}")
 
 
+@app.command("repair-bundle")
+def repair_bundle_cmd(
+    bundle_root: Path = typer.Argument(
+        ...,
+        help="Published bundle root (e.g. data/benchmarks/custom-judge/v2.0.0)",
+    ),
+    split: str = typer.Option("dev", "--split"),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+    skip_relevance: bool = typer.Option(False, "--skip-relevance"),
+) -> None:
+    """Repair corrupt section paths, normalize numeric GT, and rematerialize relevance."""
+    from evaluation.generation.bundle_repair_v2 import repair_bundle
+
+    report = repair_bundle(
+        bundle_root.resolve(),
+        split=split,
+        dry_run=dry_run,
+        rematerialize_relevance=not skip_relevance,
+    )
+    typer.echo(
+        f"scanned={report.items_scanned} paths_repaired={report.paths_repaired} "
+        f"numeric_normalized={report.numeric_normalized} "
+        f"index_paths_removed={report.index_paths_removed} "
+        f"changed_items={len(report.item_ids_changed)}"
+    )
+    if report.item_ids_changed:
+        typer.echo(f"changed: {', '.join(report.item_ids_changed[:20])}")
+        if len(report.item_ids_changed) > 20:
+            typer.echo(f"... and {len(report.item_ids_changed) - 20} more")
+
+
 @app.command("extend")
 def extend(
     parent_version: str = typer.Option(..., "--parent-version"),

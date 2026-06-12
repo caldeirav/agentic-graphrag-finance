@@ -140,6 +140,14 @@ def _mock_plan(query: str, toc: list[TocEntry], filing: FilingRef) -> TocPlanRes
     )
 
 
+def is_comparison_risk_query(query: str) -> bool:
+    q = query.lower()
+    return (
+        any(k in q for k in ("compare", "comparison", "versus", " vs ", "across"))
+        and is_risk_only_query(q)
+    )
+
+
 def is_financial_numeric_query(query: str) -> bool:
     q = query.lower()
     if is_mda_query(q):
@@ -186,6 +194,28 @@ def apply_toc_heuristics(
                         "xbrl_bucket",
                     ],
                     "rationale": (plan.rationale or "") + " [heuristic: MD&A query]",
+                }
+            )
+
+    if is_comparison_risk_query(q):
+        risk = by_kind.get(NarrativeSectionKind.RISK_FACTORS.value, [])
+        if not risk:
+            risk = [
+                e
+                for e in toc
+                if "risk_factors" in e.section_id or "item 1a" in e.label.lower()
+            ]
+        if risk:
+            return plan.model_copy(
+                update={
+                    "ranked_section_node_ids": [e.section_node_id for e in risk][:3],
+                    "primary_narrative_kind": NarrativeSectionKind.RISK_FACTORS.value,
+                    "exclude_kinds": [
+                        NarrativeSectionKind.BUSINESS_DESCRIPTION.value,
+                        NarrativeSectionKind.MD_AND_A.value,
+                        "xbrl_bucket",
+                    ],
+                    "rationale": (plan.rationale or "") + " [heuristic: comparison risk]",
                 }
             )
 
