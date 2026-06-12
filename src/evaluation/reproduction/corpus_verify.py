@@ -7,11 +7,26 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from evaluation.datasets.custom_judge import CustomJudgeDataset
+from evaluation.generation.bundle import items_hash
 from evaluation.reproduction.manifest import sha256_file
 from models.benchmark_generation import DatasetManifest
 from models.reproduction import ReleaseManifest
 
 _TBD_HASH_VALUES = frozenset({"", "TBD", "sha256:TBD"})
+
+
+@dataclass
+class BundlePinResult:
+    ok: bool
+    mismatched: list[str] = field(default_factory=list)
+
+    @property
+    def message(self) -> str:
+        if self.ok:
+            return "Bundle pins verified."
+        lines = ["Bundle pin verification failed:"]
+        lines.extend(f"  {item}" for item in self.mismatched)
+        return "\n".join(lines)
 
 
 @dataclass
@@ -50,6 +65,48 @@ def _normalize_hash(value: str) -> str:
     if value.startswith("sha256:"):
         return value.lower()
     return f"sha256:{value.lower()}"
+
+
+def _is_pinned_hash(value: str) -> bool:
+    return value.strip() not in _TBD_HASH_VALUES
+
+
+def verify_bundle_pins(
+    manifest: ReleaseManifest,
+    *,
+    repo_root: Path | None = None,
+) -> BundlePinResult:
+    """Verify eval items and relevance labels match release manifest pins."""
+    root = repo_root or Path.cwd()
+    bundle_root = root / manifest.custom_judge_bundle_path
+    mismatched: list[str] = []
+
+    if _is_pinned_hash(manifest.items_hash):
+        items_path = bundle_root / "items" / f"{manifest.eval_split}.jsonl"
+        if not items_path.is_file():
+            mismatched.append(f"missing eval split: {items_path}")
+        else:
+            actual = _normalize_hash(items_hash(items_path))
+            expected = _normalize_hash(manifest.items_hash)
+            if actual != expected:
+                mismatched.append(
+                    f"items_hash mismatch: expected {expected}, got {actual}"
+                )
+
+    if _is_pinned_hash(manifest.relevance_labels_hash):
+        sidecar_path = bundle_root / "relevance_labels.json"
+        if not sidecar_path.is_file():
+            mismatched.append(f"missing relevance sidecar: {sidecar_path}")
+        else:
+            data = json.loads(sidecar_path.read_text(encoding="utf-8"))
+            actual = _normalize_hash(str(data.get("labels_hash") or ""))
+            expected = _normalize_hash(manifest.relevance_labels_hash)
+            if actual != expected:
+                mismatched.append(
+                    f"relevance_labels_hash mismatch: expected {expected}, got {actual}"
+                )
+
+    return BundlePinResult(ok=not mismatched, mismatched=mismatched)
 
 
 def resolve_corpus_hashes(manifest: ReleaseManifest, bundle_root: Path) -> dict[str, str]:

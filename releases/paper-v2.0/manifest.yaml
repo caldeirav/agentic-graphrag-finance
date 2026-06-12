@@ -1,6 +1,7 @@
 schema_version: "1.0.0"
 release_tag: paper-v2.0
-git_sha: "TBD"
+# Optional reference commit for provenance; repro verifies bundle/corpus hashes instead.
+git_sha: TBD
 custom_judge_version: "2.0.0"
 custom_judge_bundle_path: data/benchmarks/custom-judge/v2.0.0
 eval_split: dev

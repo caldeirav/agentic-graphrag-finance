@@ -73,12 +73,13 @@ PAPER_V1_VARIANT_IDS = (
 class ReleaseManifest(BaseModel):
     schema_version: str = "1.0.0"
     release_tag: str
-    git_sha: str
+    git_sha: str = "TBD"  # optional reference commit; not enforced at repro time
     custom_judge_version: str
     custom_judge_bundle_path: str
     eval_split: str = "dev"
     reproduction_mode: ReproductionMode = ReproductionMode.LIVE_REEXECUTION
     corpus_hashes: dict[str, str] = Field(default_factory=dict)
+    items_hash: str = ""
     relevance_labels_hash: str = ""
     relevance_coverage_rate: float = 0.0
     variant_ids: list[str] = Field(default_factory=list)

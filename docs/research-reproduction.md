@@ -204,7 +204,7 @@ git checkout paper-v1.0    # when published
 git lfs pull --include="data/benchmarks/custom-judge/v1.0.0/corpus/**"
 ```
 
-Release manifest: `releases/paper-v1.0/manifest.yaml` (git SHA, judge/LLM/embedding pins, tolerance bands).
+Release manifest: `releases/paper-v1.0/manifest.yaml` pins **corpus content hashes**, **items hash**, and **relevance label hash** (plus judge/LLM/embedding config paths). `git_sha` is an optional provenance note only — repro does not require checking out a specific commit unless you pass `--strict-git`.
 
 ### 2. Verify frozen corpus
 
@@ -339,7 +339,7 @@ If headline `outcome_accuracy` remains low (~0.14) after v3 re-score on v1.1.0, 
 
 Custom-judge **v2.0.0** is a net-new 200-item dev split with **100% answer-GT**, quota-balanced profiles (~68 / 66 / 66), and ≥40 multi-filing `comparison_structured` items. Generation details: [custom-judge-dataset-generation.md § Bundle v2.0](custom-judge-dataset-generation.md#bundle-v20-net-new-pool).
 
-Published bundle: `data/benchmarks/custom-judge/v2.0.0/`. Release lock: `releases/paper-v2.0/manifest.yaml`.
+Published bundle: `data/benchmarks/custom-judge/v2.0.0/`. Release lock: `releases/paper-v2.0/manifest.yaml` verifies **corpus**, **items**, and **relevance** hashes — not git HEAD. Use `--no-resume` and a fresh `--output` dir when re-running after code or bundle fixes.
 
 ### Full paper-v2.0 reproduction
 

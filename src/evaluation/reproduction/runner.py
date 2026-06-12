@@ -19,7 +19,11 @@ from evaluation.judges.outcome_scoring import compute_outcome_scores
 from evaluation.metrics.ranking import compute_ranking_metrics
 from evaluation.metrics.trajectory import trajectory_fidelity_score
 from evaluation.reproduction.accession_index import AccessionIndex
-from evaluation.reproduction.corpus_verify import dry_run_registry_check, verify_corpus_hashes
+from evaluation.reproduction.corpus_verify import (
+    dry_run_registry_check,
+    verify_bundle_pins,
+    verify_corpus_hashes,
+)
 from evaluation.reproduction.defer_config import resolve_defer_config
 from evaluation.reproduction.errors import MissingBindingsError
 from evaluation.reproduction.export import (
@@ -168,6 +172,9 @@ class ReproRunner:
         result = verify_corpus_hashes(self._manifest, repo_root=self._repo_root)
         if not result.ok:
             raise RuntimeError(result.message)
+        pin_result = verify_bundle_pins(self._manifest, repo_root=self._repo_root)
+        if not pin_result.ok:
+            raise RuntimeError(pin_result.message)
         dry_run_registry_check(self._manifest, repo_root=self._repo_root)
 
     def materialize_relevance(self) -> None:
@@ -616,9 +623,20 @@ class ReproRunner:
             import subprocess
 
             head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-            if head != self._manifest.git_sha and self._manifest.git_sha != "TBD":
-                msg = f"git SHA mismatch: HEAD={head} manifest={self._manifest.git_sha}"
+            pinned = (self._manifest.git_sha or "TBD").strip()
+            if pinned not in {"TBD", ""} and head != pinned:
+                msg = f"git SHA mismatch: HEAD={head} manifest={pinned}"
                 raise RuntimeError(msg)
+        elif (self._manifest.git_sha or "TBD").strip() not in {"TBD", ""}:
+            import subprocess
+
+            head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+            pinned = self._manifest.git_sha.strip()
+            if head != pinned:
+                _progress(
+                    f"Note: running from git {head[:12]} (manifest reference {pinned[:12]}); "
+                    "data pins are verified separately"
+                )
 
         if not resume and output_dir.exists():
             shutil.rmtree(output_dir)

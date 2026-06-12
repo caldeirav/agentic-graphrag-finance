@@ -62,7 +62,7 @@ def verify_corpus(
     runner = _runner(manifest)
     runner.verify_corpus()
     typer.echo("Registry preflight passed (split header loaded, no eval items executed).")
-    typer.echo("Corpus verification passed.")
+    typer.echo("Corpus and bundle pins verified.")
 
 
 @app.command("materialize-relevance")
@@ -201,7 +201,11 @@ def run_all(
     output: Path = typer.Option(None, "--output"),
     max_items: int | None = typer.Option(None, "--max-items"),
     skip_relevance: bool = typer.Option(False, "--skip-relevance"),
-    strict_git: bool = typer.Option(False, "--strict-git"),
+    strict_git: bool = typer.Option(
+        False,
+        "--strict-git",
+        help="Fail when HEAD != manifest git_sha (opt-in; default verifies data hashes only)",
+    ),
     defer_judge: bool = typer.Option(False, "--defer-judge"),
     resume: bool = typer.Option(True, "--resume/--no-resume"),
     judge_only: bool = typer.Option(False, "--judge-only"),
@@ -219,7 +223,7 @@ def run_all(
         output_dir=out,
         max_items=max_items,
         skip_relevance=skip_relevance,
-        strict_git=strict_git or rel.release_tag in {"paper-v1.0", "paper-v2.0"},
+        strict_git=strict_git,
         resume=resume,
         export_only=export_only,
         judge_only=judge_only,
