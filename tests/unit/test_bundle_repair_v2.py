@@ -47,6 +47,33 @@ def test_repair_expected_section_paths_row() -> None:
         row,
         graph_paths,
         snapshot_accessions=set(row["expected_bindings"]["accessions"]),
+        repair_version="v1",
     )
     assert changed
     assert all("Item 1A" in p or "RISK" in p.upper() for p in paths)
+
+
+def test_repair_v2_divestiture_to_mda() -> None:
+    graph_paths = {
+        "0000034088-26-000067/ITEM 1. BUSINESS",
+        "0000034088-26-000067/10-Q Exxon Mobil Corporation 2026-03-31",
+        "0000034088-26-000067/Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+        "0000034088-26-000067/XBRL Financial Facts",
+    }
+    row = {
+        "question": "According to Exxon Mobil's Q1 2026 report, which two businesses were sold?",
+        "ground_truth": {"answer": "Singapore retail fuels business and Mobil Argentina S.A."},
+        "expected_bindings": {"accessions": ["0000034088-26-000067"]},
+        "expected_section_paths": ["0000034088-26-000067/ITEM 1. BUSINESS"],
+        "inspiration_profile": "financebench",
+    }
+    paths, changed = repair_expected_section_paths_row(
+        row,
+        graph_paths,
+        snapshot_accessions={"0000034088-26-000067"},
+        repair_version="v2",
+    )
+    assert changed
+    assert "ITEM 1. BUSINESS" not in paths[0]
+    assert "management" in paths[0].lower() or "10-q" in paths[0].lower()
+

@@ -510,6 +510,9 @@ class ReproRunner:
             "temporal_anchor": temporal_anchor,
             "trace_level": "quiet",
             "defer_judge": "true" if self.defer_config.enabled else "false",
+            "suppress_benchmark_path_injection": (
+                "true" if item.suppress_benchmark_path_injection else "false"
+            ),
         }
         resp = svc.answer(
             QueryRequest(

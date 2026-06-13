@@ -79,6 +79,8 @@ class BenchmarkItem(BaseModel):
     expected_section_paths: list[str] = Field(default_factory=list)
     multi_filing_required: bool = False
     expect_binding_failure: bool = False
+    path_repair_version: str | None = None
+    suppress_benchmark_path_injection: bool = False
 
 
 class RankingMetrics(BaseModel):

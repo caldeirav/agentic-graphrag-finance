@@ -361,6 +361,50 @@ uv run agent-query repro report --input reports/repro-paper-v2.0
 
 **v2 headline semantics**: `task_success` = mean value_alignment over n=200; no `rubric_alignment` row in exports. Judge v3.1 + `required_claims` on all items.
 
+### Path-repair v2 + clean re-run protocol
+
+After v1 `repair-bundle` mis-mapped divestiture items to Item 1 Business, run **v2 repair** then a **fresh repro** (never `--resume` against a pre-fix checkpoint):
+
+```bash
+# 1. Re-map divestiture / narrative items → MD&A or 10-Q; rematerialize relevance
+uv run agent-query benchmark-dataset repair-bundle \
+  data/benchmarks/custom-judge/v2.0.0 \
+  --repair-version v2
+
+# 2. Update manifest pins from bundle (items_hash, relevance_labels_hash)
+uv run python -c "
+from pathlib import Path
+from evaluation.generation.bundle import items_hash
+import json, yaml
+root = Path('data/benchmarks/custom-judge/v2.0.0')
+rel = json.loads((root / 'relevance_labels.json').read_text())
+manifest = yaml.safe_load(Path('releases/paper-v2.0/manifest.yaml').read_text())
+manifest['items_hash'] = items_hash(root / 'items/dev.jsonl')
+manifest['relevance_labels_hash'] = rel['labels_hash']
+Path('releases/paper-v2.0/manifest.yaml').write_text(yaml.safe_dump(manifest, sort_keys=False))
+print('items_hash', manifest['items_hash'])
+print('relevance_labels_hash', manifest['relevance_labels_hash'])
+"
+
+# 3. Verify frozen bundle + pins
+uv run agent-query repro verify-corpus \
+  --manifest releases/paper-v2.0/manifest.yaml
+
+# 4. Full repro on a NEW output directory (no --resume)
+uv run agent-query repro run-all \
+  --manifest releases/paper-v2.0/manifest.yaml \
+  --output reports/repro-paper-v2.0-v2repair \
+  --defer-judge --no-resume
+
+# 5. Report + tables
+uv run agent-query repro report \
+  --input reports/repro-paper-v2.0-v2repair \
+  --manifest releases/paper-v2.0/manifest.yaml \
+  --output reports/repro-paper-v2.0-v2repair/report.html
+```
+
+Repaired items carry `suppress_benchmark_path_injection: true` so meso routing uses TOC/heuristics instead of forced `expected_section_paths` injection. Compare against the prior run only after both use the **same** bundle hashes.
+
 Operator quickstart: [017 quickstart](../specs/017-custom-judge-v2/quickstart.md).
 
 ## Output layout

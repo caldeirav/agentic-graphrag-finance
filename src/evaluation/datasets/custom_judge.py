@@ -93,6 +93,10 @@ class CustomJudgeDataset:
                     operation_class=OperationClass(
                         str(row.get("operation_class", OperationClass.QUALITATIVE.value)).upper()
                     ),
+                    path_repair_version=row.get("path_repair_version"),
+                    suppress_benchmark_path_injection=bool(
+                        row.get("suppress_benchmark_path_injection", False)
+                    ),
                 )
             )
         return items

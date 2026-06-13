@@ -97,6 +97,10 @@ class QueryService:
             "variant_xbrl_only": request.metadata.get("variant_xbrl_only", "").lower()
             in ("1", "true", "yes"),
             "expected_section_paths_json": request.metadata.get("expected_section_paths", "[]"),
+            "suppress_benchmark_path_injection": request.metadata.get(
+                "suppress_benchmark_path_injection", ""
+            ).lower()
+            in ("1", "true", "yes"),
         }
 
         defer_judge = should_skip_post_query_audit(request.metadata)

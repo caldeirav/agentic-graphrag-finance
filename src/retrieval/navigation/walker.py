@@ -151,6 +151,8 @@ def _inject_benchmark_section_candidates(
     budgets: NavigationBudgetState,
 ) -> None:
     """Boost meso routing toward benchmark expected_section_paths when provided."""
+    if state.get("suppress_benchmark_path_injection"):
+        return
     raw = state.get("expected_section_paths_json") or "[]"
     try:
         paths = json.loads(raw)

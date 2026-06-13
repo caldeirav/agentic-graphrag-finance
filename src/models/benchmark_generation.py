@@ -151,6 +151,8 @@ class GeneratedBenchmarkItem(BaseModel):
     operation_class: OperationClass = OperationClass.QUALITATIVE
     validation_status: Literal["accepted", "rejected"] = "accepted"
     validation_errors: list[str] = Field(default_factory=list)
+    path_repair_version: str | None = None
+    suppress_benchmark_path_injection: bool = False
 
 
 class DatasetManifest(BaseModel):

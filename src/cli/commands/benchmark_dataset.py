@@ -388,6 +388,11 @@ def repair_bundle_cmd(
     split: str = typer.Option("dev", "--split"),
     dry_run: bool = typer.Option(False, "--dry-run"),
     skip_relevance: bool = typer.Option(False, "--skip-relevance"),
+    repair_version: str = typer.Option(
+        "v2",
+        "--repair-version",
+        help="v2 remaps divestiture paths to MD&A/10-Q and suppresses path injection",
+    ),
 ) -> None:
     """Repair corrupt section paths, normalize numeric GT, and rematerialize relevance."""
     from evaluation.generation.bundle_repair_v2 import repair_bundle
@@ -397,9 +402,11 @@ def repair_bundle_cmd(
         split=split,
         dry_run=dry_run,
         rematerialize_relevance=not skip_relevance,
+        repair_version=repair_version,
     )
     typer.echo(
         f"scanned={report.items_scanned} paths_repaired={report.paths_repaired} "
+        f"v2_cohort={report.v2_cohort_repaired} injection_suppressed={report.injection_suppressed} "
         f"numeric_normalized={report.numeric_normalized} "
         f"index_paths_removed={report.index_paths_removed} "
         f"changed_items={len(report.item_ids_changed)}"
