@@ -7,8 +7,8 @@ eval_split: dev
 reproduction_mode: live_reexecution
 corpus_hashes:
   corpus/graph_node_index.json: sha256:ecfa94e8e6ffc596b695bba5998a02af6639614f8643edf8ca2d46055cdc3071
-items_hash: sha256:aa0cf39bf699173aba2aea53fbb6bd3809c9ffaee733a44171aa3634bd566076
-relevance_labels_hash: sha256:70144a217dd940a63636c9be94420b669d9972797ac552476ff41cdafadb6278
+items_hash: sha256:f326702d4119ec360f7ab3272ecfba0e847dbf11dbd8324a197fb32f61b2cc63
+relevance_labels_hash: sha256:e0ab95595e346b3ff390cdf6a967dff469be9e40dd76e527d945c78112b1dcc7
 relevance_coverage_rate: 1.0
 variant_ids:
 - graph-full

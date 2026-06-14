@@ -10,25 +10,26 @@ from pathlib import Path
 from models.evaluation import BenchmarkResult
 
 DEFAULT_SMOKE_ITEM_IDS_REL = "smoke_dev_item_ids.json"
+DEFAULT_FINAGENT_SMOKE_ITEM_IDS_REL = "smoke_finagentbench_item_ids.json"
 DEFAULT_VARIANT = "graph-full"
 
-# Gate thresholds — tune after first smoke baseline; stricter than v1.2 pool (200-item VA).
+# Gate thresholds — tuned after smoke v6 (2026-06); raise when agent improves further.
 DEFAULT_THRESHOLDS: dict[str, float | int] = {
-    "min_task_success": 0.25,
-    "max_mrr_zero_share": 0.35,
-    "max_mrr_ok_va_zero": 15,
-    "max_abstention_like_share": 0.25,
-    "min_items_with_va": 10,
+    "min_task_success": 0.45,
+    "max_mrr_zero_share": 0.10,
+    "max_mrr_ok_va_zero": 12,
+    "max_abstention_like_share": 0.10,
+    "min_items_with_va": 25,
 }
 
 
 @dataclass
 class SmokeGateThresholds:
-    min_task_success: float = 0.25
-    max_mrr_zero_share: float = 0.35
-    max_mrr_ok_va_zero: int = 15
-    max_abstention_like_share: float = 0.25
-    min_items_with_va: int = 10
+    min_task_success: float = 0.45
+    max_mrr_zero_share: float = 0.10
+    max_mrr_ok_va_zero: int = 12
+    max_abstention_like_share: float = 0.10
+    min_items_with_va: int = 25
 
     @classmethod
     def from_mapping(cls, raw: dict[str, float | int] | None) -> SmokeGateThresholds:
@@ -150,6 +151,50 @@ def build_stratified_smoke_ids(
             if len(out) >= count:
                 break
     return out
+
+
+def build_finagent_smoke_ids(
+    bundle_root: Path,
+    *,
+    split: str = "dev",
+) -> list[str]:
+    """All finagentbench item ids in the bundle split (fast iteration subset)."""
+    items_path = bundle_root / "items" / f"{split}.jsonl"
+    if not items_path.is_file():
+        msg = f"Split not found: {items_path}"
+        raise FileNotFoundError(msg)
+    ids: list[str] = []
+    for line in items_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        if row.get("inspiration_profile") == "finagentbench":
+            ids.append(str(row["item_id"]))
+    return sorted(ids)
+
+
+def write_smoke_item_ids_file(
+    bundle_root: Path,
+    item_ids: list[str],
+    rel: str,
+    *,
+    label: str = "",
+) -> Path:
+    path = bundle_root / rel
+    payload = {
+        "version": 1,
+        "count": len(item_ids),
+        "label": label or rel,
+        "item_ids": item_ids,
+    }
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    return path
+
+
+def resolve_smoke_item_ids_path(subset: str | None) -> str:
+    if subset == "finagent":
+        return DEFAULT_FINAGENT_SMOKE_ITEM_IDS_REL
+    return DEFAULT_SMOKE_ITEM_IDS_REL
 
 
 def _value_alignment(row: BenchmarkResult) -> float:

@@ -510,7 +510,44 @@ _XOM_SEGMENTS = (
     "Chemical Products",
     "Specialty Products",
 )
-_MIN_RISK_SENTENCE_SCORE = 3.0
+_MIN_RISK_SENTENCE_SCORE = 6.0
+_MIN_COMPARISON_TOPIC_KEYWORDS = (
+    "geopolitic",
+    "international",
+    "cyber",
+    "supply chain",
+    "economic",
+    "disruption",
+    "tariff",
+    "sanction",
+    "war",
+    "trade",
+    "conflict",
+    "operational",
+)
+
+
+def _comparison_query_topic_terms(query: str) -> list[str]:
+    q = query.lower()
+    terms: list[str] = []
+    if "cyber" in q:
+        terms.append("cyber")
+    if "supply chain" in q or "operational disruption" in q:
+        terms.extend(["supply chain", "disruption", "shortage", "logistics"])
+    if "global economic" in q or "economic condition" in q or "economic risk" in q:
+        terms.extend(["economic", "recession", "demand", "inflation", "slowdown"])
+    for kw in _MIN_COMPARISON_TOPIC_KEYWORDS:
+        if kw in q and kw not in terms:
+            terms.append(kw)
+    return terms
+
+
+def _sentence_matches_comparison_topic(query: str, sentence: str) -> bool:
+    terms = _comparison_query_topic_terms(query)
+    s = sentence.lower()
+    if not terms:
+        return "risk" in s
+    return any(t in s for t in terms)
 
 
 def _is_boilerplate_excerpt(excerpt: str) -> bool:
@@ -923,6 +960,8 @@ def _extract_risk_sentences(
         score = excerpt_topic_score(query, text, section_id)
         if score < _MIN_RISK_SENTENCE_SCORE and "risk" not in text.lower():
             continue
+        if not _sentence_matches_comparison_topic(query, text):
+            continue
         scored.append((score, text))
     scored.sort(key=lambda pair: pair[0], reverse=True)
     return [text for score, text in scored[:max_sentences] if score >= _MIN_RISK_SENTENCE_SCORE]
@@ -935,7 +974,7 @@ def _best_risk_sentences_for_filing(
 ) -> tuple[list[str], list[EvidenceChunk]]:
     pool = [
         c
-        for c in rank_evidence_by_topic(_chunks_for_filing(evidence, filing), query, max_chunks=6)
+        for c in rank_evidence_by_topic(_chunks_for_filing(evidence, filing), query, max_chunks=8)
         if not _is_boilerplate_excerpt(c.excerpt)
     ]
     if not pool:

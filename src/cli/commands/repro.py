@@ -317,19 +317,45 @@ def smoke_run_cmd(
         REPO_ROOT / "releases/paper-v2.0-smoke/manifest.yaml",
         "--manifest",
     ),
+    subset: str = typer.Option(
+        "full",
+        "--subset",
+        help="Item list: full (50 stratified) or finagent (all finagentbench dev items)",
+    ),
     defer_judge: bool = typer.Option(True, "--defer-judge/--no-defer-judge"),
     resume: bool = typer.Option(False, "--resume/--no-resume"),
     judge_after: bool = typer.Option(True, "--judge-after/--no-judge-after"),
 ) -> None:
-    """Run graph-full on the stratified 50-item smoke subset (agent iteration loop)."""
+    """Run graph-full on a smoke subset (agent iteration loop)."""
     _require_offline()
-    from evaluation.reproduction.smoke_gate import DEFAULT_VARIANT, load_smoke_item_ids
+    from evaluation.reproduction.smoke_gate import (
+        DEFAULT_VARIANT,
+        build_finagent_smoke_ids,
+        load_smoke_item_ids,
+        resolve_smoke_item_ids_path,
+        write_smoke_item_ids_file,
+    )
 
     rel = load_release_manifest(manifest)
     bundle = REPO_ROOT / rel.custom_judge_bundle_path
-    rel_path = rel.smoke_item_ids_path or "smoke_dev_item_ids.json"
+    if subset == "finagent":
+        rel_path = resolve_smoke_item_ids_path("finagent")
+        finagent_path = bundle / rel_path
+        if not finagent_path.is_file():
+            ids = build_finagent_smoke_ids(bundle, split=rel.eval_split)
+            write_smoke_item_ids_file(
+                bundle,
+                ids,
+                rel_path,
+                label="finagentbench dev smoke",
+            )
+            typer.echo(f"Wrote {len(ids)} finagent ids to {finagent_path}")
+    else:
+        rel_path = rel.smoke_item_ids_path or resolve_smoke_item_ids_path(None)
     item_ids = load_smoke_item_ids(bundle, rel_path)
-    typer.echo(f"Smoke run: {len(item_ids)} items, variant={DEFAULT_VARIANT}, output={output}")
+    typer.echo(
+        f"Smoke run: {len(item_ids)} items, subset={subset}, variant={DEFAULT_VARIANT}, output={output}"
+    )
     runner = _runner(manifest, defer_judge=defer_judge)
     runner.run_all(
         output_dir=output,
@@ -344,12 +370,62 @@ def smoke_run_cmd(
     typer.echo(f"Smoke agent run complete: {output}")
 
 
+@app.command("smoke-materialize")
+def smoke_materialize_cmd(
+    manifest: Path = typer.Option(
+        REPO_ROOT / "releases/paper-v2.0-smoke/manifest.yaml",
+        "--manifest",
+    ),
+    subset: str = typer.Option("full", "--subset", help="full or finagent item list file"),
+) -> None:
+    """Regenerate smoke item list files and rematerialize divestiture-aware relevance labels."""
+    _require_offline()
+    from evaluation.reproduction.relevance import materialize_relevance_labels
+    from evaluation.reproduction.smoke_gate import (
+        build_finagent_smoke_ids,
+        build_stratified_smoke_ids,
+        resolve_smoke_item_ids_path,
+        write_smoke_item_ids_file,
+    )
+
+    rel = load_release_manifest(manifest)
+    bundle = REPO_ROOT / rel.custom_judge_bundle_path
+    if subset == "finagent":
+        ids = build_finagent_smoke_ids(bundle, split=rel.eval_split)
+        path = write_smoke_item_ids_file(
+            bundle,
+            ids,
+            resolve_smoke_item_ids_path("finagent"),
+            label="finagentbench dev smoke",
+        )
+        typer.echo(f"Wrote {len(ids)} finagent ids to {path}")
+    else:
+        ids = build_stratified_smoke_ids(bundle, split=rel.eval_split, count=50)
+        path = write_smoke_item_ids_file(
+            bundle,
+            ids,
+            resolve_smoke_item_ids_path(None),
+            label="stratified 50-item smoke",
+        )
+        typer.echo(f"Wrote {len(ids)} stratified smoke ids to {path}")
+    typer.echo("Rematerializing relevance labels (divestiture chunk merge)...")
+    sidecar = materialize_relevance_labels(bundle, split=rel.eval_split)
+    typer.echo(
+        f"Relevance: coverage={sidecar.coverage_rate:.3f} hash={sidecar.labels_hash[:20]}..."
+    )
+
+
 @app.command("smoke-gate")
 def smoke_gate_cmd(
     input_dir: Path = typer.Option(..., "--input", help="Repro output with graph-full/results.json"),
     manifest: Path = typer.Option(
         REPO_ROOT / "releases/paper-v2.0-smoke/manifest.yaml",
         "--manifest",
+    ),
+    subset: str = typer.Option(
+        "full",
+        "--subset",
+        help="Item list: full (50 stratified) or finagent (finagentbench dev items)",
     ),
     variant: str = typer.Option("graph-full", "--variant"),
     fail: bool = typer.Option(True, "--fail/--no-fail", help="Exit 1 when gate fails"),
@@ -361,11 +437,15 @@ def smoke_gate_cmd(
         format_smoke_report,
         load_smoke_item_ids,
         profile_map_from_bundle,
+        resolve_smoke_item_ids_path,
     )
 
     rel = load_release_manifest(manifest)
     bundle = REPO_ROOT / rel.custom_judge_bundle_path
-    rel_path = rel.smoke_item_ids_path or "smoke_dev_item_ids.json"
+    if subset != "full":
+        rel_path = resolve_smoke_item_ids_path(subset)
+    else:
+        rel_path = rel.smoke_item_ids_path or resolve_smoke_item_ids_path(None)
     item_ids = load_smoke_item_ids(bundle, rel_path)
     thresholds = SmokeGateThresholds.from_mapping(rel.smoke_gate_thresholds or None)
     results_path = input_dir / variant / "results.json"

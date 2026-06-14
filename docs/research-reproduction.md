@@ -376,13 +376,27 @@ Use the **50-item stratified smoke subset** instead:
 ```bash
 export OFFLINE_BENCHMARK=1 USE_MOCK_LLM=0 USE_MOCK_JUDGE=0
 
-# 1. Run graph-full on 50 smoke items (~1–2h vs ~8h+ full repro)
+# 1. Rematerialize labels + smoke lists (after divestiture relevance fix)
+uv run agent-query repro smoke-materialize
+
+# 2. Run graph-full on 50 smoke items (~1–2h vs ~8h+ full repro)
 uv run agent-query repro smoke-run \
   --output reports/repro-paper-v2.0-smoke \
   --no-resume
 
-# 2. Evaluate gate (exit 1 on failure)
+# Finagent-only fast loop (~21 items)
+uv run agent-query repro smoke-run \
+  --subset finagent \
+  --output reports/repro-paper-v2.0-smoke-finagent \
+  --no-resume
+
+# 3. Evaluate gate (exit 1 on failure)
 uv run agent-query repro smoke-gate --input reports/repro-paper-v2.0-smoke
+
+# Finagent subset gate
+uv run agent-query repro smoke-gate \
+  --input reports/repro-paper-v2.0-smoke-finagent \
+  --subset finagent
 
 # 3. Score an existing full repro on the smoke subset only (no agent re-run)
 uv run agent-query repro smoke-gate --input reports/repro-paper-v2.0 --no-fail
@@ -392,12 +406,21 @@ uv run agent-query repro smoke-gate --input reports/repro-paper-v2.0 --no-fail
 
 | Metric | Target |
 |--------|--------|
-| `task_success` | ≥ 0.25 (raise as agent improves) |
-| MRR = 0 share | ≤ 35% |
-| MRR ≥ 0.5 & VA = 0 | ≤ 15 items |
-| Abstention-like answers | ≤ 25% |
+| `task_success` | ≥ 0.45 |
+| MRR = 0 share | ≤ 10% |
+| MRR ≥ 0.5 & VA = 0 | ≤ 12 items |
+| Abstention-like answers | ≤ 10% |
 
-When smoke passes consistently, run one lock repro with `REPRO_ALLOW_FULL=1`.
+When smoke passes consistently, run one lock repro with `REPRO_ALLOW_FULL=1`:
+
+```bash
+export OFFLINE_BENCHMARK=1 USE_MOCK_LLM=0 USE_MOCK_JUDGE=0 REPRO_ALLOW_FULL=1
+uv run agent-query repro run-all \
+  --manifest releases/paper-v2.0/manifest.yaml \
+  --output reports/repro-paper-v2.0-lock \
+  --defer-judge --no-resume
+uv run agent-query repro smoke-gate --input reports/repro-paper-v2.0-lock --no-fail
+```
 
 Regenerate the stratified item list after major bundle changes:
 

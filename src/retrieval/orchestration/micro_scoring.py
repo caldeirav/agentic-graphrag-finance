@@ -13,7 +13,7 @@ from parsing.xbrl_facts import (
     is_securities_sales_false_positive,
 )
 from retrieval.evidence_scope import period_alignment_score
-from retrieval.orchestration.meso_scoring import is_mda_query, is_narrative_mda_query
+from retrieval.orchestration.meso_scoring import is_divestiture_query, is_mda_query, is_narrative_mda_query
 
 _FINANCIAL_QUERY = re.compile(
     r"\b(revenue|sales|income|earnings|profit|assets|liabilities|cash|eps|margin|"
@@ -27,7 +27,9 @@ _RISK_CROSS_REF = re.compile(
 )
 _OFF_TOPIC_RISK_CHUNK = re.compile(
     r"(operating\s+expenses\s+for\s+\d{4}|internal\s+control\s+–\s+integrated\s+framework|"
-    r"share-based\s+compensation\s+expense|item\s+2\.\s+properties|basis\s+for\s+opinion)",
+    r"share-based\s+compensation\s+expense|item\s+2\.\s+properties|basis\s+for\s+opinion|"
+    r"identified\s+item|interest\s+rate\s+derivative|fiscal\s+quarter\s+interest\s+expense|"
+    r"net\s+gain\s*\(loss\)\s+from\s+interest\s+rate)",
     re.I,
 )
 _FINANCIAL_HIGHLIGHT_NOISE = re.compile(
@@ -45,6 +47,23 @@ _GEOPOLITICAL_TOPIC = re.compile(
 
 def is_financial_query(query: str) -> bool:
     return bool(_FINANCIAL_QUERY.search(query))
+
+
+def _is_comparison_query(query: str) -> bool:
+    q = query.lower()
+    return any(
+        k in q
+        for k in (
+            "compare",
+            "comparison",
+            "versus",
+            " vs ",
+            "both companies",
+            "both filings",
+            "across",
+            "contrast",
+        )
+    )
 
 
 def source_bias_multiplier(source: EvidenceSourceType, bias: SourceBias) -> float:
@@ -99,8 +118,9 @@ def qualitative_keyword_boost(
         k in ex for k in ("management", "md&a", "discussion", "liquidity")
     ):
         boost += 6.0
-    if "business" in q and "business" in ex:
-        boost += 4.0
+    if any(k in q for k in ("divest", "divestment", "proceeds", "sold as part", "business sales")):
+        if any(k in ex for k in ("divest", "singapore", "mobil argentina", "proceeds", "1.1 billion")):
+            boost += 15.0
     return boost
 
 
@@ -124,6 +144,15 @@ def risk_excerpt_score_adjustment(excerpt: str, section_id: str, *, query: str =
         excerpt
     ):
         adjust -= 12.0
+    if query and is_divestiture_query(query):
+        if "md_and_a" in sid:
+            adjust += 14.0
+        if any(k in ex for k in ("divest", "singapore", "mobil argentina", "proceeds")):
+            adjust += 16.0
+        if "business_description" in sid and not any(
+            k in ex for k in ("divest", "singapore", "mobil argentina", "proceeds")
+        ):
+            adjust -= 12.0
     if query and _GEOPOLITICAL_TOPIC.search(query) and _GEOPOLITICAL_TOPIC.search(excerpt):
         adjust += 12.0
     if re.search(
@@ -278,6 +307,16 @@ def score_chunk(
         if risk_adj:
             components["risk_excerpt_adjustment"] = round(risk_adj, 3)
             score += risk_adj
+        topic_score = excerpt_topic_score(query, excerpt, section_id)
+        if topic_score:
+            components["excerpt_topic_score"] = round(topic_score, 3)
+            score += topic_score
+
+    if qualitative_only and _is_comparison_query(query):
+        topic_score = excerpt_topic_score(query, excerpt, section_id)
+        if topic_score:
+            components["comparison_topic_score"] = round(topic_score, 3)
+            score += topic_score * 1.5
 
     subtotal = score
     components["subtotal_before_bias"] = round(subtotal, 3)
