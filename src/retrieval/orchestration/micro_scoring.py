@@ -140,22 +140,56 @@ def excerpt_topic_score(query: str, excerpt: str, section_id: str = "") -> float
     score = 0.0
     ex = excerpt.lower()
     q = query.lower()
+    sid = section_id.lower()
     if "risk" in q and "risk" in ex:
         score += 3.0
+    for kw in (
+        "geopolitic",
+        "international",
+        "trade",
+        "tariff",
+        "sanction",
+        "war",
+        "unrest",
+        "conflict",
+    ):
+        if kw in q and kw in ex:
+            score += 3.0
     if _GEOPOLITICAL_TOPIC.search(q):
         if _GEOPOLITICAL_TOPIC.search(excerpt):
-            score += 8.0
-        for kw in ("international", "trade", "tariff", "sanction", "geopolitic", "war"):
-            if kw in q and kw in ex:
-                score += 2.0
+            score += 5.0
+    if "cyber" in q and "cyber" in ex:
+        score += 8.0
+    if "supply chain" in q or "operational disruption" in q:
+        for kw in ("supply chain", "disruption", "shortage", "logistics", "operating"):
+            if kw in ex:
+                score += 4.0
+    if "economic condition" in q or "global economic" in q:
+        for kw in ("economic", "recession", "slowdown", "demand", "inflation", "gdp"):
+            if kw in ex:
+                score += 4.0
+    if "segment" in q:
+        for kw in ("upstream", "energy products", "chemical products", "specialty products", "segment"):
+            if kw in ex:
+                score += 5.0
+    if any(k in q for k in ("divest", "divestment", "proceeds")):
+        for kw in ("divest", "singapore", "mobil argentina", "proceeds", "1.1 billion", "asset sale"):
+            if kw in ex:
+                score += 8.0
     if _FINANCIAL_HIGHLIGHT_NOISE.search(ex):
         score -= 12.0
     if re.search(r"\b(currency|income/expense|interest expense|derivatives)\b", ex) and not re.search(
         r"\b(risk|tariff|sanction|geopolitic|war|unrest|trade barrier)\b", ex
     ):
         score -= 10.0
-    if "risk_factors" in section_id.lower():
+    if re.search(r"(controls and procedures|exhibit 31|dealer inventories|financial products segment)", ex):
+        score -= 20.0
+    if "forward-looking" in ex and "sustainability" in ex:
+        score -= 15.0
+    if "risk_factors" in sid:
         score += 3.0
+    if "md_and_a" in sid and any(k in q for k in ("divest", "md&a", "management")):
+        score += 4.0
     return score
 
 
