@@ -24,6 +24,7 @@ from retrieval.navigation.scope import (
     chunk_ids_in_section_subtree,
     narrative_kind_for_section_id,
 )
+from retrieval.navigation.benchmark_injection import filter_benchmark_injection_paths
 from retrieval.navigation.section_resolve import section_node_ids_for_path
 from retrieval.navigation.toc_planner import build_filing_toc, plan_meso_sections_toc
 from retrieval.navigation.validator import is_chunk_node, validate_hop_proposal
@@ -151,13 +152,17 @@ def _inject_benchmark_section_candidates(
     budgets: NavigationBudgetState,
 ) -> None:
     """Boost meso routing toward benchmark expected_section_paths when provided."""
-    if state.get("suppress_benchmark_path_injection"):
-        return
     raw = state.get("expected_section_paths_json") or "[]"
     try:
         paths = json.loads(raw)
     except json.JSONDecodeError:
         return
+    paths = filter_benchmark_injection_paths(
+        paths,
+        suppress_benchmark_path_injection=bool(
+            state.get("suppress_benchmark_path_injection")
+        ),
+    )
     if not paths:
         return
 

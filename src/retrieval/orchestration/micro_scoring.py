@@ -13,7 +13,7 @@ from parsing.xbrl_facts import (
     is_securities_sales_false_positive,
 )
 from retrieval.evidence_scope import period_alignment_score
-from retrieval.orchestration.meso_scoring import is_mda_query
+from retrieval.orchestration.meso_scoring import is_mda_query, is_narrative_mda_query
 
 _FINANCIAL_QUERY = re.compile(
     r"\b(revenue|sales|income|earnings|profit|assets|liabilities|cash|eps|margin|"
@@ -112,7 +112,7 @@ def risk_excerpt_score_adjustment(excerpt: str, section_id: str, *, query: str =
         adjust += 4.0
     if "md_and_a" in sid:
         adjust += 6.0
-    if query and is_mda_query(query) and "risk_factors" in sid and "md_and_a" not in sid:
+    if query and is_narrative_mda_query(query) and "risk_factors" in sid and "md_and_a" not in sid:
         adjust -= 8.0
     if _RISK_CROSS_REF.search(ex) and len(excerpt) < 2500:
         adjust -= 12.0

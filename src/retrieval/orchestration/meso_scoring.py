@@ -17,8 +17,27 @@ def is_mda_query(query: str) -> bool:
     return bool(_MDA_QUERY.search(query))
 
 
+def is_divestiture_query(query: str) -> bool:
+    q = query.lower()
+    return any(
+        k in q
+        for k in (
+            "divest",
+            "divestment",
+            "asset sale",
+            "proceeds from sale",
+            "disposal",
+            "sold in",
+        )
+    )
+
+
+def is_narrative_mda_query(query: str) -> bool:
+    return is_mda_query(query) or is_divestiture_query(query)
+
+
 def is_risk_only_query(query: str) -> bool:
-    return bool(_RISK_QUERY.search(query)) and not is_mda_query(query)
+    return bool(_RISK_QUERY.search(query)) and not is_narrative_mda_query(query)
 
 
 def score_section(
@@ -71,7 +90,7 @@ def score_section(
         score += 2.0
 
     if prefer_html and ("xbrl-facts" in node_id or "xbrl facts" in label_lower):
-        if is_mda_query(q) or any(
+        if is_narrative_mda_query(q) or any(
             k in q for k in ("risk", "management", "discussion", "policy", "footnote")
         ):
             components["xbrl_bucket_penalty"] = -4.0
@@ -81,7 +100,7 @@ def score_section(
         components["html_preference"] = 2.5
         score += 2.5
 
-    if prefer_html and is_mda_query(q):
+    if prefer_html and is_narrative_mda_query(q):
         if "md_and_a" in section_id_lower or "html-md" in node_id:
             components["mda_section_boost"] = 15.0
             score += 15.0
@@ -116,7 +135,7 @@ def score_section(
         components["section_slug_mda"] = 1.5
         score += 1.5
 
-    if prefer_html and not is_mda_query(q) and any(
+    if prefer_html and not is_narrative_mda_query(q) and any(
         k in label_lower for k in ("risk", "management", "md&a", "business", "item 7")
     ):
         components["html_narrative_label"] = 0.8
