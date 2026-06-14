@@ -361,6 +361,57 @@ uv run agent-query repro report --input reports/repro-paper-v2.0
 
 **v2 headline semantics**: `task_success` = mean value_alignment over n=200; no `rubric_alignment` row in exports. Judge v3.1 + `required_claims` on all items.
 
+### Agent iteration: smoke gate (frozen full repro)
+
+Full **paper-v2.0** reproduction (5 variants × 200 items) is **frozen** during agent work. `repro run-all` on `releases/paper-v2.0/manifest.yaml` raises unless `REPRO_ALLOW_FULL=1` (use only when locking `expected_checksums.json`).
+
+Use the **50-item stratified smoke subset** instead:
+
+| Artifact | Path |
+|----------|------|
+| Smoke manifest | `releases/paper-v2.0-smoke/manifest.yaml` |
+| Item list | `data/benchmarks/custom-judge/v2.0.0/smoke_dev_item_ids.json` |
+| Gate thresholds | `smoke_gate_thresholds` in smoke manifest |
+
+```bash
+export OFFLINE_BENCHMARK=1 USE_MOCK_LLM=0 USE_MOCK_JUDGE=0
+
+# 1. Run graph-full on 50 smoke items (~1–2h vs ~8h+ full repro)
+uv run agent-query repro smoke-run \
+  --output reports/repro-paper-v2.0-smoke \
+  --no-resume
+
+# 2. Evaluate gate (exit 1 on failure)
+uv run agent-query repro smoke-gate --input reports/repro-paper-v2.0-smoke
+
+# 3. Score an existing full repro on the smoke subset only (no agent re-run)
+uv run agent-query repro smoke-gate --input reports/repro-paper-v2.0 --no-fail
+```
+
+**Smoke gate targets** (graph-full, n=50):
+
+| Metric | Target |
+|--------|--------|
+| `task_success` | ≥ 0.25 (raise as agent improves) |
+| MRR = 0 share | ≤ 35% |
+| MRR ≥ 0.5 & VA = 0 | ≤ 15 items |
+| Abstention-like answers | ≤ 25% |
+
+When smoke passes consistently, run one lock repro with `REPRO_ALLOW_FULL=1`.
+
+Regenerate the stratified item list after major bundle changes:
+
+```bash
+uv run python -c "
+from pathlib import Path
+import json
+from evaluation.reproduction.smoke_gate import build_stratified_smoke_ids
+root = Path('data/benchmarks/custom-judge/v2.0.0')
+ids = build_stratified_smoke_ids(root, count=50)
+(root / 'smoke_dev_item_ids.json').write_text(json.dumps({'version': 1, 'count': len(ids), 'item_ids': ids}, indent=2))
+"
+```
+
 ### Path-repair v2 + clean re-run protocol
 
 After v1 `repair-bundle` mis-mapped divestiture items to Item 1 Business, run **v2 repair** then a **fresh repro** (never `--resume` against a pre-fix checkpoint):

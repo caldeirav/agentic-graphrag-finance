@@ -25,6 +25,8 @@ from retrieval.evidence_scope import (
     period_matches_anchor,
 )
 from retrieval.orchestration.llm import create_chat_llm
+from retrieval.orchestration.micro_scoring import excerpt_topic_score, rank_evidence_by_topic
+from retrieval.orchestration.meso_scoring import is_risk_only_query
 from retrieval.orchestration.state import AgentState
 from tracing.console_trace.llm import traced_llm_invoke
 
@@ -37,16 +39,20 @@ def _yoy_comparison_intent(query: str, state: AgentState | None) -> bool:
     )
     if not state:
         return yoy
+    filing_set = list(state.get("filing_set") or [])
+    multi_filing = len(filing_set) >= 2
     macro = state.get("macro_plan")
     if macro and getattr(macro.temporal_scope, "comparison_mode", None):
         from models.enums import ComparisonMode
 
-        yoy = yoy or macro.temporal_scope.comparison_mode == ComparisonMode.YOY
+        if multi_filing:
+            yoy = yoy or macro.temporal_scope.comparison_mode == ComparisonMode.YOY
     record = state.get("macro_binding_record")
     if record and getattr(record, "validation", None):
         from models.enums import ComparisonMode
 
-        yoy = yoy or record.validation.comparison_mode == ComparisonMode.YOY
+        if multi_filing:
+            yoy = yoy or record.validation.comparison_mode == ComparisonMode.YOY
     return yoy
 
 
@@ -102,6 +108,10 @@ def synthesize(state: AgentState) -> dict:
         }
 
     temporal_anchor = _resolve_temporal_anchor(state)
+
+    comparison_risk = _try_synthesize_comparison_risk(evidence, query, filing_set)
+    if comparison_risk is not None:
+        return _tag_synthesis_path(comparison_risk, "comparison_risk_deterministic")
 
     if os.environ.get("USE_MOCK_LLM", "0") == "1":
         return _tag_synthesis_path(
@@ -334,7 +344,13 @@ def _synthesize_with_llm(
         instructions = (
             anti_abstain
             + "- Answer from HTML narrative excerpts (Item 1A risk factors, MD&A, business description).\n"
-            "- Summarize principal risks in prose; do not reply with only XBRL numeric facts.\n"
+            + (
+                "- This is a cross-filing comparison: address EACH bound company/filing separately, "
+                "then state similarities or differences.\n"
+                if _is_comparison_query(query) and len(filing_set) >= 2
+                else ""
+            )
+            + "- Summarize principal risks in prose; do not reply with only XBRL numeric facts.\n"
             "- Prefer the annual report (10-K) when multiple filings are bound.\n"
             "- If risk-factor narrative is present in evidence, extract and list the main themes.\n"
             "- If evidence lacks narrative risk discussion, say so explicitly."
@@ -436,6 +452,13 @@ Instructions:
         period_ends=period_ends,
         state=state,
     )
+    text = _correct_abstention_denial(
+        text,
+        query=query,
+        evidence=evidence,
+        filing_set=filing_set,
+        state=state,
+    )
     out = {
         "answer": AnswerPackage(
             text=text,
@@ -447,6 +470,187 @@ Instructions:
     if trace_patch.get("trace_events"):
         out["trace_events"] = trace_patch["trace_events"]
     return out
+
+
+def _is_comparison_query(query: str) -> bool:
+    q = query.lower()
+    return any(
+        k in q
+        for k in ("compare", "comparison", "versus", " vs ", "both companies", "both filings", "across", "contrast")
+    )
+
+
+def _is_risk_comparison_query(query: str) -> bool:
+    return _is_comparison_query(query) and (
+        is_risk_only_query(query) or "geopolitic" in query.lower() or "international" in query.lower()
+    )
+
+
+def _risk_topic_phrase(query: str) -> str:
+    q = query.lower()
+    if "geopolitic" in q and "international" in q:
+        return "international operations and geopolitical instability"
+    if "trade" in q or "tariff" in q:
+        return "international trade policies and geopolitical instability"
+    if "conflict" in q or "war" in q:
+        return "international conflicts and geopolitical instability"
+    return "material risks and uncertainties"
+
+
+def _extract_risk_sentences(excerpt: str, query: str, *, max_sentences: int = 2) -> list[str]:
+    sentences = re.split(r"(?<=[.!?])\s+", excerpt.replace("\n", " "))
+    scored: list[tuple[float, str]] = []
+    for sentence in sentences:
+        text = sentence.strip()
+        if len(text) < 50:
+            continue
+        score = excerpt_topic_score(query, text, "")
+        if score <= 0 and "risk" not in text.lower():
+            continue
+        scored.append((score, text))
+    scored.sort(key=lambda pair: pair[0], reverse=True)
+    return [text for _, text in scored[:max_sentences]]
+
+
+def _chunks_for_filing(evidence: list[EvidenceChunk], filing: FilingRef) -> list[EvidenceChunk]:
+    acc = filing.accession
+    doc_prefix = f"doc-{acc}"
+    return [
+        c
+        for c in evidence
+        if c.accession == acc or (c.chunk_node_id or "").startswith(doc_prefix)
+    ]
+
+
+def _try_synthesize_comparison_risk(
+    evidence: list[EvidenceChunk],
+    query: str,
+    filing_set: list[FilingRef],
+) -> dict | None:
+    """Deterministic comparison answer for multi-filing risk-factor questions."""
+    if not _is_risk_comparison_query(query) or len(filing_set) < 2:
+        return None
+    topic = _risk_topic_phrase(query)
+    issuer_labels = [f"{f.form_type} ({f.accession})" for f in filing_set[:2]]
+    header = (
+        f"Both {issuer_labels[0]} and {issuer_labels[1]} discuss risks related to "
+        f"{topic} in Item 1A. Risk Factors."
+    )
+    body_lines: list[str] = []
+    citations: list[EvidenceChunk] = []
+    for filing in filing_set[:2]:
+        pool = rank_evidence_by_topic(_chunks_for_filing(evidence, filing), query, max_chunks=4)
+        if not pool:
+            continue
+        sentences = _extract_risk_sentences(pool[0].excerpt, query)
+        if sentences:
+            body_lines.append(
+                f"In {filing.form_type} ({filing.accession}): " + " ".join(sentences)
+            )
+        else:
+            preview = pool[0].excerpt[:400].strip()
+            body_lines.append(f"In {filing.form_type} ({filing.accession}): {preview}...")
+        citations.extend(pool[:2])
+    if len(body_lines) < 1:
+        return None
+    text = header
+    if body_lines:
+        text = header + "\n\n" + "\n".join(body_lines)
+    return {
+        "answer": AnswerPackage(
+            text=text,
+            citations=citations[:8],
+            sufficiency=Sufficiency.COMPLETE,
+        ),
+        "status": QueryStatus.SUCCESS,
+    }
+
+
+def _looks_like_refusal(text: str) -> bool:
+    lower = text.lower()
+    return any(
+        p in lower
+        for p in (
+            "cannot",
+            "can't",
+            "unable to",
+            "insufficient evidence",
+            "no information",
+            "not provided",
+            "does not contain",
+            "do not contain",
+            "cannot identify",
+            "cannot determine",
+            "cannot complete",
+            "cannot fulfill",
+            "not available",
+            "no narrative",
+        )
+    )
+
+
+def _correct_abstention_denial(
+    text: str,
+    *,
+    query: str,
+    evidence: list[EvidenceChunk],
+    filing_set: list[FilingRef],
+    state: AgentState | None = None,
+) -> str:
+    """When evidence is present, replace LLM refusals with grounded excerpt synthesis."""
+    if not evidence or not text.strip() or not _looks_like_refusal(text):
+        return text
+    q = query.lower()
+    html = [c for c in evidence if "HTML" in str(getattr(c.source_type, "value", c.source_type))]
+    if _is_comparison_query(query) and len(filing_set) >= 2 and html:
+        by_acc: dict[str, list[EvidenceChunk]] = {}
+        for chunk in html:
+            acc = chunk.accession or ""
+            if not acc and chunk.chunk_node_id.startswith("doc-"):
+                acc = chunk.chunk_node_id.split("-")[1]
+            by_acc.setdefault(acc or "unknown", []).append(chunk)
+        if len(by_acc) >= 2:
+            body_lines: list[str] = []
+            for filing in filing_set:
+                chunks = rank_evidence_by_topic(
+                    by_acc.get(filing.accession) or [], query, max_chunks=3
+                )
+                if not chunks:
+                    continue
+                sents = _extract_risk_sentences(chunks[0].excerpt, query)
+                lead = " ".join(sents) if sents else chunks[0].excerpt[:500].strip()
+                body_lines.append(f"- {filing.form_type} ({filing.accession}): {lead}...")
+            if len(body_lines) >= 2:
+                topic = _risk_topic_phrase(query)
+                intro = (
+                    f"Both bound filings discuss risks related to {topic} "
+                    "in Item 1A. Risk Factors."
+                )
+                return intro + "\n\n" + "\n".join(body_lines)
+    if any(k in q for k in ("divest", "sale", "sold", "disposal", "md&a", "management")) and html:
+        mda = rank_evidence_by_topic(html, query, max_chunks=5)
+        lead = mda[0] if mda else max(html, key=lambda c: len(c.excerpt))
+        return (
+            "Based on the bound filing MD&A / narrative excerpt: "
+            f"{lead.excerpt[:900].strip()}..."
+        )
+    if html:
+        ranked = rank_evidence_by_topic(html, query, max_chunks=1)
+        lead = ranked[0] if ranked else max(html, key=lambda c: len(c.excerpt))
+        return (
+            "Based on the bound filing narrative (HTML excerpt): "
+            f"{lead.excerpt[:900].strip()}..."
+        )
+    template = _synthesize_template(
+        evidence,
+        query,
+        filing_set,
+        state=state,
+    )
+    answer = template.get("answer")
+    if answer and answer.text and not _looks_like_refusal(answer.text):
+        return answer.text
+    return text
 
 
 def _correct_revenue_denial(

@@ -13,6 +13,7 @@ from models.enums import EvidenceSourceType, QueryIntent
 from models.query import EvidenceChunk
 from parsing.xbrl_facts import is_revenue_concept, is_revenue_query
 from retrieval.orchestration.meso_scoring import is_mda_query
+from retrieval.orchestration.micro_scoring import rank_evidence_by_topic
 
 _CHARS_PER_TOKEN = 3.2
 _TEMPLATE_RESERVE_TOKENS = 900
@@ -180,6 +181,46 @@ def _is_html(chunk: EvidenceChunk) -> bool:
     return st == EvidenceSourceType.HTML.value or st == EvidenceSourceType.HTML
 
 
+def _chunk_accession(chunk: EvidenceChunk) -> str:
+    node_id = chunk.chunk_node_id or ""
+    if node_id.startswith("doc-"):
+        parts = node_id.split("-")
+        if len(parts) >= 2:
+            return parts[1]
+    acc = getattr(chunk, "accession", None) or ""
+    return str(acc)
+
+
+def _is_comparison_query(query: str) -> bool:
+    q = query.lower()
+    return any(
+        k in q
+        for k in ("compare", "comparison", "versus", " vs ", "both companies", "both filings", "across")
+    )
+
+
+def _balance_evidence_by_accession(
+    evidence: list[EvidenceChunk],
+    *,
+    max_chunks: int,
+) -> list[EvidenceChunk]:
+    by_acc: dict[str, list[EvidenceChunk]] = {}
+    for chunk in evidence:
+        acc = _chunk_accession(chunk) or "unknown"
+        by_acc.setdefault(acc, []).append(chunk)
+    if len(by_acc) <= 1:
+        return evidence[:max_chunks]
+    per = max(1, max_chunks // len(by_acc))
+    balanced: list[EvidenceChunk] = []
+    for acc in sorted(by_acc.keys()):
+        pool = sorted(by_acc[acc], key=lambda c: len(c.excerpt), reverse=True)
+        balanced.extend(pool[:per])
+    if len(balanced) < max_chunks:
+        remainder = [c for c in evidence if c not in balanced]
+        balanced.extend(remainder[: max_chunks - len(balanced)])
+    return balanced[:max_chunks]
+
+
 def compact_evidence_for_llm(
     evidence: list[EvidenceChunk],
     *,
@@ -196,6 +237,10 @@ def compact_evidence_for_llm(
     max_chars = limits["max_excerpt_chars"]
 
     pool = list(evidence)
+    if _is_comparison_query(query) and len({ _chunk_accession(c) for c in pool if _chunk_accession(c) }) >= 2:
+        pool = _balance_evidence_by_accession(pool, max_chunks=max_chunks)
+    elif any(k in query.lower() for k in ("risk", "geopolitic", "international", "trade policy", "tariff")):
+        pool = rank_evidence_by_topic(pool, query, max_chunks=max_chunks)
     if query_intent == QueryIntent.QUALITATIVE:
         html = [c for c in pool if _is_html(c)]
         if html:
@@ -231,12 +276,16 @@ def compact_evidence_for_llm(
                     or "risk" in (c.section_id or "").lower()
                 ]
                 html = filtered or html
-            elif mda_targeted:
+            elif mda_targeted or any(
+                k in q for k in ("divest", "md&a", "management's discussion", "management discussion")
+            ):
                 mda_chunks = [
                     c
                     for c in html
                     if "md_and_a" in (c.section_id or "").lower()
                     or "mda" in (c.section_id or "").lower()
+                    or "management" in (c.section_id or "").lower()
+                    or "divest" in c.excerpt.lower()
                 ]
                 html = mda_chunks or html
             pool = sorted(html, key=lambda c: len(c.excerpt), reverse=True)

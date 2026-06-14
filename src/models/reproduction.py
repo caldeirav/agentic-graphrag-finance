@@ -87,6 +87,8 @@ class ReleaseManifest(BaseModel):
     tolerance_bands: ToleranceBands = Field(default_factory=ToleranceBands)
     expected_checksums_path: str = "expected_checksums.json"
     full_reproduction_policy: FullReproductionPolicy | None = None
+    smoke_item_ids_path: str = ""
+    smoke_gate_thresholds: dict[str, float | int] = Field(default_factory=dict)
 
     def validate_paper_v1(self) -> None:
         if self.release_tag != "paper-v1.0":

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Annotated
@@ -27,6 +28,16 @@ app = typer.Typer(
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _load_item_ids_file(path: Path) -> list[str]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(payload, list):
+        return [str(i) for i in payload]
+    ids = payload.get("item_ids")
+    if not isinstance(ids, list):
+        raise typer.BadParameter(f"{path} must contain item_ids[] or a JSON list")
+    return [str(i) for i in ids]
 
 
 def _manifest_path(manifest: Path | None, release: str | None) -> Path:
@@ -81,6 +92,7 @@ def run_variants(
     manifest: Path = typer.Option(..., "--manifest"),
     variants: str = typer.Option("", "--variants", help="Comma-separated variant ids"),
     max_items: int | None = typer.Option(None, "--max-items"),
+    item_ids_file: Path | None = typer.Option(None, "--item-ids-file"),
     output: Path = typer.Option(Path("reports/repro-run"), "--output"),
     defer_judge: bool = typer.Option(False, "--defer-judge"),
     resume: bool = typer.Option(True, "--resume/--no-resume"),
@@ -91,13 +103,14 @@ def run_variants(
     rel = runner.manifest
     from evaluation.reproduction.manifest import resolve_variant_configs
 
+    item_ids = _load_item_ids_file(item_ids_file) if item_ids_file else None
     selected = [v.strip() for v in variants.split(",") if v.strip()] if variants else rel.variant_ids
     configs = [c for c in resolve_variant_configs(rel) if c.variant_id in selected]
     output.mkdir(parents=True, exist_ok=True)
     repro = runner.load_checkpoint(output) if resume else None
     for cfg in configs:
         typer.echo(f"Running variant {cfg.variant_id}...")
-        runner.run_variant(cfg, max_items=max_items, output_dir=output, repro=repro)
+        runner.run_variant(cfg, max_items=max_items, item_ids=item_ids, output_dir=output, repro=repro)
     typer.echo(f"Variant runs written to {output}")
 
 
@@ -200,6 +213,11 @@ def run_all(
     release: str | None = typer.Option(None, "--release", help="Release tag e.g. paper-v2.0"),
     output: Path = typer.Option(None, "--output"),
     max_items: int | None = typer.Option(None, "--max-items"),
+    item_ids_file: Path | None = typer.Option(
+        None,
+        "--item-ids-file",
+        help="JSON file with item_ids[] for subset repro",
+    ),
     skip_relevance: bool = typer.Option(False, "--skip-relevance"),
     strict_git: bool = typer.Option(
         False,
@@ -218,10 +236,12 @@ def run_all(
         os.environ["REPRO_ALLOW_PENDING_EXPORT"] = "1"
     rel = load_release_manifest(_manifest_path(manifest, release))
     out = output or Path(f"reports/repro-{rel.release_tag}")
+    item_ids = _load_item_ids_file(item_ids_file) if item_ids_file else None
     runner = _runner(_manifest_path(manifest, release), defer_judge=defer_judge)
     repro = runner.run_all(
         output_dir=out,
         max_items=max_items,
+        item_ids=item_ids,
         skip_relevance=skip_relevance,
         strict_git=strict_git,
         resume=resume,
@@ -284,3 +304,78 @@ def report_cmd(
         raise typer.Exit(code=3) from exc
 
     typer.echo(f"Report written to {artifact.html_path}")
+
+
+@app.command("smoke-run")
+def smoke_run_cmd(
+    output: Path = typer.Option(
+        Path("reports/repro-paper-v2.0-smoke"),
+        "--output",
+        help="Smoke repro output directory",
+    ),
+    manifest: Path = typer.Option(
+        REPO_ROOT / "releases/paper-v2.0-smoke/manifest.yaml",
+        "--manifest",
+    ),
+    defer_judge: bool = typer.Option(True, "--defer-judge/--no-defer-judge"),
+    resume: bool = typer.Option(False, "--resume/--no-resume"),
+    judge_after: bool = typer.Option(True, "--judge-after/--no-judge-after"),
+) -> None:
+    """Run graph-full on the stratified 50-item smoke subset (agent iteration loop)."""
+    _require_offline()
+    from evaluation.reproduction.smoke_gate import DEFAULT_VARIANT, load_smoke_item_ids
+
+    rel = load_release_manifest(manifest)
+    bundle = REPO_ROOT / rel.custom_judge_bundle_path
+    rel_path = rel.smoke_item_ids_path or "smoke_dev_item_ids.json"
+    item_ids = load_smoke_item_ids(bundle, rel_path)
+    typer.echo(f"Smoke run: {len(item_ids)} items, variant={DEFAULT_VARIANT}, output={output}")
+    runner = _runner(manifest, defer_judge=defer_judge)
+    runner.run_all(
+        output_dir=output,
+        item_ids=item_ids,
+        skip_relevance=True,
+        resume=resume,
+        cli_defer=defer_judge,
+    )
+    if judge_after:
+        typer.echo("Running judge batch on smoke subset...")
+        runner.run_judge_batch_phase(output, variant_id=DEFAULT_VARIANT)
+    typer.echo(f"Smoke agent run complete: {output}")
+
+
+@app.command("smoke-gate")
+def smoke_gate_cmd(
+    input_dir: Path = typer.Option(..., "--input", help="Repro output with graph-full/results.json"),
+    manifest: Path = typer.Option(
+        REPO_ROOT / "releases/paper-v2.0-smoke/manifest.yaml",
+        "--manifest",
+    ),
+    variant: str = typer.Option("graph-full", "--variant"),
+    fail: bool = typer.Option(True, "--fail/--no-fail", help="Exit 1 when gate fails"),
+) -> None:
+    """Evaluate smoke gate thresholds on an existing graph-full results.json."""
+    from evaluation.reproduction.smoke_gate import (
+        SmokeGateThresholds,
+        evaluate_smoke_gate,
+        format_smoke_report,
+        load_smoke_item_ids,
+        profile_map_from_bundle,
+    )
+
+    rel = load_release_manifest(manifest)
+    bundle = REPO_ROOT / rel.custom_judge_bundle_path
+    rel_path = rel.smoke_item_ids_path or "smoke_dev_item_ids.json"
+    item_ids = load_smoke_item_ids(bundle, rel_path)
+    thresholds = SmokeGateThresholds.from_mapping(rel.smoke_gate_thresholds or None)
+    results_path = input_dir / variant / "results.json"
+    profiles = profile_map_from_bundle(bundle, rel.eval_split)
+    result = evaluate_smoke_gate(
+        results_path,
+        item_ids,
+        thresholds=thresholds,
+        profile_by_item=profiles,
+    )
+    typer.echo(format_smoke_report(result, item_ids=item_ids))
+    if fail and not result.ok:
+        raise typer.Exit(code=1)

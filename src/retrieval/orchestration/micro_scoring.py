@@ -30,6 +30,17 @@ _OFF_TOPIC_RISK_CHUNK = re.compile(
     r"share-based\s+compensation\s+expense|item\s+2\.\s+properties|basis\s+for\s+opinion)",
     re.I,
 )
+_FINANCIAL_HIGHLIGHT_NOISE = re.compile(
+    r"(first quarter of 20\d\d|second quarter of 20\d\d|total sales and revenues were|"
+    r"credit facility|covenant leverage|interest rate derivatives|company trends and expectations|"
+    r"price realization|sales were higher across)",
+    re.I,
+)
+_GEOPOLITICAL_TOPIC = re.compile(
+    r"\b(geopolitic|international operation|trade polic|tariff|sanction|"
+    r"civil (unrest|disturbance)|terrorism|cross-border|trade barrier|war)\b",
+    re.I,
+)
 
 
 def is_financial_query(query: str) -> bool:
@@ -107,6 +118,14 @@ def risk_excerpt_score_adjustment(excerpt: str, section_id: str, *, query: str =
         adjust -= 12.0
     if _OFF_TOPIC_RISK_CHUNK.search(ex):
         adjust -= 15.0
+    if _FINANCIAL_HIGHLIGHT_NOISE.search(excerpt):
+        adjust -= 18.0
+    if re.search(r"\b(currency|income/expense|interest expense)\b", ex) and not _GEOPOLITICAL_TOPIC.search(
+        excerpt
+    ):
+        adjust -= 12.0
+    if query and _GEOPOLITICAL_TOPIC.search(query) and _GEOPOLITICAL_TOPIC.search(excerpt):
+        adjust += 12.0
     if re.search(
         r"item\s+1a\.?\s+risk\s+factors.*material\s+adverse",
         ex,
@@ -114,6 +133,51 @@ def risk_excerpt_score_adjustment(excerpt: str, section_id: str, *, query: str =
     ):
         adjust += 10.0
     return adjust
+
+
+def excerpt_topic_score(query: str, excerpt: str, section_id: str = "") -> float:
+    """Rank excerpts for synthesis prompt selection (risk / comparison queries)."""
+    score = 0.0
+    ex = excerpt.lower()
+    q = query.lower()
+    if "risk" in q and "risk" in ex:
+        score += 3.0
+    if _GEOPOLITICAL_TOPIC.search(q):
+        if _GEOPOLITICAL_TOPIC.search(excerpt):
+            score += 8.0
+        for kw in ("international", "trade", "tariff", "sanction", "geopolitic", "war"):
+            if kw in q and kw in ex:
+                score += 2.0
+    if _FINANCIAL_HIGHLIGHT_NOISE.search(ex):
+        score -= 12.0
+    if re.search(r"\b(currency|income/expense|interest expense|derivatives)\b", ex) and not re.search(
+        r"\b(risk|tariff|sanction|geopolitic|war|unrest|trade barrier)\b", ex
+    ):
+        score -= 10.0
+    if "risk_factors" in section_id.lower():
+        score += 3.0
+    return score
+
+
+def rank_evidence_by_topic(
+    evidence: list,
+    query: str,
+    *,
+    max_chunks: int = 8,
+) -> list:
+    """Return evidence sorted by query-topic relevance (best first)."""
+    if not evidence:
+        return []
+    ranked = sorted(
+        evidence,
+        key=lambda c: excerpt_topic_score(
+            query,
+            getattr(c, "excerpt", "") or "",
+            getattr(c, "section_id", "") or "",
+        ),
+        reverse=True,
+    )
+    return ranked[:max_chunks]
 
 
 def score_chunk(

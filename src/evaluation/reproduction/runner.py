@@ -237,6 +237,7 @@ class ReproRunner:
         variant: SystemVariantConfig,
         *,
         max_items: int | None = None,
+        item_ids: list[str] | None = None,
         output_dir: Path,
         repro: ReproRun | None = None,
     ) -> tuple[list[BenchmarkResult], EvalRunRef]:
@@ -246,9 +247,14 @@ class ReproRunner:
             bundle_root=bundle_root,
         )
         items = ds.load_split(self._manifest.eval_split)
-        contexts = load_item_contexts(bundle_root, self._manifest.eval_split)
-        if max_items:
+        if item_ids:
+            wanted = set(item_ids)
+            items = [item for item in items if item.item_id in wanted]
+            order = {iid: idx for idx, iid in enumerate(item_ids)}
+            items.sort(key=lambda it: order.get(it.item_id, 9999))
+        elif max_items:
             items = items[:max_items]
+        contexts = load_item_contexts(bundle_root, self._manifest.eval_split)
 
         variant_dir = output_dir / variant.variant_id
         results_path = variant_dir / "results.json"
@@ -579,6 +585,7 @@ class ReproRunner:
         *,
         output_dir: Path,
         max_items: int | None = None,
+        item_ids: list[str] | None = None,
         skip_relevance: bool = False,
         strict_git: bool = False,
         resume: bool = True,
@@ -588,6 +595,20 @@ class ReproRunner:
     ) -> ReproRun:
         if cli_defer is not None:
             self.defer_config = resolve_defer_config(cli_defer=cli_defer)
+
+        from evaluation.reproduction.manifest import (
+            enforce_full_repro_policy,
+            enforce_max_items_policy,
+        )
+
+        variants = resolve_variant_configs(self._manifest)
+        enforce_max_items_policy(self._manifest, max_items, item_ids=item_ids)
+        enforce_full_repro_policy(
+            self._manifest,
+            max_items=max_items,
+            item_ids=item_ids,
+            variant_count=len(variants),
+        )
 
         if export_only:
             export = export_tables_from_disk(
@@ -678,6 +699,7 @@ class ReproRunner:
                 results, ref = self.run_variant(
                     variant,
                     max_items=max_items,
+                    item_ids=item_ids,
                     output_dir=output_dir,
                     repro=repro,
                 )

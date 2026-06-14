@@ -1,0 +1,41 @@
+schema_version: 1.0.0
+release_tag: paper-v2.0-smoke
+git_sha: TBD
+custom_judge_version: 2.0.0
+custom_judge_bundle_path: data/benchmarks/custom-judge/v2.0.0
+eval_split: dev
+reproduction_mode: live_reexecution
+corpus_hashes:
+  corpus/graph_node_index.json: sha256:ecfa94e8e6ffc596b695bba5998a02af6639614f8643edf8ca2d46055cdc3071
+items_hash: sha256:aa0cf39bf699173aba2aea53fbb6bd3809c9ffaee733a44171aa3634bd566076
+relevance_labels_hash: sha256:70144a217dd940a63636c9be94420b669d9972797ac552476ff41cdafadb6278
+relevance_coverage_rate: 1.0
+smoke_item_ids_path: smoke_dev_item_ids.json
+variant_ids:
+  - graph-full
+model_pins:
+  llm_config_path: configs/llm/lm_studio_qwen.yaml
+  llm_config_hash: sha256:TBD
+  judge_config_path: configs/judges/gemini_2_5_pro.yaml
+  judge_config_hash: sha256:TBD
+  embedding_model_id: sentence-transformers/all-MiniLM-L6-v2
+  embedding_model_revision: TBD
+  embedding_config_path: configs/reproduction/embeddings/all_minilm_l6_v2.yaml
+  embedding_config_hash: sha256:TBD
+full_reproduction_policy:
+  selective_agent_skip: false
+  changelog_based_skip: false
+  required_variants: 1
+  required_items_per_variant: 50
+tolerance_bands:
+  mean_task_success: 0.05
+  mean_trajectory_fidelity: 0.05
+  ranking_metrics_exact: false
+  structural_metrics_exact: false
+expected_checksums_path: expected_checksums.json
+smoke_gate_thresholds:
+  min_task_success: 0.25
+  max_mrr_zero_share: 0.35
+  max_mrr_ok_va_zero: 15
+  max_abstention_like_share: 0.25
+  min_items_with_va: 10

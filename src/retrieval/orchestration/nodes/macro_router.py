@@ -33,7 +33,7 @@ def macro_router(state: AgentState, *, graph_api=None) -> dict:
     query = state["query"]
     snapshot_id = state["snapshot_id"]
     pre_bound = list(state.get("filing_set") or [])
-    cli_prebound = bool(state.get("cli_prebound"))
+    cli_prebound = bool(state.get("cli_prebound")) or bool(pre_bound)
 
     if graph_api is None:
         return {
@@ -55,11 +55,18 @@ def macro_router(state: AgentState, *, graph_api=None) -> dict:
     trace_patch: dict = {}
 
     if cli_prebound and pre_bound:
+        q_lower = query.lower()
+        explicit_compare = any(
+            k in q_lower
+            for k in ("compare", "comparison", "versus", " vs ", "both companies", "both filings")
+        )
+        is_comparison = len(pre_bound) >= 2 and explicit_compare
         proposal = MacroBindingProposal(
             intent_summary=query[:200],
             proposed_accessions=[r.accession for r in pre_bound],
             proposal_source=ProposalSource.CLI,
-            is_comparison=len(pre_bound) >= 2,
+            is_comparison=is_comparison,
+            comparison_mode=ComparisonMode.YOY if is_comparison else None,
         )
         validation = validate_macro_binding(
             proposal,
@@ -121,7 +128,9 @@ def macro_router(state: AgentState, *, graph_api=None) -> dict:
         binding_source=binding_source,
     )
 
-    temporal_anchor = (proposal.anchor or infer_anchor_from_query(query) or "").strip()
+    temporal_anchor = str(state.get("temporal_anchor") or "").strip()
+    if not temporal_anchor:
+        temporal_anchor = (proposal.anchor or infer_anchor_from_query(query) or "").strip()
 
     out = {
         "macro_plan": plan,
