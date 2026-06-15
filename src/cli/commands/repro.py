@@ -252,7 +252,7 @@ def run_all(
     typer.echo(f"Reproduction complete: {repro.status} -> {out}")
 
 
-DEFAULT_MAX_ITEM_ROWS = 500
+DEFAULT_MAX_ITEM_ROWS = 0
 DEFAULT_DELTA_THRESHOLD = 0.10
 _TABLE_ID_MAP = {t.value: t for t in PaperTableId}
 
@@ -263,7 +263,11 @@ def report_cmd(
     output: Path | None = typer.Option(None, "--output", help="HTML output path"),
     format: str = typer.Option("html", "--format", help="html or latex-only"),
     table: list[str] = typer.Option([], "--table", help="Limit tables (repeatable)"),
-    max_item_rows: int = typer.Option(DEFAULT_MAX_ITEM_ROWS, "--max-item-rows"),
+    max_item_rows: int = typer.Option(
+        DEFAULT_MAX_ITEM_ROWS,
+        "--max-item-rows",
+        help="Max items in drill-down (0 = all)",
+    ),
     manifest: Path | None = typer.Option(None, "--manifest", help="Release manifest path"),
     delta_threshold: float = typer.Option(DEFAULT_DELTA_THRESHOLD, "--delta-threshold"),
 ) -> None:

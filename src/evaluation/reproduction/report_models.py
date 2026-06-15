@@ -243,6 +243,7 @@ class ReproOutputBundle(BaseModel):
     repro_run: ReproRun
     tables: dict[str, TableData]
     variant_results: dict[str, list[ItemResultRecord]] = Field(default_factory=dict)
+    item_metadata: dict[str, dict[str, str]] = Field(default_factory=dict)
     release_manifest: dict[str, Any] | None = None
     export_manifest: dict[str, Any] | None = None
     headline_tex: str | None = None
@@ -290,15 +291,21 @@ class ItemResultRecord(BaseModel):
     variant_id: str
     item_id: str
     inspiration_profile: str = ""
+    question: str = ""
+    expected_answer: str = ""
     judge_status: str = ""
     validation_status: str = ""
     outcome_score: float | None = None
+    mrr: float | None = None
+    map_score: float | None = None
     ndcg_at_10: float | None = None
     trajectory_fidelity: float | None = None
     rubric_scores: dict[str, float] = Field(default_factory=dict)
     structural_metrics: dict[str, float] = Field(default_factory=dict)
     failure_reason: str = ""
     answer_excerpt: str = ""
+    answer_text: str = ""
+    judge_rationale: str = ""
     citation_count: int = 0
     trajectory_ref: str = ""
     source_path: str = ""

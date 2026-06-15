@@ -42,6 +42,13 @@ DEFAULT_DELTA_THRESHOLD = 0.10
 MAX_INVESTIGATION_NOTES = 25
 HIGHLIGHT_STATUSES = frozenset({"degraded", "pending", "not_evaluable"})
 _EXPECTED_ZERO_CITATION_VARIANTS = frozenset({"ablation-no-walker", "ablation-xbrl-only"})
+_HTML_HIDDEN_PAPER_TABLES = frozenset(
+    {
+        PaperTableId.BY_PROFILE,
+        PaperTableId.VARIANT_DELTA,
+        PaperTableId.VARIANT_DELTA_BY_SOURCE,
+    }
+)
 
 
 def build_paper_table_views(bundle: ReproOutputBundle) -> list[PaperTableView]:
@@ -651,8 +658,7 @@ def _render_aggregated_notes_html(notes: list[AggregatedInvestigationNote]) -> s
         examples = ""
         if note.expandable and note.example_item_ids:
             links = ", ".join(
-                f'<a href="#item-{html.escape(note.variant_id)}-{html.escape(iid)}">'
-                f"{html.escape(iid)}</a>"
+                f'<a href="#item-{html.escape(iid)}">{html.escape(iid)}</a>'
                 for iid in note.example_item_ids
             )
             examples = f"<details><summary>Examples ({len(note.example_item_ids)})</summary><p>{links}</p></details>"
@@ -687,119 +693,51 @@ def _render_anomalies_html(anomalies: list[RunAnomaly]) -> str:
     )
 
 
-def _render_outcome_by_profile_html(bundle: ReproOutputBundle) -> str:
-    table = bundle.tables.get("by_profile")
+def _render_evidence_source_matrix_html(bundle: ReproOutputBundle) -> str:
+    """Pivot by_evidence_source: variant × stratum rows, metric columns."""
+    table = bundle.tables.get("by_evidence_source")
     if table is None or not table.rows:
         return ""
-    filtered = [
-        r
-        for r in table.rows
-        if r.get("metric_name") == "outcome_accuracy" and not r.get("na_reason")
-    ]
-    if not filtered:
+    active_rows = [r for r in table.rows if not r.get("na_reason")]
+    if not active_rows:
         return ""
-    pivot: dict[str, dict[str, str]] = {}
-    for row in filtered:
-        profile = row["inspiration_profile"]
-        vid = row["variant_id"]
-        pivot.setdefault(profile, {})[vid] = row.get("value", "")
-        pivot[profile]["item_count"] = row.get("item_count", "")
+    metric_names = sorted({r["metric_name"] for r in active_rows})
+    pivot: dict[tuple[str, str], dict[str, str]] = {}
+    for row in active_rows:
+        key = (row["variant_id"], row["primary_evidence_source"])
+        bucket = pivot.setdefault(key, {})
+        bucket[row["metric_name"]] = row.get("value", "")
+        if row.get("item_count"):
+            bucket["item_count"] = row["item_count"]
+    columns = ["variant_id", "primary_evidence_source", "item_count", *metric_names]
     matrix_rows = [
         {
-            "inspiration_profile": profile,
-            "item_count": vals.get("item_count", ""),
-            "graph-full": vals.get("graph-full", "—"),
-            "flat-chunk": vals.get("flat-chunk", "—"),
+            "variant_id": key[0],
+            "primary_evidence_source": key[1],
+            **values,
         }
-        for profile, vals in sorted(pivot.items())
+        for key, values in sorted(pivot.items())
     ]
-    matrix = _render_score_matrix_html(
-        ["inspiration_profile", "item_count", "graph-full", "flat-chunk"],
-        matrix_rows,
-        table_class="score-table outcome-table",
-    )
+    matrix = _render_score_matrix_html(columns, matrix_rows, table_class="score-table outcome-table")
     return (
-        '<section id="outcome-by-profile"><h2>Outcome accuracy by inspiration profile</h2>'
-        "<p>Answer-GT items only (value_alignment-based outcome, v3 policy). "
-        "<code>item_count</code> is the number of answer-GT items in that profile; "
-        "profiles with only rubric GT are omitted.</p>"
+        '<section id="evidence-source"><h2>By evidence source</h2>'
+        "<p>Primary evidence stratum per variant; one row per "
+        "<code>variant_id</code> × <code>primary_evidence_source</code> "
+        "with all exported metrics as columns.</p>"
         f'<div class="score-table-wrap">{matrix}</div></section>'
     )
+
+
+def _render_outcome_by_profile_html(bundle: ReproOutputBundle) -> str:
+    return ""
 
 
 def _render_outcome_by_stratum_html(bundle: ReproOutputBundle) -> str:
-    table = bundle.tables.get("by_evidence_source")
-    if table is None or not table.rows:
-        return ""
-    filtered = [
-        r
-        for r in table.rows
-        if r.get("metric_name") == "outcome_accuracy" and not r.get("na_reason")
-    ]
-    if not filtered:
-        return ""
-    pivot: dict[str, dict[str, str]] = {}
-    for row in filtered:
-        stratum = row["primary_evidence_source"]
-        vid = row["variant_id"]
-        pivot.setdefault(stratum, {})[vid] = row.get("value", "")
-        pivot[stratum]["item_count"] = row.get("item_count", "")
-    matrix_rows = [
-        {
-            "primary_evidence_source": stratum,
-            "item_count": vals.get("item_count", ""),
-            "graph-full": vals.get("graph-full", "—"),
-            "flat-chunk": vals.get("flat-chunk", "—"),
-        }
-        for stratum, vals in sorted(pivot.items())
-    ]
-    matrix = _render_score_matrix_html(
-        ["primary_evidence_source", "item_count", "graph-full", "flat-chunk"],
-        matrix_rows,
-        table_class="score-table outcome-table",
-    )
-    return (
-        '<section id="outcome-by-stratum"><h2>Outcome accuracy by evidence source</h2>'
-        "<p>Primary evidence stratum (html, xbrl, mixed); pooled headline below for all metrics.</p>"
-        f'<div class="score-table-wrap">{matrix}</div></section>'
-    )
+    return _render_evidence_source_matrix_html(bundle)
 
 
 def _render_stratified_html(bundle: ReproOutputBundle) -> str:
-    table = bundle.tables.get("by_evidence_source")
-    if table is None or not table.rows:
-        return ""
-    strata = sorted({r["primary_evidence_source"] for r in table.rows})
-    parts = ['<section id="stratified"><h2>Stratified ablation (by evidence source)</h2>']
-    for stratum in strata:
-        rows = [r for r in table.rows if r["primary_evidence_source"] == stratum]
-        if not rows:
-            continue
-        pivot_rows: dict[str, dict[str, str]] = {}
-        abstention_by_variant: dict[str, str] = {}
-        for row in rows:
-            if row["metric_name"] == "abstention_rate":
-                abstention_by_variant[row["variant_id"]] = row["value"]
-                continue
-            pivot_rows.setdefault(row["variant_id"], {})[row["metric_name"]] = row["value"]
-            pivot_rows[row["variant_id"]]["item_count"] = row["item_count"]
-        if not pivot_rows:
-            continue
-        columns = ["variant_id"] + sorted(
-            {k for vals in pivot_rows.values() for k in vals if k != "variant_id"}
-        )
-        matrix_rows = []
-        for variant_id in sorted(pivot_rows):
-            row = {"variant_id": variant_id, **pivot_rows[variant_id]}
-            if variant_id in abstention_by_variant:
-                row["abstention_rate"] = abstention_by_variant[variant_id]
-            matrix_rows.append(row)
-        if "abstention_rate" not in columns:
-            columns.append("abstention_rate")
-        parts.append(f"<h3>{html.escape(stratum)}</h3>")
-        parts.append(_render_score_matrix_html(columns, matrix_rows))
-    parts.append("</section>")
-    return "".join(parts)
+    return ""
 
 
 def _render_metric_glossary_html(columns: list[str]) -> str:
@@ -895,8 +833,9 @@ def _render_comparison_html(comparison: VariantComparisonView, bundle: ReproOutp
 
 
 def _render_tables_html(views: list[PaperTableView], bundle: ReproOutputBundle) -> str:
+    visible = [v for v in views if v.table_id not in _HTML_HIDDEN_PAPER_TABLES]
     parts = ['<section id="paper-tables"><h2>Paper tables</h2>']
-    for view in views:
+    for view in visible:
         tid = view.table_id.value
         parts.append(f"<h3>{html.escape(tid.replace('_', ' ').title())}</h3>")
         parts.append(
@@ -938,23 +877,134 @@ def _status_class(status: str) -> str:
     return ""
 
 
+def _variant_display_order(bundle: ReproOutputBundle) -> list[str]:
+    keys = set(bundle.variant_results.keys())
+    order = [v for v in STANDARD_VARIANTS if v in keys]
+    order.extend(sorted(k for k in keys if k not in order))
+    return order
+
+
+def _item_records_by_id(bundle: ReproOutputBundle) -> dict[str, dict[str, ItemResultRecord]]:
+    by_item: dict[str, dict[str, ItemResultRecord]] = {}
+    for variant_id, records in bundle.variant_results.items():
+        for record in records:
+            by_item.setdefault(record.item_id, {})[variant_id] = record
+    return by_item
+
+
+def _format_score(value: float | None, *, digits: int = 3) -> str:
+    if value is None:
+        return "—"
+    return f"{value:.{digits}f}"
+
+
+def _render_rubric_scores_html(scores: dict[str, float]) -> str:
+    if not scores:
+        return "<em>No judge scores recorded</em>"
+    parts = [
+        f"<li><code>{html.escape(k)}</code>: {_format_score(v)}</li>"
+        for k, v in sorted(scores.items())
+    ]
+    return f"<ul class='score-list'>{''.join(parts)}</ul>"
+
+
+def _render_variant_detail_panel(record: ItemResultRecord | None, variant_id: str) -> str:
+    if record is None:
+        return (
+            f"<div class='variant-panel missing' data-variant='{html.escape(variant_id)}'>"
+            f"<h4>{html.escape(variant_id)}</h4><p><em>No result for this variant</em></p></div>"
+        )
+    flags_txt = ", ".join(record.flags) if record.flags else "—"
+    ranking = (
+        f"MRR {_format_score(record.mrr)}, MAP {_format_score(record.map_score)}, "
+        f"nDCG@10 {_format_score(record.ndcg_at_10)}"
+    )
+    structural = ""
+    if record.structural_metrics:
+        sm = ", ".join(
+            f"{html.escape(k)}={_format_score(v)}" for k, v in sorted(record.structural_metrics.items())
+        )
+        structural = f"<p><strong>Structural metrics:</strong> {sm}</p>"
+    failure = ""
+    if record.failure_reason:
+        failure = f"<p><strong>Failure:</strong> {html.escape(record.failure_reason)}</p>"
+    answer_body = record.answer_text or record.answer_excerpt or "—"
+    return (
+        f"<div class='variant-panel {_status_class(record.judge_status)}' "
+        f"data-variant='{html.escape(variant_id)}'>"
+        f"<h4>{html.escape(variant_id)}</h4>"
+        f"<p><strong>Judge:</strong> {html.escape(record.judge_status or '—')} · "
+        f"<strong>Validation:</strong> {html.escape(record.validation_status or '—')} · "
+        f"<strong>Outcome:</strong> {_format_score(record.outcome_score)} · "
+        f"<strong>Trajectory fidelity:</strong> {_format_score(record.trajectory_fidelity)}</p>"
+        f"<p><strong>Ranking:</strong> {ranking} · "
+        f"<strong>Citations:</strong> {record.citation_count} · "
+        f"<strong>Flags:</strong> {html.escape(flags_txt)}</p>"
+        f"{structural}{failure}"
+        f"<p><strong>Agent answer:</strong></p>"
+        f"<pre class='answer-block'>{html.escape(answer_body)}</pre>"
+        f"<p><strong>Judge scores:</strong></p>"
+        f"{_render_rubric_scores_html(record.rubric_scores)}"
+        f"<p><strong>Judge rationale:</strong></p>"
+        f"<pre class='answer-block'>{html.escape(record.judge_rationale or '—')}</pre>"
+        f"<p><strong>Trajectory:</strong> {html.escape(record.trajectory_ref)} · "
+        f"<strong>Source:</strong> <code>{html.escape(record.source_path)}</code></p>"
+        f"</div>"
+    )
+
+
+def _render_variant_summary_cell(record: ItemResultRecord | None) -> str:
+    if record is None:
+        return "<td class='variant-cell missing'>—</td>"
+    classes = ["variant-cell", _status_class(record.judge_status)]
+    for flag in record.flags:
+        if flag in {"binding_miss", "high_delta"}:
+            classes.append(f"flag-{flag}")
+    outcome = _format_score(record.outcome_score, digits=2)
+    ndcg = _format_score(record.ndcg_at_10, digits=2)
+    mrr = _format_score(record.mrr, digits=2)
+    judge = html.escape(record.judge_status or "—")
+    return (
+        f"<td class=\"{' '.join(classes)}\" data-variant=\"{html.escape(record.variant_id)}\" "
+        f"data-status=\"{html.escape(record.judge_status)}\">"
+        f"<span class='metric-line'>outcome {outcome}</span>"
+        f"<span class='metric-line'>ndcg {ndcg} · mrr {mrr}</span>"
+        f"<span class='metric-line judge-line'>{judge}</span></td>"
+    )
+
+
 def _render_drilldown_html(
     bundle: ReproOutputBundle,
     *,
-    max_item_rows: int = 500,
+    max_item_rows: int = 0,
 ) -> str:
     if not bundle.variant_results:
         return ""
 
+    variants = _variant_display_order(bundle)
+    by_item = _item_records_by_id(bundle)
+    item_ids = sorted(by_item.keys())
+
     profiles = sorted(
-        {r.inspiration_profile for recs in bundle.variant_results.values() for r in recs if r.inspiration_profile}
+        {
+            (rec.inspiration_profile or bundle.item_metadata.get(iid, {}).get("inspiration_profile", ""))
+            for iid, recs in by_item.items()
+            for rec in recs.values()
+            if rec.inspiration_profile
+        }
+        | {
+            bundle.item_metadata[iid].get("inspiration_profile", "")
+            for iid in item_ids
+            if iid in bundle.item_metadata and bundle.item_metadata[iid].get("inspiration_profile")
+        }
     )
-    variants = sorted(bundle.variant_results.keys())
 
     parts = [
         '<section id="drilldown"><h2>Item drill-down</h2>',
+        "<p>One row per benchmark item; variant columns show outcome, ranking, and judge status "
+        "for side-by-side comparison. Expand detail for full evaluation payloads.</p>",
         '<div class="filters">',
-        '<label>Variant <select id="filter-variant"><option value="all">All</option>',
+        '<label>Highlight variant <select id="filter-variant"><option value="all">All</option>',
     ]
     parts.extend(f'<option value="{html.escape(v)}">{html.escape(v)}</option>' for v in variants)
     parts.append('</select></label>')
@@ -980,52 +1030,67 @@ def _render_drilldown_html(
         )
     parts.append("</div>")
 
-    parts.append(
-        "<table><thead><tr><th>Variant</th><th>Item</th><th>Profile</th>"
-        "<th>Judge</th><th>Outcome</th><th>Flags</th><th>Detail</th></tr></thead><tbody>"
+    header = (
+        "<thead><tr><th>Item</th><th>Profile</th><th>Question</th>"
+        + "".join(f"<th>{html.escape(v)}</th>" for v in variants)
+        + "<th>Detail</th></tr></thead><tbody>"
     )
+    parts.append(f"<div class='drilldown-wrap'><table class='drilldown-table'>{header}")
 
     row_count = 0
-    for variant_id in variants:
-        for record in bundle.variant_results[variant_id]:
-            if row_count >= max_item_rows:
-                break
-            row_count += 1
-            classes = ["item-row", _status_class(record.judge_status)]
-            for flag in record.flags:
-                if flag in {"binding_miss", "high_delta"}:
-                    classes.append(f"flag-{flag}")
-            profile = record.inspiration_profile or "—"
-            flags_txt = ", ".join(record.flags) if record.flags else "—"
-            parts.append(
-                f"<tr id=\"item-{html.escape(variant_id)}-{html.escape(record.item_id)}\" "
-                f"class=\"{' '.join(classes)}\" "
-                f"data-variant=\"{html.escape(variant_id)}\" "
-                f"data-profile=\"{html.escape(record.inspiration_profile)}\" "
-                f"data-status=\"{html.escape(record.judge_status)}\">"
-                f"<td>{html.escape(variant_id)}</td>"
-                f"<td>{html.escape(record.item_id)}</td>"
-                f"<td>{html.escape(profile)}</td>"
-                f"<td>{html.escape(record.judge_status)}</td>"
-                f"<td>{record.outcome_score if record.outcome_score is not None else '—'}</td>"
-                f"<td>{html.escape(flags_txt)}</td>"
-                f"<td><details><summary>Expand</summary>"
-                f"<p><strong>Answer excerpt:</strong> {html.escape(record.answer_excerpt)}</p>"
-                f"<p><strong>Citations:</strong> {record.citation_count}</p>"
-                f"<p><strong>Trajectory:</strong> {html.escape(record.trajectory_ref)}</p>"
-                f"<p><strong>Source:</strong> <code>{html.escape(record.source_path)}</code></p>"
-                f"</details></td></tr>"
-            )
-        if row_count >= max_item_rows:
+    truncated = False
+    for item_id in item_ids:
+        if max_item_rows > 0 and row_count >= max_item_rows:
+            truncated = True
             break
+        row_count += 1
+        recs = by_item[item_id]
+        sample = next(iter(recs.values()))
+        meta = bundle.item_metadata.get(item_id, {})
+        profile = sample.inspiration_profile or meta.get("inspiration_profile", "") or "—"
+        question = sample.question or meta.get("question", "") or "—"
+        expected = sample.expected_answer or meta.get("expected_answer", "") or "—"
+        question_short = question if len(question) <= 120 else question[:117] + "…"
 
-    if row_count >= max_item_rows:
+        statuses = sorted({r.judge_status for r in recs.values() if r.judge_status})
+        status_attr = ",".join(statuses)
+        row_classes = ["item-row"]
+        if any(r.judge_status in HIGHLIGHT_STATUSES for r in recs.values()):
+            row_classes.append("has-highlight-status")
+        for rec in recs.values():
+            for flag in rec.flags:
+                if flag in {"binding_miss", "high_delta"}:
+                    row_classes.append(f"flag-{flag}")
+
+        variant_cells = "".join(_render_variant_summary_cell(recs.get(vid)) for vid in variants)
+        variant_panels = "".join(_render_variant_detail_panel(recs.get(vid), vid) for vid in variants)
+
         parts.append(
-            f"<tr><td colspan='7'><em>Showing first {max_item_rows} rows "
-            f"(use --max-item-rows to adjust).</em></td></tr>"
+            f"<tr id=\"item-{html.escape(item_id)}\" class=\"{' '.join(row_classes)}\" "
+            f"data-profile=\"{html.escape(profile if profile != '—' else '')}\" "
+            f"data-statuses=\"{html.escape(status_attr)}\">"
+            f"<td class='item-id'>{html.escape(item_id)}</td>"
+            f"<td>{html.escape(profile)}</td>"
+            f"<td class='question-cell' title=\"{html.escape(question)}\">"
+            f"{html.escape(question_short)}</td>"
+            f"{variant_cells}"
+            f"<td><details class='item-detail-toggle'><summary>Evaluation detail</summary>"
+            f"<div class='item-detail'>"
+            f"<p><strong>Question:</strong> {html.escape(question)}</p>"
+            f"<p><strong>Expected answer:</strong></p>"
+            f"<pre class='answer-block'>{html.escape(expected)}</pre>"
+            f"<div class='variant-compare'>{variant_panels}</div>"
+            f"</div></details></td></tr>"
         )
 
-    parts.append("</tbody></table></section>")
+    if truncated:
+        colspan = 3 + len(variants) + 1
+        parts.append(
+            f"<tr><td colspan='{colspan}'><em>Showing first {max_item_rows} items "
+            f"(use --max-item-rows 0 for all).</em></td></tr>"
+        )
+
+    parts.append("</tbody></table></div></section>")
     return "".join(parts)
 
 
@@ -1034,7 +1099,7 @@ def render_html_report(
     output_path: Path,
     *,
     table_ids: list[PaperTableId] | None = None,
-    max_item_rows: int = 500,
+    max_item_rows: int = 0,
     delta_threshold: float = DEFAULT_DELTA_THRESHOLD,
 ) -> ReportArtifact:
     compute_investigation_flags(bundle, delta_threshold=delta_threshold)
@@ -1055,11 +1120,11 @@ def render_html_report(
         .replace("{{WARNINGS}}", _render_warnings_html(bundle.warnings))
         .replace("{{SUMMARY}}", _render_summary_html(summary))
         .replace("{{EXPORT_MANIFEST}}", _render_export_manifest_html(summary))
-        .replace("{{OUTCOME_BY_PROFILE}}", _render_outcome_by_profile_html(bundle))
+        .replace("{{OUTCOME_BY_PROFILE}}", "")
         .replace("{{OUTCOME_BY_STRATUM}}", _render_outcome_by_stratum_html(bundle))
         .replace("{{HEADLINE_TEX}}", _render_headline_tex_html(bundle, headline_latex))
         .replace("{{COMPARISON}}", _render_comparison_html(comparison, bundle))
-        .replace("{{STRATIFIED}}", _render_stratified_html(bundle))
+        .replace("{{STRATIFIED}}", "")
         .replace("{{ANOMALIES}}", _render_aggregated_notes_html(aggregated_notes))
         .replace("{{TABLES}}", _render_tables_html(all_views, bundle))
         .replace("{{DRILLDOWN}}", _render_drilldown_html(bundle, max_item_rows=max_item_rows))

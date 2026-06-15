@@ -48,14 +48,33 @@ th { background:#f1f5f9; }
 .chip { padding:.25rem .6rem; border-radius:999px; border:1px solid #cbd5e1;
   background:#fff; cursor:pointer; font-size:.8rem; }
 .chip.active { background:var(--accent); color:#fff; border-color:var(--accent); }
-tr.status-degraded { background:#fff7ed; }
-tr.status-pending { background:#f5f3ff; }
-tr.status-not_evaluable { background:#fff1f2; }
+tr.status-degraded, .variant-panel.status-degraded { background:#fff7ed; }
+tr.status-pending, .variant-panel.status-pending { background:#f5f3ff; }
+tr.status-not_evaluable, .variant-panel.status-not_evaluable { background:#fff1f2; }
 tr.flag-binding_miss, tr.flag-high_delta { outline:2px solid var(--flag); outline-offset:-2px; }
+td.variant-cell.flag-binding_miss, td.variant-cell.flag-high_delta { outline:2px solid var(--flag); }
+td.variant-cell.highlight-variant { background:#dbeafe; }
 details summary { cursor:pointer; color:var(--accent); }
 .headline-tex { background:#f8fafc; padding:1rem; overflow:auto; font-size:.8rem;
   border:1px solid #e2e8f0; border-radius:6px; max-height:240px; }
 .hidden { display:none; }
+.drilldown-wrap { overflow-x:auto; }
+.drilldown-table { font-size:.8rem; min-width:960px; }
+.drilldown-table .item-id { white-space:nowrap; font-weight:600; }
+.drilldown-table .question-cell { max-width:220px; }
+.variant-cell { font-size:.75rem; vertical-align:top; min-width:110px; }
+.variant-cell .metric-line { display:block; white-space:nowrap; }
+.variant-cell .judge-line { color:var(--muted); }
+.variant-cell.missing { color:var(--muted); text-align:center; }
+.item-detail { margin-top:.75rem; }
+.answer-block { background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px;
+  padding:.75rem; white-space:pre-wrap; word-break:break-word; font-size:.8rem;
+  max-height:320px; overflow:auto; margin:.25rem 0 .75rem; }
+.variant-compare { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1rem; }
+.variant-panel { border:1px solid #e2e8f0; border-radius:6px; padding:.75rem; font-size:.82rem; }
+.variant-panel h4 { margin:0 0 .5rem; font-size:.9rem; }
+.variant-panel.missing { opacity:.7; }
+.score-list { margin:.25rem 0 .75rem; padding-left:1.25rem; }
 </style>
 </head>
 <body>
@@ -63,11 +82,9 @@ details summary { cursor:pointer; color:var(--accent); }
 {{WARNINGS}}
 {{SUMMARY}}
 {{EXPORT_MANIFEST}}
-{{OUTCOME_BY_PROFILE}}
 {{OUTCOME_BY_STRATUM}}
 {{HEADLINE_TEX}}
 {{COMPARISON}}
-{{STRATIFIED}}
 {{ANOMALIES}}
 {{TABLES}}
 {{DRILLDOWN}}
@@ -82,32 +99,53 @@ function copyText(id, btn) {
   });
 }
 (function() {
+  function rowStatuses(row) {
+    return (row.getAttribute('data-statuses') || '').split(',').filter(Boolean);
+  }
+  function rowMatchesStatus(row, status) {
+    if (status === 'all') return true;
+    return rowStatuses(row).indexOf(status) !== -1;
+  }
+  function rowMatchesVariantStatus(row, variant, status) {
+    if (variant === 'all') return rowMatchesStatus(row, status);
+    var cell = row.querySelector('.variant-cell[data-variant="' + variant + '"]');
+    if (!cell) return false;
+    if (status === 'all') return true;
+    return cell.getAttribute('data-status') === status;
+  }
+  function highlightVariant(row, variant) {
+    row.querySelectorAll('.variant-cell').forEach(function(cell) {
+      cell.classList.toggle('highlight-variant', variant !== 'all' && cell.getAttribute('data-variant') === variant);
+    });
+  }
+  function applyFilters() {
+    var variantSel = document.getElementById('filter-variant');
+    var profileSel = document.getElementById('filter-profile');
+    var statusSel = document.getElementById('filter-judge-status');
+    var v = variantSel ? variantSel.value : 'all';
+    var p = profileSel ? profileSel.value : 'all';
+    var s = statusSel ? statusSel.value : 'all';
+    document.querySelectorAll('.item-row').forEach(function(row) {
+      var okProfile = p === 'all' || row.getAttribute('data-profile') === p;
+      var okStatus = rowMatchesVariantStatus(row, v, s);
+      row.classList.toggle('hidden', !(okProfile && okStatus));
+      highlightVariant(row, v);
+    });
+  }
   var chips = document.querySelectorAll('.chip[data-filter-status]');
   chips.forEach(function(chip) {
     chip.addEventListener('click', function() {
       chips.forEach(function(c) { c.classList.remove('active'); });
       chip.classList.add('active');
       var status = chip.getAttribute('data-filter-status');
-      document.querySelectorAll('.item-row').forEach(function(row) {
-        if (status === 'all') { row.classList.remove('hidden'); return; }
-        row.classList.toggle('hidden', row.getAttribute('data-status') !== status);
-      });
+      var statusSel = document.getElementById('filter-judge-status');
+      if (statusSel) statusSel.value = status;
+      applyFilters();
     });
   });
   var variantSel = document.getElementById('filter-variant');
   var profileSel = document.getElementById('filter-profile');
   var statusSel = document.getElementById('filter-judge-status');
-  function applyFilters() {
-    var v = variantSel ? variantSel.value : 'all';
-    var p = profileSel ? profileSel.value : 'all';
-    var s = statusSel ? statusSel.value : 'all';
-    document.querySelectorAll('.item-row').forEach(function(row) {
-      var ok = (v === 'all' || row.getAttribute('data-variant') === v)
-        && (p === 'all' || row.getAttribute('data-profile') === p)
-        && (s === 'all' || row.getAttribute('data-status') === s);
-      row.classList.toggle('hidden', !ok);
-    });
-  }
   [variantSel, profileSel, statusSel].forEach(function(el) {
     if (el) el.addEventListener('change', applyFilters);
   });
