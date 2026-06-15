@@ -59,4 +59,5 @@ class AgentState(TypedDict, total=False):
     variant_disable_graph_walker: bool | None
     variant_xbrl_only: bool | None
     expected_section_paths_json: str | None
+    suppress_benchmark_path_injection: bool | None
     navigation_trace: Any | None

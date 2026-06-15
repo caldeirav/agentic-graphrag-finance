@@ -23,8 +23,8 @@ The `custom-judge` pipeline uses upstream work as **inspiration profiles** (prom
 | Profile | Borrowed from upstream | Adapted for this project |
 |---------|------------------------|---------------------------|
 | **FinanceBench** | Question-type taxonomy (`metrics-generated`, `domain-relevant`, `novel-generated`); short numeric or textual gold answers | Items bind to **graph-resolvable** `expected_section_paths` (`{accession}/{section_slug}`) instead of PDF page numbers |
-| **FinDER** | Retrieval-focused questions; **rubric-based** scoring with reference evidence | `ground_truth.rubric` is required; `ground_truth.answer` may be null (rubric-only items) |
-| **FinAgentBench** | Multi-hop, cross-filing agentic tasks | `expected_bindings.accessions` must span **≥2 filings**; section paths may cross accessions |
+| **FinDER** | Retrieval-focused questions; **rubric-based** scoring with reference evidence | v1: `ground_truth.rubric` required, answer optional. **v2**: answer-GT required; rubric auxiliary only |
+| **FinAgentBench** | Multi-hop, cross-filing agentic tasks | `expected_bindings.accessions` must span **≥2 filings**; v2 uses `answer_type: comparison_structured` with per-filing + cross-filing `required_claims` |
 
 Prompt templates: `configs/benchmarks/inspiration_profiles/{financebench,finder,finagentbench}.yaml`.  
 Profile mix is **config-only** (`profile_quotas` in YAML); v1 defaults to ~equal thirds (~34% / 33% / 33%).
@@ -63,9 +63,13 @@ flowchart LR
   B --> B1[sampling_manifest.json]
   C --> C1[corpus/ + graph_node_index.json]
   D --> D1[Gemini item JSON]
-  E --> E1[items/dev.jsonl]
+  E --> E1[items/dev_pool.jsonl]
+  E1 --> E2[profile-balanced selection]
+  E2 --> E3[items/dev.jsonl]
   F --> F1[manifest.json + generation_report.json]
 ```
+
+**v1.x** writes accepted rows directly to `items/dev.jsonl`. **v2.0** keeps the full accepted pool in `items/dev_pool.jsonl`, then selects a **quota-balanced** 200-item dev split (see [Bundle v2.0](#bundle-v20-net-new-pool)).
 
 ### Phase 1 — Sampling
 
@@ -92,7 +96,10 @@ flowchart LR
 2. For each candidate, call **Gemini** (`GeminiItemGenerator`) with profile-specific prompts styled after FinanceBench, FinDER, and FinAgentBench (see [Design references](#design-references-papers-and-datasets)).
 3. **Validate** each item: non-empty question, ground truth or rubric, accessions ⊆ snapshot, every section path ∈ graph index; profile-specific rules (e.g. FinAgentBench ≥2 filings).
 4. **Deduplicate** near-duplicate questions (similarity threshold from governance config).
-5. Write accepted rows to `items/dev.jsonl`, all candidates to `candidates.jsonl`, finalize `manifest.json` (`status: draft`).
+5. **v2 only**: write all unique accepts to `items/dev_pool.jsonl`, then **profile-balanced selection** into `items/dev.jsonl` (200 items matching `profile_quotas`).
+6. Write all candidates to `candidates.jsonl`, finalize `manifest.json` (`status: draft`).
+
+**v2 post-parse normalization** (`v2_item_normalize.py`): infer `answer_type`, derive or repair `required_claims`. Comparison items validate **semantic** cross-filing synthesis (per-filing claims + a natural-language compare/contrast claim), not fixed boilerplate phrases.
 
 **Modules:** `src/evaluation/generation/judge_generator.py`, `gemini_item_generator.py`, `item_validator.py`, `deduplicator.py`, `bundle.py`
 
@@ -107,8 +114,8 @@ Prompt templates live under `configs/benchmarks/inspiration_profiles/`. See [Des
 | Profile | Upstream | Style | Typical ground truth | Filing count |
 |---------|----------|-------|---------------------|--------------|
 | `financebench` | [FinanceBench](https://github.com/patronus-ai/financebench) | Metrics, domain, novel generated | `ground_truth.answer` | Single-filing |
-| `finder` | [FinDER](https://huggingface.co/datasets/Linq-AI-Research/FinDER) | Retrieval QA | `ground_truth.rubric` (answer optional) | Single-filing |
-| `finagentbench` | [FinAgentBench](https://www.kaggle.com/competitions/acm-icaif-25-ai-agentic-retrieval-grand-challenge/data) | Agentic multi-hop | answer and/or rubric | ≥2 accessions |
+| `finder` | [FinDER](https://huggingface.co/datasets/Linq-AI-Research/FinDER) | Retrieval QA | v1: rubric primary; **v2: `ground_truth.answer` required** | Single-filing |
+| `finagentbench` | [FinAgentBench](https://www.kaggle.com/competitions/acm-icaif-25-ai-agentic-retrieval-grand-challenge/data) | Agentic multi-hop | v2: `comparison_structured` answer + structured claims | ≥2 accessions |
 
 Quotas are **config-only** (`profile_quotas` in YAML); the shipped v1 config uses ~equal thirds.
 
@@ -173,7 +180,7 @@ uv run agent-query benchmark-dataset generate \
   --trace verbose
 ```
 
-Review `generation_report.json` (`pass_rate` ≥ 0.95, `accepted_count` ≥ 200) before publish.
+Review `generation_report.json` before publish. **v1**: `pass_rate` ≥ 0.95 and `accepted_count` ≥ 200 are **blocking**. **v2**: see [Bundle v2.0](#bundle-v20-net-new-pool) — candidate `pass_rate` is indicative only; publish gates judge final `dev.jsonl`.
 
 The judge phase generates **`governance.max_items`** candidates by default (220 for `custom_judge_v1.yaml`). Use `--target-items N` only to override for smoke runs (e.g. `--target-items 2`). Sampling and materialize are **not** re-run when you resume with `--phase judge`.
 
@@ -219,6 +226,7 @@ Console tracing uses Rich panels on stderr (`--trace quiet|normal|verbose`), sam
 | File | Role |
 |------|------|
 | `configs/benchmarks/custom_judge_v1.yaml` | Production v1 defaults (**20 issuers**, ≥200 items, equal-thirds quotas) |
+| `configs/benchmarks/custom_judge_v2.yaml` | Production **v2.0** net-new pool (seed 20260602, answer-GT-only, `multi_filing_min: 40`) |
 | `configs/benchmarks/custom_judge_live.yaml` | Live EDGAR + Gemini smoke (1 issuer, 2 items) |
 | `configs/benchmarks/custom_judge_ci.yaml` | CI mock path (`--mock-judge` only) |
 | `configs/benchmarks/custom_judge_v1_extend.yaml` | Example extend delta config |
@@ -265,9 +273,11 @@ data/benchmarks/custom-judge/drafts/{run_id}/
 ├── sampling_manifest.json        # Issuers, accessions, config/allowlist hashes
 ├── generation_report.json        # Pass rate, rejections, judge API counts
 ├── corpus_bundle.json            # Snapshot ids, corpus paths, artifact hashes
-├── candidates.jsonl              # All candidates (accepted + rejected)
+├── candidates.jsonl              # All candidates (accepted + rejected; checkpoint order)
+├── dev_selection_report.json     # v2: pool size, targets, selected profile counts
 ├── items/
-│   └── dev.jsonl                 # Accepted items only (primary eval split)
+│   ├── dev_pool.jsonl            # v2: all unique accepted items (may exceed 200)
+│   └── dev.jsonl                 # Primary eval split (200 quota-balanced in v2)
 └── corpus/
     ├── graph_node_index.json     # Valid section paths for FR-009
     └── graphs/{TICKER}/{snapshot_id}/…
@@ -286,19 +296,30 @@ Use these files **in order** when reviewing a draft run (e.g. `drafts/live-edgar
 Check first:
 
 - `accepted_count` / `candidates_total` and `pass_rate`
-- `rejections_by_reason` — e.g. `unknown_section_path`, `missing_ground_truth`, `finagentbench_requires_multi_filing`
+- `rejections_by_reason` — e.g. `unknown_section_path`, `missing_ground_truth`, `required_claims`, `finagentbench_requires_multi_filing`
 - `judge_api_calls`, `duration_seconds`, `budget_exceeded`
+
+**v2**: `pass_rate` measures candidate validation yield (duplicates count as non-blocking). It is **not** a publish gate. Tune generation using this metric; publish quality is judged on `items/dev.jsonl` only.
 
 Low pass rate before tuning prompts: inspect rejection counts here, then drill into `candidates.jsonl`.
 
-### 2. `items/dev.jsonl` — accepted items (primary review)
+### 2. `dev_selection_report.json` — v2 profile balance (when present)
+
+After judge phase or publish, confirms quota-balanced selection:
+
+- `pool_count` — rows in `dev_pool.jsonl`
+- `selected_count` — rows written to `dev.jsonl` (200 for production v2)
+- `targets` / `selected_counts` — per-profile allocation (e.g. financebench 68, finder 66, finagentbench 66 for equal-thirds quotas)
+
+### 3. `items/dev.jsonl` — accepted items (primary review)
 
 One JSON object per line. For each item verify:
 
 | Field | Accuracy check |
 |-------|----------------|
 | `question` | Clear, answerable from the bound filings, matches inspiration profile style |
-| `ground_truth.answer` / `ground_truth.rubric` | Factually correct vs source filing. **Profile rules:** `financebench` requires `answer`; `finder` requires `rubric` and may have `answer: null` (FinDER-style rubric-only scoring); `finagentbench` requires at least one of answer or rubric. |
+| `ground_truth.answer` / `ground_truth.rubric` | Factually correct vs source filing. **v1 profile rules:** `financebench` requires `answer`; `finder` requires `rubric` (answer optional); `finagentbench` requires answer or rubric. **v2:** every item requires non-empty `answer`; `required_claims` for narrative/comparison types; rubric auxiliary only. |
+| `answer_type` | **v2**: `numeric`, `short_label`, `narrative`, or `comparison_structured` |
 | `expected_bindings.accessions` | Subset of accessions in `sampling_manifest.json` |
 | `expected_bindings.fiscal_periods` | Align with filing period (FY/Q labels) |
 | `expected_section_paths` | Point to real sections; cross-check `corpus/graph_node_index.json` |
@@ -312,11 +333,15 @@ jq -r '.question' data/benchmarks/custom-judge/drafts/live-edgar-smoke/items/dev
 jq . data/benchmarks/custom-judge/drafts/live-edgar-smoke/items/dev.jsonl
 ```
 
-### 3. `candidates.jsonl` — rejected items and errors
+### 4. `items/dev_pool.jsonl` — v2 full accept pool
+
+All unique accepted items before quota selection. Use when you need extra finagentbench/financebench rows to backfill a draft without re-running Gemini on rejected candidates.
+
+### 5. `candidates.jsonl` — rejected items and errors
 
 Same schema as dev rows but includes `validation_status: rejected` and `validation_errors[]`. Use this to see **what Gemini produced before validation** and why items failed (hallucinated paths, wrong accession, empty rubric, duplicates).
 
-### 4. `corpus/graph_node_index.json` — grounding audit
+### 6. `corpus/graph_node_index.json` — grounding audit
 
 Lists every resolvable `{accession}/{section_slug}` exported from materialized graphs. Confirm each `expected_section_path` in dev items appears in `paths`. Paths missing here indicate materialize/index bugs, not just bad judge output.
 
@@ -327,17 +352,17 @@ jq -r '.paths[]' data/benchmarks/custom-judge/drafts/live-edgar-smoke/corpus/gra
   | sort -u
 ```
 
-### 5. `sampling_manifest.json` — filing binding context
+### 7. `sampling_manifest.json` — filing binding context
 
 Shows which tickers and accessions were frozen for this run. Verify items reference filings that were actually materialized (not adjacent filings from EDGAR that were filtered out).
 
-### 6. `manifest.json` — draft summary
+### 8. `manifest.json` — draft summary
 
 - `item_count`, `profile_counts`, `items_hash`
 - `generation_judge_version` / `evaluation_judge_version` pins
 - `corpus_bundle.snapshot_id` — needed for downstream eval
 
-### 7. Source corpus (optional deep dive)
+### 9. Source corpus (optional deep dive)
 
 To manually verify answers:
 
@@ -347,7 +372,7 @@ To manually verify answers:
 
 Open the HTML/XBRL sections referenced in `expected_section_paths` and compare to `ground_truth`.
 
-### 8. Console trace (runtime)
+### 10. Console trace (runtime)
 
 Re-run with `--trace verbose` to see phase timings, per-item Gemini latency, and question previews on stderr. Useful when debugging retries without re-materializing.
 
@@ -363,7 +388,9 @@ uv run agent-query benchmark-dataset publish \
   --version 1.0.0
 ```
 
-Publish gates (unless `--skip-gates`): ≥200 accepted items and pass rate ≥ 0.95 from `generation_report.json`.
+**v1 publish gates** (unless `--skip-gates`): ≥200 items in `dev.jsonl` and `generation_report.pass_rate` ≥ 0.95.
+
+**v2 publish** requires `--publish-signoff` and gates on final `dev.jsonl` quality (answer-GT coverage, feasibility, ≥40 multi-filing, macro-bindability, operator audit). Re-runs profile-balanced selection from `dev_pool.jsonl` when the pool exceeds 200 items. See [Bundle v2.0](#bundle-v20-net-new-pool).
 
 Offline hash check:
 
@@ -413,6 +440,80 @@ After you **publish** a bundle (or keep a draft for smoke), run phase 2 on the f
 - **[Research reproduction guide](research-reproduction.md)** — `repro run-all`, five variants, live judge + LM Studio
 - **`releases/paper-live-smoke`** — 2-item live smoke (draft from `--run-id live-repro-smoke`)
 - **`releases/paper-v1.0`** — full published split (LFS corpus)
+- **`releases/paper-v2.0`** — net-new v2.0.0 bundle (200 answer-GT items, unified `task_success`)
+
+---
+
+## Bundle v2.0 (net-new pool)
+
+v2.0 is a **greenfield** dataset: new seed (`20260602`), refreshed fiscal window (2023–2026), **100% non-empty `ground_truth.answer`**, structured `required_claims`, and no reuse of v1.2.0 item IDs. Published bundle: `data/benchmarks/custom-judge/v2.0.0/`.
+
+### v2 vs v1 generation differences
+
+| Topic | v1.x | v2.0 |
+|-------|------|------|
+| Publish `pass_rate` gate | Blocking (≥ 0.95) | **Indicative only** (candidate yield tuning) |
+| Dev split selection | All accepts → `dev.jsonl` | Pool → **quota-balanced** 200 → `dev.jsonl` |
+| Finder items | Rubric-only allowed | Answer-GT required |
+| FinAgentBench | Answer or rubric | `comparison_structured` + semantic claims |
+| Multi-filing floor | — | ≥ 40 items at publish |
+| Macro-bindability | — | Blocking for all 200 items |
+| Publish sign-off | Optional | **`--publish-signoff` required** |
+
+### Profile-balanced selection
+
+`profile_quotas` in YAML (default ~34% / 33% / 33%) schedule **generation attempts** only. The final 200-item dev split is built by `profile_selection.py`:
+
+1. **Judge phase** writes all unique accepts to `items/dev_pool.jsonl`.
+2. `apply_profile_balanced_dev_split` selects 200 items using largest-remainder quotas (e.g. 68 / 66 / 66).
+3. Selection is **deterministic** (`random_seed` + `item_id` hash).
+4. **Publish** re-runs selection from `dev_pool.jsonl` before gates, writes `dev_selection_report.json`.
+
+Console output highlights the balanced split:
+
+```text
+dev_selected=200 (profile-balanced from pool of 403)
+dev_profile_counts=financebench=68, finder=66, finagentbench=66
+```
+
+### Generate and publish
+
+```bash
+uv run agent-query benchmark-dataset generate \
+  --config configs/benchmarks/custom_judge_v2.yaml \
+  --run-id v2-draft-YYYYMMDD \
+  --bundle-version 2.0.0
+
+# Resume judge only (revalidates candidates + rebuilds dev_pool/dev split):
+uv run agent-query benchmark-dataset generate \
+  --config configs/benchmarks/custom_judge_v2.yaml \
+  --run-id v2-draft-YYYYMMDD \
+  --bundle-version 2.0.0 \
+  --phase judge
+
+# After 20-item stratified audit (publish_audit.sample.json):
+uv run agent-query benchmark-dataset publish \
+  data/benchmarks/custom-judge/drafts/v2-draft-YYYYMMDD \
+  --version 2.0.0 \
+  --publish-signoff \
+  --operator-id "${USER}"
+```
+
+### v2 publish gates (blocking)
+
+| Gate | Rule |
+|------|------|
+| `item_count` | 200 rows in `dev.jsonl`; matches manifest |
+| `answer_gt_coverage` | 1.0 |
+| `rubric_only_count` | 0 |
+| `multi_filing_count` | ≥ 40 |
+| `macro_bindability_failures` | 0 |
+| `blocked_count` | 0 |
+| `publish_audit.json` | Present with operator sign-off |
+
+**Not blocking**: `generation_report.pass_rate` (raw candidate yield).
+
+Paper reproduction: `releases/paper-v2.0` → [017 quickstart](../specs/017-custom-judge-v2/quickstart.md) · [017 spec](../specs/017-custom-judge-v2/spec.md) · [bundle v2 contract](../specs/017-custom-judge-v2/contracts/bundle-v2.0.md).
 
 ---
 
@@ -421,6 +522,8 @@ After you **publish** a bundle (or keep a draft for smoke), run phase 2 on the f
 | Topic | Location |
 |-------|----------|
 | Feature requirements and success criteria | [spec.md](../specs/011-judge-eval-dataset/spec.md) |
+| **v2.0 bundle contract, gates, CLI** | [017 quickstart](../specs/017-custom-judge-v2/quickstart.md) · [bundle-v2.0](../specs/017-custom-judge-v2/contracts/bundle-v2.0.md) · [generation-v2-cli](../specs/017-custom-judge-v2/contracts/generation-v2-cli.md) |
+| Comparison-structured GT | [comparison-gt-template](../specs/017-custom-judge-v2/contracts/comparison-gt-template.md) |
 | Paper table reproduction (phase 2) | [research-reproduction.md](research-reproduction.md) |
 | Allowlist, materialization boundary, governance decisions | [research.md](../specs/011-judge-eval-dataset/research.md) |
 | Generation config schema | [generation-config-schema](../specs/011-judge-eval-dataset/contracts/generation-config-schema.md) |

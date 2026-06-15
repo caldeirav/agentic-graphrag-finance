@@ -38,9 +38,17 @@ class ModelPins(BaseModel):
 class ToleranceBands(BaseModel):
     mean_outcome_accuracy: float = 0.02
     mean_rubric_alignment: float = 0.02
+    mean_task_success: float = 0.02
     mean_trajectory_fidelity: float = 0.02
     ranking_metrics_exact: bool = True
     structural_metrics_exact: bool = True
+
+
+class FullReproductionPolicy(BaseModel):
+    selective_agent_skip: bool = False
+    changelog_based_skip: bool = False
+    required_variants: int = 5
+    required_items_per_variant: int = 200
 
 
 class SystemVariantConfig(BaseModel):
@@ -65,18 +73,22 @@ PAPER_V1_VARIANT_IDS = (
 class ReleaseManifest(BaseModel):
     schema_version: str = "1.0.0"
     release_tag: str
-    git_sha: str
+    git_sha: str = "TBD"  # optional reference commit; not enforced at repro time
     custom_judge_version: str
     custom_judge_bundle_path: str
     eval_split: str = "dev"
     reproduction_mode: ReproductionMode = ReproductionMode.LIVE_REEXECUTION
     corpus_hashes: dict[str, str] = Field(default_factory=dict)
+    items_hash: str = ""
     relevance_labels_hash: str = ""
     relevance_coverage_rate: float = 0.0
     variant_ids: list[str] = Field(default_factory=list)
     model_pins: ModelPins
     tolerance_bands: ToleranceBands = Field(default_factory=ToleranceBands)
     expected_checksums_path: str = "expected_checksums.json"
+    full_reproduction_policy: FullReproductionPolicy | None = None
+    smoke_item_ids_path: str = ""
+    smoke_gate_thresholds: dict[str, float | int] = Field(default_factory=dict)
 
     def validate_paper_v1(self) -> None:
         if self.release_tag != "paper-v1.0":

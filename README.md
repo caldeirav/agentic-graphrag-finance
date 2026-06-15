@@ -19,7 +19,7 @@ This repo implements the research direction in [docs/research-proposal.md](docs/
 |-----|-----------------|
 | [End-to-end walkthrough](docs/end-to-end-walkthrough.md) | First deep dive: XBRL, Docling, graph, agent stages, judge |
 | [Research reproduction](docs/research-reproduction.md) | Full paper repro: two phases, variants, defer-judge, recovery |
-| [Custom-judge dataset generation](docs/custom-judge-dataset-generation.md) | Building the evaluation corpus (phase 1 of paper repro) |
+| [Custom-judge dataset generation](docs/custom-judge-dataset-generation.md) | Building the evaluation corpus — v1.x and **v2.0** (phase 1 of paper repro) |
 | [docs/README.md](docs/README.md) | Index of all guides |
 
 ---
@@ -228,7 +228,8 @@ Feature specs live under `specs/{NNN-feature-name}/` (spec, plan, tasks, contrac
 | 011 | Custom-judge dataset generation |
 | 012 | Research reproduction kit (five variants, table export) |
 | 013 | Eval acceleration (defer judge, per-item subgraph, resume) |
+| 017 | Custom-judge **v2.0** bundle (answer-GT-only, profile-balanced dev split, paper-v2.0) |
 
-**Active plan:** [specs/013-benchmark-eval-acceleration/plan.md](specs/013-benchmark-eval-acceleration/plan.md)
+**Active plan:** [specs/017-custom-judge-v2/plan.md](specs/017-custom-judge-v2/plan.md)
 
 **Legacy staged scripts** (`sec-ingest`, `sec-graph-build`, `sec-query`, `sec-benchmark`) remain for layer debugging; prefer `agent-query` for normal use.

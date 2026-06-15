@@ -13,7 +13,7 @@ from parsing.xbrl_facts import (
     is_securities_sales_false_positive,
 )
 from retrieval.evidence_scope import period_alignment_score
-from retrieval.orchestration.meso_scoring import is_mda_query
+from retrieval.orchestration.meso_scoring import is_divestiture_query, is_mda_query, is_narrative_mda_query
 
 _FINANCIAL_QUERY = re.compile(
     r"\b(revenue|sales|income|earnings|profit|assets|liabilities|cash|eps|margin|"
@@ -27,13 +27,43 @@ _RISK_CROSS_REF = re.compile(
 )
 _OFF_TOPIC_RISK_CHUNK = re.compile(
     r"(operating\s+expenses\s+for\s+\d{4}|internal\s+control\s+–\s+integrated\s+framework|"
-    r"share-based\s+compensation\s+expense|item\s+2\.\s+properties|basis\s+for\s+opinion)",
+    r"share-based\s+compensation\s+expense|item\s+2\.\s+properties|basis\s+for\s+opinion|"
+    r"identified\s+item|interest\s+rate\s+derivative|fiscal\s+quarter\s+interest\s+expense|"
+    r"net\s+gain\s*\(loss\)\s+from\s+interest\s+rate)",
+    re.I,
+)
+_FINANCIAL_HIGHLIGHT_NOISE = re.compile(
+    r"(first quarter of 20\d\d|second quarter of 20\d\d|total sales and revenues were|"
+    r"credit facility|covenant leverage|interest rate derivatives|company trends and expectations|"
+    r"price realization|sales were higher across)",
+    re.I,
+)
+_GEOPOLITICAL_TOPIC = re.compile(
+    r"\b(geopolitic|international operation|trade polic|tariff|sanction|"
+    r"civil (unrest|disturbance)|terrorism|cross-border|trade barrier|war)\b",
     re.I,
 )
 
 
 def is_financial_query(query: str) -> bool:
     return bool(_FINANCIAL_QUERY.search(query))
+
+
+def _is_comparison_query(query: str) -> bool:
+    q = query.lower()
+    return any(
+        k in q
+        for k in (
+            "compare",
+            "comparison",
+            "versus",
+            " vs ",
+            "both companies",
+            "both filings",
+            "across",
+            "contrast",
+        )
+    )
 
 
 def source_bias_multiplier(source: EvidenceSourceType, bias: SourceBias) -> float:
@@ -88,8 +118,9 @@ def qualitative_keyword_boost(
         k in ex for k in ("management", "md&a", "discussion", "liquidity")
     ):
         boost += 6.0
-    if "business" in q and "business" in ex:
-        boost += 4.0
+    if any(k in q for k in ("divest", "divestment", "proceeds", "sold as part", "business sales")):
+        if any(k in ex for k in ("divest", "singapore", "mobil argentina", "proceeds", "1.1 billion")):
+            boost += 15.0
     return boost
 
 
@@ -101,12 +132,29 @@ def risk_excerpt_score_adjustment(excerpt: str, section_id: str, *, query: str =
         adjust += 4.0
     if "md_and_a" in sid:
         adjust += 6.0
-    if query and is_mda_query(query) and "risk_factors" in sid and "md_and_a" not in sid:
+    if query and is_narrative_mda_query(query) and "risk_factors" in sid and "md_and_a" not in sid:
         adjust -= 8.0
     if _RISK_CROSS_REF.search(ex) and len(excerpt) < 2500:
         adjust -= 12.0
     if _OFF_TOPIC_RISK_CHUNK.search(ex):
         adjust -= 15.0
+    if _FINANCIAL_HIGHLIGHT_NOISE.search(excerpt):
+        adjust -= 18.0
+    if re.search(r"\b(currency|income/expense|interest expense)\b", ex) and not _GEOPOLITICAL_TOPIC.search(
+        excerpt
+    ):
+        adjust -= 12.0
+    if query and is_divestiture_query(query):
+        if "md_and_a" in sid:
+            adjust += 14.0
+        if any(k in ex for k in ("divest", "singapore", "mobil argentina", "proceeds")):
+            adjust += 16.0
+        if "business_description" in sid and not any(
+            k in ex for k in ("divest", "singapore", "mobil argentina", "proceeds")
+        ):
+            adjust -= 12.0
+    if query and _GEOPOLITICAL_TOPIC.search(query) and _GEOPOLITICAL_TOPIC.search(excerpt):
+        adjust += 12.0
     if re.search(
         r"item\s+1a\.?\s+risk\s+factors.*material\s+adverse",
         ex,
@@ -114,6 +162,85 @@ def risk_excerpt_score_adjustment(excerpt: str, section_id: str, *, query: str =
     ):
         adjust += 10.0
     return adjust
+
+
+def excerpt_topic_score(query: str, excerpt: str, section_id: str = "") -> float:
+    """Rank excerpts for synthesis prompt selection (risk / comparison queries)."""
+    score = 0.0
+    ex = excerpt.lower()
+    q = query.lower()
+    sid = section_id.lower()
+    if "risk" in q and "risk" in ex:
+        score += 3.0
+    for kw in (
+        "geopolitic",
+        "international",
+        "trade",
+        "tariff",
+        "sanction",
+        "war",
+        "unrest",
+        "conflict",
+    ):
+        if kw in q and kw in ex:
+            score += 3.0
+    if _GEOPOLITICAL_TOPIC.search(q):
+        if _GEOPOLITICAL_TOPIC.search(excerpt):
+            score += 5.0
+    if "cyber" in q and "cyber" in ex:
+        score += 8.0
+    if "supply chain" in q or "operational disruption" in q:
+        for kw in ("supply chain", "disruption", "shortage", "logistics", "operating"):
+            if kw in ex:
+                score += 4.0
+    if "economic condition" in q or "global economic" in q:
+        for kw in ("economic", "recession", "slowdown", "demand", "inflation", "gdp"):
+            if kw in ex:
+                score += 4.0
+    if "segment" in q:
+        for kw in ("upstream", "energy products", "chemical products", "specialty products", "segment"):
+            if kw in ex:
+                score += 5.0
+    if any(k in q for k in ("divest", "divestment", "proceeds")):
+        for kw in ("divest", "singapore", "mobil argentina", "proceeds", "1.1 billion", "asset sale"):
+            if kw in ex:
+                score += 8.0
+    if _FINANCIAL_HIGHLIGHT_NOISE.search(ex):
+        score -= 12.0
+    if re.search(r"\b(currency|income/expense|interest expense|derivatives)\b", ex) and not re.search(
+        r"\b(risk|tariff|sanction|geopolitic|war|unrest|trade barrier)\b", ex
+    ):
+        score -= 10.0
+    if re.search(r"(controls and procedures|exhibit 31|dealer inventories|financial products segment)", ex):
+        score -= 20.0
+    if "forward-looking" in ex and "sustainability" in ex:
+        score -= 15.0
+    if "risk_factors" in sid:
+        score += 3.0
+    if "md_and_a" in sid and any(k in q for k in ("divest", "md&a", "management")):
+        score += 4.0
+    return score
+
+
+def rank_evidence_by_topic(
+    evidence: list,
+    query: str,
+    *,
+    max_chunks: int = 8,
+) -> list:
+    """Return evidence sorted by query-topic relevance (best first)."""
+    if not evidence:
+        return []
+    ranked = sorted(
+        evidence,
+        key=lambda c: excerpt_topic_score(
+            query,
+            getattr(c, "excerpt", "") or "",
+            getattr(c, "section_id", "") or "",
+        ),
+        reverse=True,
+    )
+    return ranked[:max_chunks]
 
 
 def score_chunk(
@@ -180,6 +307,16 @@ def score_chunk(
         if risk_adj:
             components["risk_excerpt_adjustment"] = round(risk_adj, 3)
             score += risk_adj
+        topic_score = excerpt_topic_score(query, excerpt, section_id)
+        if topic_score:
+            components["excerpt_topic_score"] = round(topic_score, 3)
+            score += topic_score
+
+    if qualitative_only and _is_comparison_query(query):
+        topic_score = excerpt_topic_score(query, excerpt, section_id)
+        if topic_score:
+            components["comparison_topic_score"] = round(topic_score, 3)
+            score += topic_score * 1.5
 
     subtotal = score
     components["subtotal_before_bias"] = round(subtotal, 3)

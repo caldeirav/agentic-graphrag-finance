@@ -19,7 +19,11 @@ from evaluation.judges.outcome_scoring import compute_outcome_scores
 from evaluation.metrics.ranking import compute_ranking_metrics
 from evaluation.metrics.trajectory import trajectory_fidelity_score
 from evaluation.reproduction.accession_index import AccessionIndex
-from evaluation.reproduction.corpus_verify import dry_run_registry_check, verify_corpus_hashes
+from evaluation.reproduction.corpus_verify import (
+    dry_run_registry_check,
+    verify_bundle_pins,
+    verify_corpus_hashes,
+)
 from evaluation.reproduction.defer_config import resolve_defer_config
 from evaluation.reproduction.errors import MissingBindingsError
 from evaluation.reproduction.export import (
@@ -168,6 +172,9 @@ class ReproRunner:
         result = verify_corpus_hashes(self._manifest, repo_root=self._repo_root)
         if not result.ok:
             raise RuntimeError(result.message)
+        pin_result = verify_bundle_pins(self._manifest, repo_root=self._repo_root)
+        if not pin_result.ok:
+            raise RuntimeError(pin_result.message)
         dry_run_registry_check(self._manifest, repo_root=self._repo_root)
 
     def materialize_relevance(self) -> None:
@@ -230,6 +237,7 @@ class ReproRunner:
         variant: SystemVariantConfig,
         *,
         max_items: int | None = None,
+        item_ids: list[str] | None = None,
         output_dir: Path,
         repro: ReproRun | None = None,
     ) -> tuple[list[BenchmarkResult], EvalRunRef]:
@@ -239,9 +247,14 @@ class ReproRunner:
             bundle_root=bundle_root,
         )
         items = ds.load_split(self._manifest.eval_split)
-        contexts = load_item_contexts(bundle_root, self._manifest.eval_split)
-        if max_items:
+        if item_ids:
+            wanted = set(item_ids)
+            items = [item for item in items if item.item_id in wanted]
+            order = {iid: idx for idx, iid in enumerate(item_ids)}
+            items.sort(key=lambda it: order.get(it.item_id, 9999))
+        elif max_items:
             items = items[:max_items]
+        contexts = load_item_contexts(bundle_root, self._manifest.eval_split)
 
         variant_dir = output_dir / variant.variant_id
         results_path = variant_dir / "results.json"
@@ -480,6 +493,18 @@ class ReproRunner:
             acc_set = set(item.expected_bindings.accessions)
             pre_bound = [r for r in snapshot.manifest.filing_refs if r.accession in acc_set]
 
+        temporal_anchor = ""
+        if item.expected_bindings and item.expected_bindings.fiscal_periods:
+            periods = list(item.expected_bindings.fiscal_periods)
+            q_lower = item.question.lower()
+            for period in periods:
+                year = period[2:6] if period.startswith("FY") and len(period) >= 6 else ""
+                if year and (year in q_lower or f"in {year}" in q_lower):
+                    temporal_anchor = period
+                    break
+            if not temporal_anchor and periods:
+                temporal_anchor = periods[0]
+
         metadata = {
             "issuer_id": issuer,
             "benchmark_item": item.item_id,
@@ -487,9 +512,13 @@ class ReproRunner:
             "variant_disable_macro_router": str(caps.disable_macro_router).lower(),
             "variant_disable_graph_walker": str(caps.disable_graph_walker).lower(),
             "variant_xbrl_only": str(caps.xbrl_only).lower(),
-            "cli_prebound": "true" if caps.disable_macro_router and pre_bound else "false",
+            "cli_prebound": "true" if pre_bound else "false",
+            "temporal_anchor": temporal_anchor,
             "trace_level": "quiet",
             "defer_judge": "true" if self.defer_config.enabled else "false",
+            "suppress_benchmark_path_injection": (
+                "true" if item.suppress_benchmark_path_injection else "false"
+            ),
         }
         resp = svc.answer(
             QueryRequest(
@@ -556,6 +585,7 @@ class ReproRunner:
         *,
         output_dir: Path,
         max_items: int | None = None,
+        item_ids: list[str] | None = None,
         skip_relevance: bool = False,
         strict_git: bool = False,
         resume: bool = True,
@@ -565,6 +595,20 @@ class ReproRunner:
     ) -> ReproRun:
         if cli_defer is not None:
             self.defer_config = resolve_defer_config(cli_defer=cli_defer)
+
+        from evaluation.reproduction.manifest import (
+            enforce_full_repro_policy,
+            enforce_max_items_policy,
+        )
+
+        variants = resolve_variant_configs(self._manifest)
+        enforce_max_items_policy(self._manifest, max_items, item_ids=item_ids)
+        enforce_full_repro_policy(
+            self._manifest,
+            max_items=max_items,
+            item_ids=item_ids,
+            variant_count=len(variants),
+        )
 
         if export_only:
             export = export_tables_from_disk(
@@ -603,9 +647,20 @@ class ReproRunner:
             import subprocess
 
             head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-            if head != self._manifest.git_sha and self._manifest.git_sha != "TBD":
-                msg = f"git SHA mismatch: HEAD={head} manifest={self._manifest.git_sha}"
+            pinned = (self._manifest.git_sha or "TBD").strip()
+            if pinned not in {"TBD", ""} and head != pinned:
+                msg = f"git SHA mismatch: HEAD={head} manifest={pinned}"
                 raise RuntimeError(msg)
+        elif (self._manifest.git_sha or "TBD").strip() not in {"TBD", ""}:
+            import subprocess
+
+            head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+            pinned = self._manifest.git_sha.strip()
+            if head != pinned:
+                _progress(
+                    f"Note: running from git {head[:12]} (manifest reference {pinned[:12]}); "
+                    "data pins are verified separately"
+                )
 
         if not resume and output_dir.exists():
             shutil.rmtree(output_dir)
@@ -644,6 +699,7 @@ class ReproRunner:
                 results, ref = self.run_variant(
                     variant,
                     max_items=max_items,
+                    item_ids=item_ids,
                     output_dir=output_dir,
                     repro=repro,
                 )
@@ -721,6 +777,7 @@ class ReproRunner:
             summaries,
             release_tag=self._manifest.release_tag,
             relevance_by_item=rel,
+            custom_judge_version=self._manifest.custom_judge_version,
         )
         write_paper_tables(export, output_dir)
         repro.completed_at = datetime.now(UTC)

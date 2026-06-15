@@ -17,7 +17,17 @@ def _merge_snapshots(snapshots: list[GraphSnapshot], composite_id: str) -> Graph
         msg = "Cannot merge empty snapshot list"
         raise ValueError(msg)
     if len(snapshots) == 1:
-        return snapshots[0]
+        snap = snapshots[0]
+        if composite_id == snap.snapshot_id:
+            return snap
+        first = snap.manifest
+        return GraphSnapshot(
+            snapshot_id=composite_id,
+            issuer_id=snap.issuer_id,
+            nodes=snap.nodes,
+            edges=snap.edges,
+            manifest=first,
+        )
 
     all_nodes = []
     all_edges = []

@@ -12,5 +12,6 @@ required_output_fields:
 prompt_template: |
   Generate a retrieval-focused financial disclosure question grounded in the corpus.
   Style: FinDER retrieval QA. Return JSON with: question, question_type_tag,
-  ground_truth.rubric (scoring rubric), optional ground_truth.answer,
+  answer_type narrative, ground_truth.answer (required prose evidence summary),
+  ground_truth.required_claims (2-8 atomic claims decomposed from the answer),
   expected_bindings, expected_section_paths, operation_class.

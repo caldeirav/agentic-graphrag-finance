@@ -13,10 +13,17 @@ import typer
 from cli.benchmark_catalog import build_accession_catalog
 from cli.benchmark_materialize import materialize_sampled_corpus
 from cli.benchmark_trace import BenchmarkTraceReporter
-from evaluation.generation.bundle import publish_draft, write_draft_manifest
+from evaluation.generation.bundle import (
+    apply_profile_balanced_dev_split,
+    publish_draft,
+    validate_bundle_feasibility,
+    write_draft_manifest,
+    write_scorability_report,
+)
+from evaluation.generation.publish_audit import write_audit_sample, write_publish_audit
 from evaluation.generation.config_loader import load_allowlist, load_generation_config
 from evaluation.generation.gemini_item_generator import GeminiItemGenerator
-from evaluation.generation.judge_generator import generate_items, write_items_jsonl
+from evaluation.generation.judge_generator import PUBLISH_MIN_ACCEPTED, generate_items, write_items_jsonl
 from evaluation.generation.sampler import (
     run_sampling,
     sampling_manifest_hash,
@@ -92,6 +99,11 @@ def generate(
         None,
         "--target-items",
         help="Override item count for judge phase (default: config governance.max_items)",
+    ),
+    bundle_version: str | None = typer.Option(
+        None,
+        "--bundle-version",
+        help="Target bundle semver (e.g. 2.0.0 for v2 net-new generation)",
     ),
     trace: str | None = typer.Option(
         None,
@@ -197,7 +209,27 @@ def generate(
             tracer=reporter,
         )
         items_path = draft / "items" / "dev.jsonl"
-        write_items_jsonl(accepted, items_path)
+        selection: dict[str, object] | None = None
+        if cfg.bundle_schema_version.startswith("2"):
+            pool_path = draft / "items" / "dev_pool.jsonl"
+            write_items_jsonl(accepted, pool_path)
+            selection = apply_profile_balanced_dev_split(
+                draft,
+                profile_quotas=cfg.profile_quotas,
+                target_count=PUBLISH_MIN_ACCEPTED,
+                seed=cfg.random_seed,
+            )
+            selected_counts = selection.get("selected_counts") or {}
+            reporter.log(
+                "dev_selection "
+                f"{selection.get('selected_count')}/{selection.get('pool_count')} items → "
+                + ", ".join(
+                    f"{profile}={selected_counts.get(profile, 0)}"
+                    for profile in cfg.profile_quotas
+                )
+            )
+        else:
+            write_items_jsonl(accepted, items_path)
         write_draft_manifest(
             draft_dir=draft,
             config=cfg,
@@ -205,23 +237,68 @@ def generate(
             bundle=bundle,
             report=report,
             items_path=items_path,
+            version=bundle_version or "0.0.0-draft",
         )
-        reporter.phase_end(
-            "judge",
-            f"accepted={report.accepted_count} rejected={report.rejected_count} "
-            f"pass_rate={report.pass_rate:.0%}",
+        items = [
+            json.loads(line)
+            for line in items_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        from models.benchmark_generation import GeneratedBenchmarkItem
+
+        parsed_items = [GeneratedBenchmarkItem.model_validate(row) for row in items]
+        write_scorability_report(draft, items_path)
+        feasibility = validate_bundle_feasibility(draft, items_path)
+        (draft / "feasibility_report.json").write_text(
+            json.dumps(feasibility, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
         )
-        reporter.summary(
-            "Generate complete",
-            [
+        write_audit_sample(draft, parsed_items, seed=cfg.random_seed)
+        if int(feasibility.get("blocked_count", 0)) > 0:
+            raise typer.Exit(code=1)
+        if cfg.governance.multi_filing_min and int(feasibility.get("multi_filing_count", 0)) < cfg.governance.multi_filing_min:
+            raise typer.Exit(code=1)
+        if cfg.bundle_schema_version.startswith("2") and selection is not None:
+            selected_counts = selection.get("selected_counts") or {}
+            phase_detail = (
+                f"dev_selected={selection.get('selected_count')} "
+                f"from_pool={selection.get('pool_count')} "
+                + " ".join(
+                    f"{profile}={selected_counts.get(profile, 0)}"
+                    for profile in cfg.profile_quotas
+                )
+            )
+            summary_lines = [
+                f"draft={draft}",
+                f"dev_selected={selection.get('selected_count')} "
+                f"(profile-balanced from pool of {selection.get('pool_count')})",
+                "dev_profile_counts="
+                + ", ".join(
+                    f"{profile}={selected_counts.get(profile, 0)}"
+                    for profile in cfg.profile_quotas
+                ),
+                f"pool_accepted={report.accepted_count}/{report.candidates_total} "
+                f"(candidate validation yield {report.pass_rate:.1%}, indicative only)",
+                f"judge_api_calls={report.judge_api_calls}",
+                f"duration={report.duration_seconds:.1f}s",
+                f"items={items_path}",
+                f"pool={draft / 'items' / 'dev_pool.jsonl'}",
+            ]
+        else:
+            phase_detail = (
+                f"accepted={report.accepted_count} rejected={report.rejected_count} "
+                f"pass_rate={report.pass_rate:.0%}"
+            )
+            summary_lines = [
                 f"draft={draft}",
                 f"accepted={report.accepted_count}/{report.candidates_total}",
                 f"pass_rate={report.pass_rate:.1%}",
                 f"judge_api_calls={report.judge_api_calls}",
                 f"duration={report.duration_seconds:.1f}s",
                 f"items={items_path}",
-            ],
-        )
+            ]
+        reporter.phase_end("judge", phase_detail)
+        reporter.summary("Generate complete", summary_lines)
 
 
 @app.command("publish")
@@ -230,17 +307,58 @@ def publish(
     version: str = typer.Option(..., "--version", help="Semver version to publish"),
     min_items: int = typer.Option(200, "--min-items"),
     skip_gates: bool = typer.Option(False, "--skip-gates", help="Skip item count/pass-rate gates"),
+    publish_signoff: bool = typer.Option(False, "--publish-signoff", help="Required for v2 publish"),
+    operator_id: str | None = typer.Option(None, "--operator-id", help="Operator id for audit record"),
 ) -> None:
     """Promote a draft bundle to a published version."""
     cfg = load_generation_config(draft_dir / "generation_config.yaml", base=REPO_ROOT)
+    v2 = cfg.bundle_schema_version.startswith("2")
+    if v2 and not publish_signoff and not skip_gates:
+        raise typer.BadParameter("v2 publish requires --publish-signoff")
+    if v2 and publish_signoff:
+        sample_path = draft_dir / "publish_audit.sample.json"
+        if not sample_path.is_file():
+            raise typer.BadParameter("Missing publish_audit.sample.json in draft")
+        sample = json.loads(sample_path.read_text(encoding="utf-8"))
+        write_publish_audit(
+            draft_dir,
+            operator_id=operator_id or os.environ.get("USER", "operator"),
+            audit_item_ids=list(sample.get("audit_sample_item_ids") or []),
+        )
     dest = publish_draft(
         draft_dir,
         version=version,
         published_root=Path(cfg.output.published_root),
         min_items=1 if skip_gates else min_items,
         skip_gates=skip_gates,
+        multi_filing_min=cfg.governance.multi_filing_min,
+        require_publish_audit=v2 and publish_signoff and not skip_gates,
+        profile_quotas=cfg.profile_quotas if v2 else None,
+        selection_seed=cfg.random_seed,
     )
+    published_manifest = json.loads((dest / "manifest.json").read_text(encoding="utf-8"))
+    report = json.loads((draft_dir / "generation_report.json").read_text(encoding="utf-8"))
     typer.echo(f"Published custom-judge v{version} -> {dest}")
+    if cfg.bundle_schema_version.startswith("2"):
+        profile_counts = published_manifest.get("profile_counts") or {}
+        typer.echo(
+            "Published dev split: "
+            f"{published_manifest.get('item_count', 0)} items — "
+            + ", ".join(f"{profile}={profile_counts.get(profile, 0)}" for profile in cfg.profile_quotas)
+        )
+        selection_path = dest / "dev_selection_report.json"
+        if selection_path.is_file():
+            selection = json.loads(selection_path.read_text(encoding="utf-8"))
+            typer.echo(
+                f"Selection pool={selection.get('pool_count')} "
+                f"seed={selection.get('seed')}"
+            )
+        typer.echo(
+            "Generation yield (indicative, not a publish gate): "
+            f"pass_rate={report.get('pass_rate', 0):.1%} "
+            f"({report.get('accepted_count', 0)} pool-accepted / "
+            f"{report.get('candidates_total', 0)} candidates)"
+        )
 
 
 @app.command("reproduce")
@@ -259,6 +377,44 @@ def reproduce(
     if computed != manifest.items_hash:
         raise typer.Exit(code=1)
     typer.echo(f"Reproduce OK: version={version} items_hash={computed}")
+
+
+@app.command("repair-bundle")
+def repair_bundle_cmd(
+    bundle_root: Path = typer.Argument(
+        ...,
+        help="Published bundle root (e.g. data/benchmarks/custom-judge/v2.0.0)",
+    ),
+    split: str = typer.Option("dev", "--split"),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+    skip_relevance: bool = typer.Option(False, "--skip-relevance"),
+    repair_version: str = typer.Option(
+        "v2",
+        "--repair-version",
+        help="v2 remaps divestiture paths to MD&A/10-Q and suppresses path injection",
+    ),
+) -> None:
+    """Repair corrupt section paths, normalize numeric GT, and rematerialize relevance."""
+    from evaluation.generation.bundle_repair_v2 import repair_bundle
+
+    report = repair_bundle(
+        bundle_root.resolve(),
+        split=split,
+        dry_run=dry_run,
+        rematerialize_relevance=not skip_relevance,
+        repair_version=repair_version,
+    )
+    typer.echo(
+        f"scanned={report.items_scanned} paths_repaired={report.paths_repaired} "
+        f"v2_cohort={report.v2_cohort_repaired} injection_suppressed={report.injection_suppressed} "
+        f"numeric_normalized={report.numeric_normalized} "
+        f"index_paths_removed={report.index_paths_removed} "
+        f"changed_items={len(report.item_ids_changed)}"
+    )
+    if report.item_ids_changed:
+        typer.echo(f"changed: {', '.join(report.item_ids_changed[:20])}")
+        if len(report.item_ids_changed) > 20:
+            typer.echo(f"... and {len(report.item_ids_changed) - 20} more")
 
 
 @app.command("extend")

@@ -204,7 +204,7 @@ git checkout paper-v1.0    # when published
 git lfs pull --include="data/benchmarks/custom-judge/v1.0.0/corpus/**"
 ```
 
-Release manifest: `releases/paper-v1.0/manifest.yaml` (git SHA, judge/LLM/embedding pins, tolerance bands).
+Release manifest: `releases/paper-v1.0/manifest.yaml` pins **corpus content hashes**, **items hash**, and **relevance label hash** (plus judge/LLM/embedding config paths). `git_sha` is an optional provenance note only — repro does not require checking out a specific commit unless you pass `--strict-git`.
 
 ### 2. Verify frozen corpus
 
@@ -334,6 +334,152 @@ uv run agent-query repro report \
 Resume without `--force-rescore` skips only items with complete v3 criteria. `export_manifest.json` records `min_judge_version: v3` and `outcome_scoring_policy: value_alignment_only`. Operator quickstart: [016 quickstart](../specs/016-fair-outcome-scoring/quickstart.md).
 
 If headline `outcome_accuracy` remains low (~0.14) after v3 re-score on v1.1.0, that reflects retrieval failure on the 61-item answer-GT pool (not synthesis fallback). Follow the **[v1.2.0 migration checklist](../specs/016-fair-outcome-scoring/checklists/v1.2.0-migration.md)** for dataset, agent, judge, and full-repro phases targeting **0.45–0.60** graph-full outcome.
+
+## Bundle v2.0 and paper-v2.0 (017)
+
+Custom-judge **v2.0.0** is a net-new 200-item dev split with **100% answer-GT**, quota-balanced profiles (~68 / 66 / 66), and ≥40 multi-filing `comparison_structured` items. Generation details: [custom-judge-dataset-generation.md § Bundle v2.0](custom-judge-dataset-generation.md#bundle-v20-net-new-pool).
+
+Published bundle: `data/benchmarks/custom-judge/v2.0.0/`. Release lock: `releases/paper-v2.0/manifest.yaml` verifies **corpus**, **items**, and **relevance** hashes — not git HEAD. Use `--no-resume` and a fresh `--output` dir when re-running after code or bundle fixes.
+
+### Full paper-v2.0 reproduction
+
+```bash
+git lfs pull --include="data/benchmarks/custom-judge/v2.0.0/corpus/**"
+export OFFLINE_BENCHMARK=1 USE_MOCK_LLM=0 USE_MOCK_JUDGE=0
+
+uv run agent-query repro run-all \
+  --manifest releases/paper-v2.0/manifest.yaml \
+  --output reports/repro-paper-v2.0 \
+  --defer-judge --resume
+
+uv run agent-query repro export-tables \
+  --manifest releases/paper-v2.0/manifest.yaml \
+  --input reports/repro-paper-v2.0
+
+uv run agent-query repro report --input reports/repro-paper-v2.0
+```
+
+**v2 headline semantics**: `task_success` = mean value_alignment over n=200; no `rubric_alignment` row in exports. Judge v3.1 + `required_claims` on all items.
+
+### Agent iteration: smoke gate (frozen full repro)
+
+Full **paper-v2.0** reproduction (5 variants × 200 items) is **frozen** during agent work. `repro run-all` on `releases/paper-v2.0/manifest.yaml` raises unless `REPRO_ALLOW_FULL=1` (use only when locking `expected_checksums.json`).
+
+Use the **50-item stratified smoke subset** instead:
+
+| Artifact | Path |
+|----------|------|
+| Smoke manifest | `releases/paper-v2.0-smoke/manifest.yaml` |
+| Item list | `data/benchmarks/custom-judge/v2.0.0/smoke_dev_item_ids.json` |
+| Gate thresholds | `smoke_gate_thresholds` in smoke manifest |
+
+```bash
+export OFFLINE_BENCHMARK=1 USE_MOCK_LLM=0 USE_MOCK_JUDGE=0
+
+# 1. Rematerialize labels + smoke lists (after divestiture relevance fix)
+uv run agent-query repro smoke-materialize
+
+# 2. Run graph-full on 50 smoke items (~1–2h vs ~8h+ full repro)
+uv run agent-query repro smoke-run \
+  --output reports/repro-paper-v2.0-smoke \
+  --no-resume
+
+# Finagent-only fast loop (~21 items)
+uv run agent-query repro smoke-run \
+  --subset finagent \
+  --output reports/repro-paper-v2.0-smoke-finagent \
+  --no-resume
+
+# 3. Evaluate gate (exit 1 on failure)
+uv run agent-query repro smoke-gate --input reports/repro-paper-v2.0-smoke
+
+# Finagent subset gate
+uv run agent-query repro smoke-gate \
+  --input reports/repro-paper-v2.0-smoke-finagent \
+  --subset finagent
+
+# 3. Score an existing full repro on the smoke subset only (no agent re-run)
+uv run agent-query repro smoke-gate --input reports/repro-paper-v2.0 --no-fail
+```
+
+**Smoke gate targets** (graph-full, n=50):
+
+| Metric | Target |
+|--------|--------|
+| `task_success` | ≥ 0.45 |
+| MRR = 0 share | ≤ 10% |
+| MRR ≥ 0.5 & VA = 0 | ≤ 12 items |
+| Abstention-like answers | ≤ 10% |
+
+When smoke passes consistently, run one lock repro with `REPRO_ALLOW_FULL=1`:
+
+```bash
+export OFFLINE_BENCHMARK=1 USE_MOCK_LLM=0 USE_MOCK_JUDGE=0 REPRO_ALLOW_FULL=1
+uv run agent-query repro run-all \
+  --manifest releases/paper-v2.0/manifest.yaml \
+  --output reports/repro-paper-v2.0-lock \
+  --defer-judge --no-resume
+uv run agent-query repro smoke-gate --input reports/repro-paper-v2.0-lock --no-fail
+```
+
+Regenerate the stratified item list after major bundle changes:
+
+```bash
+uv run python -c "
+from pathlib import Path
+import json
+from evaluation.reproduction.smoke_gate import build_stratified_smoke_ids
+root = Path('data/benchmarks/custom-judge/v2.0.0')
+ids = build_stratified_smoke_ids(root, count=50)
+(root / 'smoke_dev_item_ids.json').write_text(json.dumps({'version': 1, 'count': len(ids), 'item_ids': ids}, indent=2))
+"
+```
+
+### Path-repair v2 + clean re-run protocol
+
+After v1 `repair-bundle` mis-mapped divestiture items to Item 1 Business, run **v2 repair** then a **fresh repro** (never `--resume` against a pre-fix checkpoint):
+
+```bash
+# 1. Re-map divestiture / narrative items → MD&A or 10-Q; rematerialize relevance
+uv run agent-query benchmark-dataset repair-bundle \
+  data/benchmarks/custom-judge/v2.0.0 \
+  --repair-version v2
+
+# 2. Update manifest pins from bundle (items_hash, relevance_labels_hash)
+uv run python -c "
+from pathlib import Path
+from evaluation.generation.bundle import items_hash
+import json, yaml
+root = Path('data/benchmarks/custom-judge/v2.0.0')
+rel = json.loads((root / 'relevance_labels.json').read_text())
+manifest = yaml.safe_load(Path('releases/paper-v2.0/manifest.yaml').read_text())
+manifest['items_hash'] = items_hash(root / 'items/dev.jsonl')
+manifest['relevance_labels_hash'] = rel['labels_hash']
+Path('releases/paper-v2.0/manifest.yaml').write_text(yaml.safe_dump(manifest, sort_keys=False))
+print('items_hash', manifest['items_hash'])
+print('relevance_labels_hash', manifest['relevance_labels_hash'])
+"
+
+# 3. Verify frozen bundle + pins
+uv run agent-query repro verify-corpus \
+  --manifest releases/paper-v2.0/manifest.yaml
+
+# 4. Full repro on a NEW output directory (no --resume)
+uv run agent-query repro run-all \
+  --manifest releases/paper-v2.0/manifest.yaml \
+  --output reports/repro-paper-v2.0-v2repair \
+  --defer-judge --no-resume
+
+# 5. Report + tables
+uv run agent-query repro report \
+  --input reports/repro-paper-v2.0-v2repair \
+  --manifest releases/paper-v2.0/manifest.yaml \
+  --output reports/repro-paper-v2.0-v2repair/report.html
+```
+
+Repaired items carry `suppress_benchmark_path_injection: true` so meso routing uses TOC/heuristics instead of forced `expected_section_paths` injection. Compare against the prior run only after both use the **same** bundle hashes.
+
+Operator quickstart: [017 quickstart](../specs/017-custom-judge-v2/quickstart.md).
 
 ## Output layout
 

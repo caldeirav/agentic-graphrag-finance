@@ -51,6 +51,20 @@ class MetricDefinition(BaseModel):
     source: str
 
 
+from evaluation.generation.bundle_version import is_v2_or_later
+
+TASK_SUCCESS_V2_DEFINITION = (
+    "Mean value_alignment (outcome_score) over all headline-eligible dev items (n=200 for full split). "
+    "Missing value_alignment contributes 0.0; rubric-only bridging is not used on v2 bundles."
+)
+
+
+def task_success_definition(*, custom_judge_version: str | None = None) -> str:
+    if custom_judge_version and is_v2_or_later(custom_judge_version):
+        return TASK_SUCCESS_V2_DEFINITION
+    return METRIC_CATALOG["task_success"].definition
+
+
 METRIC_CATALOG: dict[str, MetricDefinition] = {
     "task_success": MetricDefinition(
         metric_id="task_success",
@@ -229,6 +243,7 @@ class ReproOutputBundle(BaseModel):
     repro_run: ReproRun
     tables: dict[str, TableData]
     variant_results: dict[str, list[ItemResultRecord]] = Field(default_factory=dict)
+    item_metadata: dict[str, dict[str, str]] = Field(default_factory=dict)
     release_manifest: dict[str, Any] | None = None
     export_manifest: dict[str, Any] | None = None
     headline_tex: str | None = None
@@ -276,15 +291,21 @@ class ItemResultRecord(BaseModel):
     variant_id: str
     item_id: str
     inspiration_profile: str = ""
+    question: str = ""
+    expected_answer: str = ""
     judge_status: str = ""
     validation_status: str = ""
     outcome_score: float | None = None
+    mrr: float | None = None
+    map_score: float | None = None
     ndcg_at_10: float | None = None
     trajectory_fidelity: float | None = None
     rubric_scores: dict[str, float] = Field(default_factory=dict)
     structural_metrics: dict[str, float] = Field(default_factory=dict)
     failure_reason: str = ""
     answer_excerpt: str = ""
+    answer_text: str = ""
+    judge_rationale: str = ""
     citation_count: int = 0
     trajectory_ref: str = ""
     source_path: str = ""

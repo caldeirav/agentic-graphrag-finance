@@ -281,6 +281,32 @@ def test_ranking_metrics_unchanged_when_only_outcome_fields_differ() -> None:
     assert _ranking_rows(export_before) == _ranking_rows(export_after)
 
 
+def test_ranking_metrics_unchanged_v1_vs_v2_export_paths() -> None:
+    """T038: ranking headline rows match between v1.x and v2 export paths."""
+    base_kwargs = {
+        "profiles_by_item": {"i1": "financebench"},
+        "relevance_by_item": {"i1": ["c1"]},
+        "ground_truth_by_item": {"i1": {"answer": "a"}},
+    }
+    result = _result("i1", mrr=0.42)
+    result = result.model_copy(
+        update={"ranking_metrics": RankingMetrics(mrr=0.42, map_score=0.33, ndcg_at_10=0.51)}
+    )
+    summary = build_variant_summary("graph-full", [result], **base_kwargs)
+    v1 = export_paper_tables([summary], release_tag="paper-v1.0", custom_judge_version="1.2.0")
+    v2 = export_paper_tables([summary], release_tag="paper-v2.0", custom_judge_version="2.0.0")
+    ranking_names = {"mrr", "map", "ndcg_at_10"}
+
+    def _ranking_rows(export):
+        return {
+            (r.variant_id, r.metric_name): r.value
+            for r in export.headline_rows
+            if r.metric_name in ranking_names and not r.na_reason
+        }
+
+    assert _ranking_rows(v1) == _ranking_rows(v2)
+
+
 def test_writes_headline_tex(tmp_path: Path) -> None:
     results = [_result("i1")]
     summary = build_variant_summary(

@@ -37,3 +37,4 @@ Guides for operators and researchers using this repository.
 | 011 custom-judge | [specs/011-judge-eval-dataset/quickstart.md](../specs/011-judge-eval-dataset/quickstart.md) |
 | 012 research repro | [specs/012-research-repro-kit/quickstart.md](../specs/012-research-repro-kit/quickstart.md) |
 | 013 eval acceleration | [specs/013-benchmark-eval-acceleration/quickstart.md](../specs/013-benchmark-eval-acceleration/quickstart.md) |
+| 017 custom-judge v2.0 | [specs/017-custom-judge-v2/quickstart.md](../specs/017-custom-judge-v2/quickstart.md) |

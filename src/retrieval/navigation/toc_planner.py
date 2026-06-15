@@ -15,7 +15,12 @@ from models.filing import FilingRef
 from models.graph import GraphSnapshot
 from retrieval.macro.llm_json import extract_json_from_llm
 from retrieval.orchestration.llm import create_chat_llm
-from retrieval.orchestration.meso_scoring import is_mda_query, is_risk_only_query
+from retrieval.orchestration.meso_scoring import (
+    is_divestiture_query,
+    is_mda_query,
+    is_narrative_mda_query,
+    is_risk_only_query,
+)
 from tracing.console_trace.llm import traced_llm_invoke
 
 
@@ -93,7 +98,7 @@ def _mock_plan(query: str, toc: list[TocEntry], filing: FilingRef) -> TocPlanRes
             if "note" in e.section_id.lower() or "note" in e.label.lower()
         ]
         primary = "other"
-    elif is_mda_query(q):
+    elif is_narrative_mda_query(q):
         primary = NarrativeSectionKind.MD_AND_A.value
         exclude_kinds = [NarrativeSectionKind.RISK_FACTORS.value, "xbrl_bucket"]
         ranked = [e.section_node_id for e in by_kind.get(primary, [])]
@@ -140,9 +145,17 @@ def _mock_plan(query: str, toc: list[TocEntry], filing: FilingRef) -> TocPlanRes
     )
 
 
+def is_comparison_risk_query(query: str) -> bool:
+    q = query.lower()
+    return (
+        any(k in q for k in ("compare", "comparison", "versus", " vs ", "across"))
+        and is_risk_only_query(q)
+    )
+
+
 def is_financial_numeric_query(query: str) -> bool:
     q = query.lower()
-    if is_mda_query(q):
+    if is_narrative_mda_query(q):
         return False
     return any(
         k in q
@@ -172,11 +185,12 @@ def apply_toc_heuristics(
     for entry in toc:
         by_kind.setdefault(entry.narrative_kind, []).append(entry)
 
-    if is_mda_query(q):
+    if is_narrative_mda_query(q):
         mda = by_kind.get(NarrativeSectionKind.MD_AND_A.value, [])
         if not mda:
             mda = [e for e in toc if "md_and_a" in e.section_id or "mda" in e.section_id]
         if mda:
+            tag = "divestiture" if is_divestiture_query(q) and not is_mda_query(q) else "MD&A"
             return plan.model_copy(
                 update={
                     "ranked_section_node_ids": [e.section_node_id for e in mda][:3],
@@ -184,8 +198,31 @@ def apply_toc_heuristics(
                     "exclude_kinds": [
                         NarrativeSectionKind.RISK_FACTORS.value,
                         "xbrl_bucket",
+                        NarrativeSectionKind.BUSINESS_DESCRIPTION.value,
                     ],
-                    "rationale": (plan.rationale or "") + " [heuristic: MD&A query]",
+                    "rationale": (plan.rationale or "") + f" [heuristic: {tag} query]",
+                }
+            )
+
+    if is_comparison_risk_query(q):
+        risk = by_kind.get(NarrativeSectionKind.RISK_FACTORS.value, [])
+        if not risk:
+            risk = [
+                e
+                for e in toc
+                if "risk_factors" in e.section_id or "item 1a" in e.label.lower()
+            ]
+        if risk:
+            return plan.model_copy(
+                update={
+                    "ranked_section_node_ids": [e.section_node_id for e in risk][:3],
+                    "primary_narrative_kind": NarrativeSectionKind.RISK_FACTORS.value,
+                    "exclude_kinds": [
+                        NarrativeSectionKind.BUSINESS_DESCRIPTION.value,
+                        NarrativeSectionKind.MD_AND_A.value,
+                        "xbrl_bucket",
+                    ],
+                    "rationale": (plan.rationale or "") + " [heuristic: comparison risk]",
                 }
             )
 
@@ -217,7 +254,7 @@ def _validate_plan(plan: TocPlanResult, toc: list[TocEntry], *, query: str = "")
     if not ranked and toc:
         if is_financial_numeric_query(query):
             ranked = [e.section_node_id for e in toc if e.narrative_kind == "xbrl_bucket"]
-        elif is_mda_query(query):
+        elif is_narrative_mda_query(query):
             ranked = [
                 e.section_node_id
                 for e in toc
@@ -294,7 +331,7 @@ def load_toc_mock_override(query: str, source_node_id: str) -> TocPlanResult | N
     """Optional fixture override (tests)."""
     q = query.lower()
     name = None
-    if is_mda_query(q):
+    if is_narrative_mda_query(q):
         name = "mda_risk"
     elif "revenue" in q:
         name = "revenue_xbrl"

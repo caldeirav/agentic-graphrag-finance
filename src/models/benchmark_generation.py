@@ -17,6 +17,13 @@ class DatasetStatus(StrEnum):
     PUBLISHED = "published"
 
 
+class AnswerType(StrEnum):
+    NUMERIC = "numeric"
+    SHORT_LABEL = "short_label"
+    NARRATIVE = "narrative"
+    COMPARISON_STRUCTURED = "comparison_structured"
+
+
 class AllowlistEntry(BaseModel):
     ticker: str
     cik: str | None = None
@@ -47,6 +54,7 @@ class GovernanceCaps(BaseModel):
     validation_pass_rate: float
     dedup_similarity_threshold: float
     judge_retries_per_item: int
+    multi_filing_min: int = 0
 
 
 class OutputPaths(BaseModel):
@@ -56,6 +64,7 @@ class OutputPaths(BaseModel):
 
 class GenerationConfig(BaseModel):
     config_id: str
+    bundle_schema_version: str = "1.0.0"
     random_seed: int
     allowlist_id: str
     allowlist_path: str
@@ -132,6 +141,7 @@ class GeneratedBenchmarkItem(BaseModel):
     dataset: str = "custom-judge"
     question: str
     question_type_tag: str
+    answer_type: AnswerType | None = None
     inspiration_profile: Literal["financebench", "finder", "finagentbench"]
     ground_truth: GroundTruth
     expected_bindings: ExpectedBindings
@@ -141,6 +151,8 @@ class GeneratedBenchmarkItem(BaseModel):
     operation_class: OperationClass = OperationClass.QUALITATIVE
     validation_status: Literal["accepted", "rejected"] = "accepted"
     validation_errors: list[str] = Field(default_factory=list)
+    path_repair_version: str | None = None
+    suppress_benchmark_path_injection: bool = False
 
 
 class DatasetManifest(BaseModel):
@@ -164,6 +176,16 @@ class DatasetManifest(BaseModel):
     relevance_coverage_rate: float | None = None
     relevance_snapshot_id: str | None = None
     relevance_labels_path: str | None = None
+    publish_audit_path: str | None = None
+
+
+class PublishAuditRecord(BaseModel):
+    audit_sample_size: int = 20
+    audit_sample_item_ids: list[str] = Field(default_factory=list)
+    operator_id: str
+    signed_off_at: datetime
+    feasibility_report_hash: str | None = None
+    scorability_report_hash: str | None = None
 
 
 class GenerationReport(BaseModel):

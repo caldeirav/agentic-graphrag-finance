@@ -14,7 +14,9 @@ import httpx
 from evaluation.generation.deduplicator import deduplicate_items, is_duplicate
 from evaluation.generation.gemini_item_generator import GeminiItemGenerator
 from evaluation.generation.governance import BudgetTracker
+from evaluation.generation.bundle_version import is_v2_or_later
 from evaluation.generation.item_validator import load_graph_paths, validate_item
+from evaluation.generation.v2_item_normalize import normalize_v2_item
 from evaluation.judges.gemini_panel import JudgeParseError
 from models.benchmark_generation import (
     GeneratedBenchmarkItem,
@@ -118,12 +120,15 @@ def _revalidate_candidates(
     *,
     graph_paths: set[str],
     snapshot_accessions: set[str],
+    bundle_version: str | None = None,
 ) -> list[GeneratedBenchmarkItem]:
+    v2 = is_v2_or_later(bundle_version or "")
     return [
         validate_item(
-            item,
+            normalize_v2_item(item) if v2 else item,
             graph_paths=graph_paths,
             snapshot_accessions=snapshot_accessions,
+            bundle_version=bundle_version,
         )
         for item in items
     ]
@@ -222,6 +227,7 @@ def _generate_one_candidate(
                 item,
                 graph_paths=graph_paths,
                 snapshot_accessions=snapshot_accessions,
+                bundle_version=config.bundle_schema_version,
             )
             if validated.validation_status == "accepted":
                 break
@@ -280,6 +286,7 @@ def generate_items(
         existing,
         graph_paths=graph_paths,
         snapshot_accessions=snapshot_accessions,
+        bundle_version=config.bundle_schema_version,
     )
     if candidates and candidates != existing:
         _rewrite_checkpoint(checkpoint_path, candidates)

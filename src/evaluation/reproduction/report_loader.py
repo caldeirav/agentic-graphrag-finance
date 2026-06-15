@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from evaluation.generation.bundle_version import is_v2_or_later
 from evaluation.reproduction.manifest import load_release_manifest
 from evaluation.reproduction.report_errors import ReportInputError
 from evaluation.reproduction.report_models import (
@@ -66,42 +67,83 @@ def _truncate_answer(text: str, limit: int = _ANSWER_EXCERPT_LEN) -> str:
     return text[: limit - 1].rstrip() + "…"
 
 
+def _load_item_metadata(
+    release_manifest: dict[str, Any] | None,
+    *,
+    repo_root: Path,
+) -> dict[str, dict[str, str]]:
+    """Load question and expected answer from the custom-judge bundle when available."""
+    if not release_manifest:
+        return {}
+    bundle_rel = release_manifest.get("custom_judge_bundle_path")
+    if not bundle_rel:
+        return {}
+    split = str(release_manifest.get("eval_split") or "dev")
+    items_path = repo_root / str(bundle_rel) / "items" / f"{split}.jsonl"
+    if not items_path.is_file():
+        return {}
+    out: dict[str, dict[str, str]] = {}
+    for line in items_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        gt = row.get("ground_truth") or {}
+        answer = str(gt.get("answer") or "").strip()
+        out[str(row["item_id"])] = {
+            "question": str(row.get("question") or "").strip(),
+            "expected_answer": answer,
+            "inspiration_profile": str(row.get("inspiration_profile") or "").strip(),
+        }
+    return out
+
+
 def _map_benchmark_result(
     variant_id: str,
     result: BenchmarkResult,
     *,
     source_path: Path,
-    inspiration_profile: str = "",
+    item_metadata: dict[str, dict[str, str]] | None = None,
 ) -> ItemResultRecord:
+    meta = (item_metadata or {}).get(result.item_id, {})
+    inspiration_profile = meta.get("inspiration_profile", "")
     answer = result.answer
-    excerpt = _truncate_answer(answer.text) if answer and answer.text else ""
+    full_text = answer.text if answer and answer.text else ""
+    excerpt = _truncate_answer(full_text) if full_text else ""
     citation_count = len(answer.citations) if answer and answer.citations else 0
     rubric: dict[str, float] = {}
     if result.judge_verdict and result.judge_verdict.scores:
         rubric = {k: float(v) for k, v in result.judge_verdict.scores.items()}
     failure = ""
+    judge_rationale = ""
+    if result.judge_verdict and result.judge_verdict.rationale:
+        judge_rationale = result.judge_verdict.rationale.strip()
     if result.judge_status in {"degraded", "not_evaluable", "pending"}:
-        failure = result.judge_verdict.rationale if result.judge_verdict else result.judge_status
+        failure = judge_rationale or result.judge_status
     elif (result.validation_status or "").lower() in {"incomplete", "non_reproducible"}:
         failure = result.validation_status
     flags: list[str] = []
     if result.judge_status:
         flags.append(result.judge_status)
+    ranking = result.ranking_metrics
     return ItemResultRecord(
         variant_id=variant_id,
         item_id=result.item_id,
         inspiration_profile=inspiration_profile,
+        question=meta.get("question", ""),
+        expected_answer=meta.get("expected_answer", ""),
         judge_status=result.judge_status or "",
         validation_status=result.validation_status or "",
         outcome_score=result.outcome_score,
-        ndcg_at_10=(
-            result.ranking_metrics.ndcg_at_10 if result.ranking_metrics is not None else None
-        ),
+        mrr=ranking.mrr if ranking is not None else None,
+        map_score=ranking.map_score if ranking is not None else None,
+        ndcg_at_10=ranking.ndcg_at_10 if ranking is not None else None,
         trajectory_fidelity=result.trajectory_fidelity,
         rubric_scores=rubric,
         structural_metrics={},
         failure_reason=failure,
         answer_excerpt=excerpt,
+        answer_text=full_text,
+        judge_rationale=judge_rationale,
         citation_count=citation_count,
         trajectory_ref=result.mlflow_run_id or "see source JSON",
         source_path=str(source_path),
@@ -158,6 +200,26 @@ def load_repro_report_bundle(
     incomplete_variants: list[str] = []
     variant_results: dict[str, list[ItemResultRecord]] = {}
 
+    repo_root = Path(__file__).resolve().parents[3]
+    item_metadata: dict[str, dict[str, str]] = {}
+    release_manifest: dict[str, Any] | None = None
+    resolved_manifest = manifest_path
+    if resolved_manifest is None:
+        tag_candidate = repo_root / "releases" / repro_run.release_tag / "manifest.yaml"
+        if tag_candidate.is_file():
+            resolved_manifest = tag_candidate
+    if resolved_manifest and resolved_manifest.is_file():
+        try:
+            rel = load_release_manifest(resolved_manifest)
+            release_manifest = rel.model_dump(mode="json")
+            item_metadata = _load_item_metadata(release_manifest, repo_root=repo_root)
+        except Exception as exc:  # noqa: BLE001 — surface as warning, not hard fail
+            warnings.append(f"Could not load release manifest: {exc}")
+    elif manifest_path is not None:
+        warnings.append(f"Release manifest not found at {manifest_path}")
+    else:
+        warnings.append("Release manifest unavailable")
+
     known_from_run = {vr.variant_id for vr in repro_run.variant_runs}
     variant_dirs = _discover_variant_dirs(root)
     seen_variants = set()
@@ -175,7 +237,12 @@ def load_repro_report_bundle(
             continue
         raw = json.loads(results_path.read_text(encoding="utf-8"))
         records = [
-            _map_benchmark_result(variant_id, BenchmarkResult.model_validate(row), source_path=results_path)
+            _map_benchmark_result(
+                variant_id,
+                BenchmarkResult.model_validate(row),
+                source_path=results_path,
+                item_metadata=item_metadata,
+            )
             for row in raw
         ]
         variant_results[variant_id] = records
@@ -195,34 +262,35 @@ def load_repro_report_bundle(
     if export_manifest is None:
         warnings.append("Optional export_manifest.json not found")
 
-    release_manifest: dict[str, Any] | None = None
-    resolved_manifest = manifest_path
-    if resolved_manifest is None:
-        for candidate in root.glob("releases/*/manifest.yaml"):
-            resolved_manifest = candidate
-            break
-    if resolved_manifest and resolved_manifest.is_file():
-        try:
-            rel = load_release_manifest(resolved_manifest)
-            release_manifest = rel.model_dump(mode="json")
-        except Exception as exc:  # noqa: BLE001 — surface as warning, not hard fail
-            warnings.append(f"Could not load release manifest: {exc}")
-    elif manifest_path is not None:
-        warnings.append(f"Release manifest not found at {manifest_path}")
-    else:
-        warnings.append("Release manifest unavailable")
-
     return ReproOutputBundle(
         output_dir=root,
         repro_run=repro_run,
         tables=tables,
         variant_results=variant_results,
+        item_metadata=item_metadata,
         release_manifest=release_manifest,
         export_manifest=export_manifest,
         headline_tex=headline_tex,
         warnings=warnings,
         incomplete_variants=incomplete_variants,
     )
+
+
+def custom_judge_version_for_bundle(bundle: ReproOutputBundle) -> str | None:
+    if bundle.export_manifest:
+        version = bundle.export_manifest.get("custom_judge_version")
+        if version:
+            return str(version)
+    if bundle.release_manifest:
+        version = bundle.release_manifest.get("custom_judge_version")
+        if version:
+            return str(version)
+    return None
+
+
+def is_v2_repro_bundle(bundle: ReproOutputBundle) -> bool:
+    version = custom_judge_version_for_bundle(bundle)
+    return bool(version and is_v2_or_later(version))
 
 
 def bundle_source_hashes(bundle: ReproOutputBundle) -> dict[str, str]:
