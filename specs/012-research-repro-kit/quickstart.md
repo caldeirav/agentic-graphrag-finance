@@ -2,6 +2,8 @@
 
 **Feature**: 012-research-repro-kit | **Date**: 2026-05-30
 
+> **Current paper release:** use [017 quickstart](../017-custom-judge-v2/quickstart.md) and `releases/paper-v2.0/manifest.yaml`. This quickstart documents the **legacy `paper-v1.0`** workflow (v1.x bundle).
+
 ## Prerequisites
 
 - Checkout release tag `paper-v1.0` (or feature branch with `releases/paper-v1.0/manifest.yaml`)

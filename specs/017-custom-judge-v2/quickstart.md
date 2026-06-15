@@ -82,32 +82,41 @@ Commit `releases/paper-v2.0/manifest.yaml` with pinned `items_hash`, `corpus_has
 ```bash
 export OFFLINE_BENCHMARK=1 USE_MOCK_LLM=0 USE_MOCK_JUDGE=0
 
+git lfs pull --include="data/benchmarks/custom-judge/v2.0.0/corpus/**"
+
+# Lock repro (requires REPRO_ALLOW_FULL=1 during agent iteration freeze)
+export REPRO_ALLOW_FULL=1
 uv run agent-query repro run-all \
   --manifest releases/paper-v2.0/manifest.yaml \
-  --output reports/repro-paper-v2.0 \
-  --defer-judge --resume
+  --output reports/repro-paper-v2.0-lock \
+  --defer-judge --no-resume
 
-uv run agent-query repro export-tables \
+uv run agent-query repro verify-tables \
   --manifest releases/paper-v2.0/manifest.yaml \
-  --input reports/repro-paper-v2.0
+  --input reports/repro-paper-v2.0-lock
 
-uv run agent-query repro report --input reports/repro-paper-v2.0
+uv run agent-query repro report \
+  --input reports/repro-paper-v2.0-lock \
+  --manifest releases/paper-v2.0/manifest.yaml
 ```
 
 **No selective skip**: every item runs on every variant.
 
+For day-to-day agent work, use `repro smoke-run` + `repro smoke-gate` instead — see [research-reproduction.md § Agent iteration](../../docs/research-reproduction.md#agent-iteration-smoke-gate-frozen-full-repro).
+
 ## Phase 6 — Verify unified task_success
 
-Inspect `reports/repro-paper-v2.0/tables/headline.csv` (or JSON export):
+Inspect `reports/repro-paper-v2.0-lock/tables/headline.csv`:
 
 | Check | Expected |
 |-------|----------|
 | `task_success` item_count | 200 |
-| `task_success` value | mean value_alignment |
+| `task_success` value | mean value_alignment (baseline ≈ 0.467 on lock repro) |
 | `rubric_alignment` row | absent |
 | MRR / nDCG@10 | present; definitions unchanged |
+| `verify-tables` | passes against `releases/paper-v2.0/expected_checksums.json` |
 
-Open `report.html` — headline section shows task_success as sole outcome metric.
+Open `report.html` — headline section shows task_success as sole outcome metric; item drill-down groups by item with all variants adjacent.
 
 ## Phase 7 — Third-party reproduce (offline)
 

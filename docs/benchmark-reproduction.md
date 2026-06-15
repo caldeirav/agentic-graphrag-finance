@@ -1,6 +1,10 @@
 # Benchmark Reproduction
 
-> **Paper reproduction (custom-judge, five variants, table export):** see **[research-reproduction.md](research-reproduction.md)** (full walkthrough). Quickstarts: [012](../specs/012-research-repro-kit/quickstart.md) · [013 defer-judge + resume](../specs/013-benchmark-eval-acceleration/quickstart.md).
+> **Paper reproduction (custom-judge, five variants, table export):** see **[research-reproduction.md](research-reproduction.md)**.
+>
+> **Current release:** `paper-v2.0` (custom-judge v2.0.0, 200 items, smoke gate + lock repro).
+>
+> Quickstarts: [017 paper-v2.0](../specs/017-custom-judge-v2/quickstart.md) · [012](../specs/012-research-repro-kit/quickstart.md) · [013 defer-judge + resume](../specs/013-benchmark-eval-acceleration/quickstart.md) · [014 HTML report](../specs/014-repro-results-viewer/quickstart.md).
 
 Legacy single-suite benchmark notes:
 

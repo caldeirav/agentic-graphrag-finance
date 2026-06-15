@@ -438,9 +438,10 @@ Generation code under `src/evaluation/generation/` must **not** import retrieval
 After you **publish** a bundle (or keep a draft for smoke), run phase 2 on the frozen corpus:
 
 - **[Research reproduction guide](research-reproduction.md)** — `repro run-all`, five variants, live judge + LM Studio
+- **`releases/paper-v2.0`** — **current** release (v2.0.0 bundle, 200 answer-GT items, smoke gate + lock repro)
+- **`releases/paper-v2.0-smoke`** — 50-item stratified subset for agent iteration
 - **`releases/paper-live-smoke`** — 2-item live smoke (draft from `--run-id live-repro-smoke`)
-- **`releases/paper-v1.0`** — full published split (LFS corpus)
-- **`releases/paper-v2.0`** — net-new v2.0.0 bundle (200 answer-GT items, unified `task_success`)
+- **`releases/paper-v1.0`** — legacy v1.x published split (LFS corpus)
 
 ---
 

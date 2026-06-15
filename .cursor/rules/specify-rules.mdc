@@ -6,13 +6,13 @@ alwaysApply: true
 For additional context about technologies, project structure, shell commands, and
 pipeline segments, read the current implementation plan:
 
-**Plan**: `specs/017-custom-judge-v2/plan.md` (active) | Prior: `specs/016-fair-outcome-scoring/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
+**Plan**: `specs/017-custom-judge-v2/plan.md` (shipped on `main`) | Prior: `specs/016-fair-outcome-scoring/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
 
 Quick reference:
-- **Stack**: uv, custom-judge bundle v2.0.0 (published), judge v3.1 VA-only task_success, paper-v2.0 release lock, static HTML report
-- **Layers**: `src/evaluation/generation/` (v2 gates, `profile_selection.py`, `comparison_gt.py`, macro feasibility, publish audit), `src/evaluation/reproduction/` (export/report v2 semantics), `src/retrieval/macro/validator.py` (bindability gate)
-- **CLI**: `benchmark-dataset generate --config custom_judge_v2.yaml` → `dev_pool.jsonl` + quota-balanced `dev.jsonl` → audit 20 items → `publish --version 2.0.0 --publish-signoff`; `repro run-all --release paper-v2.0` → export-tables → report
-- **Storage**: pool `items/dev_pool.jsonl`; publish set `items/dev.jsonl`; bundle `data/benchmarks/custom-judge/v2.0.0/`; release `releases/paper-v2.0/manifest.yaml`
-- **Focus**: 100% answer-GT, semantic comparison claims, profile-balanced 200 dev split, ≥40 multi-filing, dev.jsonl quality gates (not candidate pass_rate), task_success n=200 VA-only
+- **Stack**: uv, custom-judge bundle v2.0.0 (published), judge v3.1 VA-only task_success, paper-v2.0 release lock + `expected_checksums.json`, static HTML report
+- **Layers**: `src/evaluation/generation/` (v2 gates, repair v2, profile selection), `src/evaluation/reproduction/` (export, smoke_gate, report), `src/retrieval/` (synthesis grounding, benchmark path injection)
+- **CLI**: `repro smoke-run` / `smoke-gate` (50-item iteration); `REPRO_ALLOW_FULL=1 repro run-all --release paper-v2.0` (lock); `repro report` (item-first drill-down); `repro verify-tables`
+- **Storage**: bundle `data/benchmarks/custom-judge/v2.0.0/`; release `releases/paper-v2.0/`; lock output `reports/repro-paper-v2.0-lock/`
+- **Focus**: 100% answer-GT n=200, smoke gate before full repro, frozen headline checksums, report investigation UX
 - **Design artifacts**: `specs/017-custom-judge-v2/{research,data-model,quickstart}.md` and `contracts/`
 <!-- SPECKIT END -->

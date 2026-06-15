@@ -1,13 +1,19 @@
 # Research Reproduction Guide
 
-End-to-end walkthrough for reproducing **Graph-Grounded Agentic Retrieval** paper benchmark tables on the **custom-judge** evaluation dataset (features **012** + **013**).
+End-to-end walkthrough for reproducing **Graph-Grounded Agentic Retrieval** paper benchmark tables on the **custom-judge** evaluation dataset.
 
 | Feature | What it adds |
 |---------|----------------|
 | **012** | Five variants, frozen corpus, table export, release manifests |
 | **013** | `--defer-judge`, `judge-batch`, per-item graph slices, `--resume` checkpoints |
+| **014** | Static HTML report, investigation notes, item-first drill-down |
+| **015** | Evidence-stratum exports (`by_evidence_source.csv`) |
+| **016** | Fair outcome scoring (v1.x bundles; value_alignment-only) |
+| **017** | Custom-judge **v2.0.0**, **paper-v2.0** lock, smoke gate, frozen `expected_checksums.json` |
 
-For dataset generation (building custom-judge), see [custom-judge-dataset-generation.md](custom-judge-dataset-generation.md). Operator quickstarts: [012 quickstart](../specs/012-research-repro-kit/quickstart.md) · [013 quickstart](../specs/013-benchmark-eval-acceleration/quickstart.md).
+**Current paper release:** `paper-v2.0` (200 answer-GT items, unified `task_success`). Legacy `paper-v1.0` remains documented below.
+
+For dataset generation, see [custom-judge-dataset-generation.md](custom-judge-dataset-generation.md). Operator quickstarts: [017](../specs/017-custom-judge-v2/quickstart.md) · [012](../specs/012-research-repro-kit/quickstart.md) · [013](../specs/013-benchmark-eval-acceleration/quickstart.md) · [014](../specs/014-repro-results-viewer/quickstart.md).
 
 ## How live EDGAR, live judge, and offline eval fit together
 
@@ -18,7 +24,7 @@ Research reproduction is a **two-phase** pipeline:
 | **1 — Corpus build** | `agent-query benchmark-dataset generate` | **Live SEC EDGAR** + Gemini (item authoring) | Fetch filings, parse XBRL/HTML, build graph snapshots, write Q&A items into a draft bundle |
 | **2 — Paper eval** | `agent-query repro run-all` | **Live Gemini judge** + **live agent LLM** (LM Studio for graph variants) + **MiniLM** (flat-chunk only); **no EDGAR** | Run five variants on the **frozen** bundled corpus; export paper tables |
 
-Phase 2 sets `OFFLINE_BENCHMARK=1` so evaluation never re-fetches EDGAR — it reads the corpus produced in phase 1 (or a published LFS bundle at `paper-v1.0`). That offline gate is intentional: paper tables compare systems on an identical frozen corpus.
+Phase 2 sets `OFFLINE_BENCHMARK=1` so evaluation never re-fetches EDGAR — it reads the corpus produced in phase 1 (or a published LFS bundle at `paper-v2.0` / legacy `paper-v1.0`). That offline gate is intentional: paper tables compare systems on an identical frozen corpus.
 
 **Live components for real paper reproduction:**
 
@@ -31,7 +37,7 @@ Phase 2 sets `OFFLINE_BENCHMARK=1` so evaluation never re-fetches EDGAR — it r
 
 ## What this reproduces
 
-At release tag `paper-v1.0`, the kit runs **five system variants** on the full published **custom-judge `dev` split** (≥200 items):
+At release tag **`paper-v2.0`** (current), the kit runs **five system variants** on the published **custom-judge v2.0.0 `dev` split** (200 items, 100% answer-GT):
 
 | Variant | Description |
 |---------|-------------|
@@ -40,6 +46,8 @@ At release tag `paper-v1.0`, the kit runs **five system variants** on the full p
 | `ablation-no-macro` | Pre-bound filings only (no macro router) |
 | `ablation-no-walker` | No meso/micro graph walker hops |
 | `ablation-xbrl-only` | Excludes HTML narrative chunks |
+
+Legacy **`paper-v1.0`** uses the v1.x bundle (≥200 items, mixed answer/rubric GT). See [Full paper reproduction (`paper-v1.0`)](#full-paper-reproduction-paper-v10) below.
 
 ### Models used in phase 2
 
@@ -88,7 +96,13 @@ LM_STUDIO_MODEL=qwen/qwen3.6-35b-a3b
 
 Start **LM Studio** and load the pinned model before phase 2.
 
-For published `paper-v1.0` (skip phase 1 if bundle already published):
+For published **`paper-v2.0`** (skip phase 1 if bundle already published):
+
+```bash
+git lfs pull --include="data/benchmarks/custom-judge/v2.0.0/corpus/**"
+```
+
+Legacy **`paper-v1.0`**:
 
 ```bash
 git lfs pull --include="data/benchmarks/custom-judge/v1.0.0/corpus/**"
@@ -275,8 +289,11 @@ uv run agent-query repro verify-tables \
 | `repro run-all --judge-only` | Judge batch only (skip agent generation) |
 | `repro run-all --export-only` | Export tables from checkpoints |
 | `repro run-all --resume/--no-resume` | Resume partial runs (default: resume) |
-| `repro verify-tables` | Compare exports to expected checksums |
+| `repro verify-tables` | Compare exports to `releases/{tag}/expected_checksums.json` |
 | `repro report` | Static HTML investigation report + LaTeX/CSV/Markdown table copy (014) |
+| `repro smoke-materialize` | Rematerialize relevance + smoke item lists (v2.0 iteration) |
+| `repro smoke-run` | Graph-full on 50-item stratified smoke subset |
+| `repro smoke-gate` | Evaluate smoke thresholds on existing `results.json` |
 
 ```bash
 uv run agent-query repro --help
@@ -288,16 +305,32 @@ After phase 2 completes, generate a read-only HTML report for run investigation 
 
 ```bash
 uv run agent-query repro report \
-  --input reports/repro-live-smoke \
-  --output reports/repro-live-smoke/report.html
+  --input reports/repro-paper-v2.0-lock \
+  --manifest releases/paper-v2.0/manifest.yaml \
+  --output reports/repro-paper-v2.0-lock/report.html
 
 # Paste-ready headline table for LaTeX manuscripts:
 uv run agent-query repro report \
-  --input reports/repro-live-smoke \
+  --input reports/repro-paper-v2.0-lock \
   --format latex-only --table headline
 ```
 
-The report consumes existing artifacts only (`repro_run.json`, `tables/*.csv`, optional `{variant}/results.json`); it does not re-run agents or judges. Investigation notes are aggregated (≤25 per run). Optional stratified tables: `by_evidence_source.csv`, `variant_delta_by_source.csv`. Operator quickstart: [014 quickstart](../specs/014-repro-results-viewer/quickstart.md) | [015 quickstart](../specs/015-repro-eval-validity/quickstart.md). Troubleshooting partial runs: missing variant checkpoints produce warnings, not hard failures.
+The report consumes existing artifacts only (`repro_run.json`, `tables/*.csv`, `{variant}/results.json`); it does not re-run agents or judges.
+
+**Report layout (current):**
+
+| Section | Contents |
+|---------|----------|
+| Run summary | Variant counts, MLflow refs, export manifest |
+| By evidence source | Pivoted matrix: `variant_id` × `primary_evidence_source` rows; all metrics as columns |
+| Variant comparison | Headline metrics as rows × variants (baseline `graph-full`) |
+| Investigation notes | ≤25 aggregated checks (e.g. `OUTCOME_ORDERING_REGRESSION`, zero-citation patterns) |
+| Paper tables | Headline + trajectory audit (copy LaTeX/CSV/Markdown); profile/delta tables omitted from HTML |
+| Item drill-down | One row per item; variant columns side-by-side; expandable Q/A, judge scores, full agent answer |
+
+Options: `--max-item-rows 0` (default, all items), `--delta-threshold 0.10`, `--manifest releases/paper-v2.0/manifest.yaml` for question/expected-answer enrichment from the bundle.
+
+Operator quickstart: [014 quickstart](../specs/014-repro-results-viewer/quickstart.md) · [015 quickstart](../specs/015-repro-eval-validity/quickstart.md).
 
 ## Fair outcome scoring (016)
 
@@ -308,7 +341,7 @@ Feature **016** corrects reproduction outcome scoring and publishes custom-judge
 | **Outcome policy** | Answer-GT `outcome_accuracy` uses `value_alignment` only (missing → 0.0); no `synthesis_grounding` fallback |
 | **Judge v3** | Variant-aware criteria; resume skips only v3-complete verdicts |
 | **Bundle v1.1.0** | Rubric routing, `required_claims` on narrative answers, binding feasibility gates |
-| **Report** | Outcome-by-profile and outcome-by-stratum sections; `OUTCOME_ORDERING_REGRESSION` when SC-001 fails |
+| **Report** | Investigation notes; evidence-source matrix; item-first drill-down (v1.x also had outcome-by-profile in older reports) |
 
 Release manifest `releases/paper-v1.0/manifest.yaml` points at `data/benchmarks/custom-judge/v1.1.0`. Migrate from v1.0.0 with `evaluation.generation.migrate_v1_1_0.build_draft_from_parent`, then publish. Items flagged `requires_agent_rerun: true` in `CHANGELOG.md` need a selective agent re-run before citing new rubric routes.
 
@@ -419,8 +452,22 @@ uv run agent-query repro run-all \
   --manifest releases/paper-v2.0/manifest.yaml \
   --output reports/repro-paper-v2.0-lock \
   --defer-judge --no-resume
+
+# Sanity-check smoke subset on the lock run (no agent re-run)
 uv run agent-query repro smoke-gate --input reports/repro-paper-v2.0-lock --no-fail
+
+# Verify exported tables against frozen baseline
+uv run agent-query repro verify-tables \
+  --manifest releases/paper-v2.0/manifest.yaml \
+  --input reports/repro-paper-v2.0-lock
+
+# Investigation report (all 200 items in drill-down by default)
+uv run agent-query repro report \
+  --input reports/repro-paper-v2.0-lock \
+  --manifest releases/paper-v2.0/manifest.yaml
 ```
+
+Baseline headline metrics are pinned in `releases/paper-v2.0/expected_checksums.json` (lock repro: graph-full `task_success` ≈ 0.467, `mrr` ≈ 0.916). Re-export after any checkpoint change, then re-run `verify-tables`.
 
 Regenerate the stratified item list after major bundle changes:
 
@@ -484,21 +531,26 @@ Operator quickstart: [017 quickstart](../specs/017-custom-judge-v2/quickstart.md
 ## Output layout
 
 ```text
-reports/repro-paper-v1.0/
+reports/repro-paper-v2.0-lock/
 ├── repro_run.json
-├── graph-full/benchmark-*/summary.json
-├── flat-chunk/...
-├── ablation-no-macro/...
-├── ablation-no-walker/...
-├── ablation-xbrl-only/...
+├── export_manifest.json
+├── report.html                    # optional; from repro report
+├── graph-full/results.json
+├── flat-chunk/results.json
+├── ablation-no-macro/results.json
+├── ablation-no-walker/results.json
+├── ablation-xbrl-only/results.json
 └── tables/
     ├── headline.csv
+    ├── headline.tex
     ├── by_profile.csv
     ├── variant_delta.csv
     ├── trajectory_audit.csv
-    ├── by_evidence_source.csv      # optional (015)
-    └── variant_delta_by_source.csv # optional (015)
+    ├── by_evidence_source.csv
+    └── variant_delta_by_source.csv
 ```
+
+Legacy `paper-v1.0` uses the same layout under `reports/repro-paper-v1.0/`.
 
 ## Recovery playbook (013)
 
@@ -537,7 +589,7 @@ Long `paper-v1.0` runs can be interrupted. Checkpoints live under `reports/repro
 
 ## Design references
 
-- Spec: [012](../specs/012-research-repro-kit/spec.md) · [013](../specs/013-benchmark-eval-acceleration/spec.md)
-- Quickstart: [012](../specs/012-research-repro-kit/quickstart.md) · [013](../specs/013-benchmark-eval-acceleration/quickstart.md)
+- Spec: [012](../specs/012-research-repro-kit/spec.md) · [013](../specs/013-benchmark-eval-acceleration/spec.md) · [017](../specs/017-custom-judge-v2/spec.md)
+- Quickstart: [017](../specs/017-custom-judge-v2/quickstart.md) · [012](../specs/012-research-repro-kit/quickstart.md) · [013](../specs/013-benchmark-eval-acceleration/quickstart.md) · [014](../specs/014-repro-results-viewer/quickstart.md)
 - Variant configs: `configs/reproduction/variants/`
 - Item subgraph contract: [contracts/item-subgraph.md](../specs/013-benchmark-eval-acceleration/contracts/item-subgraph.md)
