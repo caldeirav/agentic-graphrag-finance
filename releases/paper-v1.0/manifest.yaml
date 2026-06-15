@@ -1,60 +1,66 @@
-schema_version: "1.0.0"
+schema_version: 1.0.0
 release_tag: paper-v1.0
 git_sha: TBD
-custom_judge_version: "1.2.0"
-custom_judge_bundle_path: data/benchmarks/custom-judge/v1.2.0
+custom_judge_version: 2.0.0
+custom_judge_bundle_path: data/benchmarks/custom-judge/v2.0.0
 eval_split: dev
 reproduction_mode: live_reexecution
-
 corpus_hashes:
-  corpus/graph_node_index.json: "sha256:TBD"
-
-relevance_labels_hash: ""
-relevance_coverage_rate: 0.0
-
+  corpus/graph_node_index.json: sha256:ecfa94e8e6ffc596b695bba5998a02af6639614f8643edf8ca2d46055cdc3071
+items_hash: sha256:f326702d4119ec360f7ab3272ecfba0e847dbf11dbd8324a197fb32f61b2cc63
+relevance_labels_hash: sha256:e0ab95595e346b3ff390cdf6a967dff469be9e40dd76e527d945c78112b1dcc7
+relevance_coverage_rate: 1.0
 variant_ids:
-  - graph-full
-  - flat-chunk
-  - ablation-no-macro
-  - ablation-no-walker
-  - ablation-xbrl-only
-
+- graph-full
+- flat-chunk
+- ablation-no-macro
+- ablation-no-walker
+- ablation-xbrl-only
 model_pins:
   llm_config_path: configs/llm/lm_studio_qwen.yaml
-  llm_config_hash: "sha256:TBD"
+  llm_config_hash: sha256:TBD
   judge_config_path: configs/judges/gemini_2_5_pro.yaml
-  judge_config_hash: "sha256:TBD"
+  judge_config_hash: sha256:TBD
   embedding_model_id: sentence-transformers/all-MiniLM-L6-v2
   embedding_model_revision: TBD
   embedding_config_path: configs/reproduction/embeddings/all_minilm_l6_v2.yaml
-  embedding_config_hash: "sha256:TBD"
-
+  embedding_config_hash: sha256:TBD
+full_reproduction_policy:
+  selective_agent_skip: false
+  changelog_based_skip: false
+  required_variants: 5
+  required_items_per_variant: 200
 tolerance_bands:
-  mean_outcome_accuracy: 0.02
-  mean_rubric_alignment: 0.02
+  mean_task_success: 0.02
   mean_trajectory_fidelity: 0.02
   ranking_metrics_exact: true
   structural_metrics_exact: true
-
 expected_checksums_path: expected_checksums.json
-
+smoke_item_ids_path: smoke_dev_item_ids.json
+smoke_gate_thresholds:
+  min_task_success: 0.45
+  max_mrr_zero_share: 0.10
+  max_mrr_ok_va_zero: 12
+  max_abstention_like_share: 0.10
+  min_items_with_va: 25
 ablation_guidance:
   html:
     valid_comparisons:
-      - baseline: graph-full
-        comparison: ablation-no-walker
+    - baseline: graph-full
+      comparison: ablation-no-walker
     ranking_margin:
-      graph_full_mrr_min: 0.10
+      graph_full_mrr_min: 0.1
       ablation_no_walker_mrr_max: 0.05
-      abstention_rate_min: 0.80
-    notes: "Walker required for HTML narrative chunks; compare graph-full vs no-walker on HTML stratum only."
+      abstention_rate_min: 0.8
+    notes: Walker required for HTML narrative chunks; compare graph-full vs no-walker
+      on HTML stratum only.
   xbrl:
     valid_comparisons:
-      - baseline: graph-full
-        comparison: ablation-xbrl-only
-    notes: "XBRL stratum compares graph-full vs xbrl-only retrieval."
+    - baseline: graph-full
+      comparison: ablation-xbrl-only
+    notes: XBRL stratum compares graph-full vs xbrl-only retrieval.
   mixed:
     valid_comparisons:
-      - baseline: graph-full
-        comparison: ablation-no-macro
-    notes: "Mixed-label items require both narrative and numeric evidence."
+    - baseline: graph-full
+      comparison: ablation-no-macro
+    notes: Mixed-label items require both narrative and numeric evidence.

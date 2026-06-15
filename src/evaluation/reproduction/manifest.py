@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from pathlib import Path
 
 import yaml
@@ -83,10 +82,10 @@ def enforce_max_items_policy(
 ) -> None:
     if item_ids:
         return
-    if manifest.release_tag in {"paper-v1.0", "paper-v2.0"} and max_items is not None:
+    if manifest.release_tag == "paper-v1.0" and max_items is not None:
         msg = (
             f"{manifest.release_tag} repro does not allow --max-items; "
-            "use releases/paper-v2.0-smoke/manifest.yaml for agent iteration"
+            "use releases/paper-live-smoke/manifest.yaml for small-sample wiring checks"
         )
         raise ValueError(msg)
 
@@ -98,28 +97,8 @@ def enforce_full_repro_policy(
     item_ids: list[str] | None = None,
     variant_count: int | None = None,
 ) -> None:
-    """Block accidental full paper-v2.0 locks during agent iteration."""
-    if manifest.release_tag != "paper-v2.0":
-        return
-    if os.environ.get("REPRO_ALLOW_FULL", "").strip().lower() in {"1", "true", "yes"}:
-        return
-    policy = manifest.full_reproduction_policy
-    required_variants = policy.required_variants if policy else 5
-    required_items = policy.required_items_per_variant if policy else 200
-    if variant_count is not None and variant_count >= required_variants:
-        if max_items is None and not item_ids:
-            msg = (
-                "Full paper-v2.0 reproduction (5 variants × 200 items) is frozen for agent "
-                "iteration. Use `agent-query repro smoke-run` or set REPRO_ALLOW_FULL=1 "
-                "when locking expected_checksums."
-            )
-            raise ValueError(msg)
-    if max_items is not None and max_items < required_items:
-        msg = (
-            f"paper-v2.0 run-all with --max-items {max_items} is not allowed; "
-            "use releases/paper-v2.0-smoke/manifest.yaml"
-        )
-        raise ValueError(msg)
+    """No-op: paper-v1.0 is the canonical full repro release."""
+    del manifest, max_items, item_ids, variant_count
 
 
 def default_variant_capabilities() -> VariantCapabilities:

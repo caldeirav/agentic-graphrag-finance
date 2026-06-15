@@ -1,10 +1,12 @@
-# Custom-Judge Evaluation Dataset Generation
+This guide describes how the project builds the **custom-judge v2.0.0** evaluation benchmark from live SEC EDGAR filings—the frozen dataset behind **`paper-v1.0`** reproduction.
 
-This guide describes how the project builds a **versioned, offline evaluation benchmark** from live SEC EDGAR filings. The pipeline samples issuers, materializes XBRL/graph snapshots through the same production path as `agent-query ask`, uses **Gemini** to author grounded Q&A items, validates them against the bundled graph index, and writes a reproducible draft bundle.
+The pipeline samples issuers, materializes XBRL/graph snapshots through the same production path as `agent-query ask`, uses **Gemini** to author grounded Q&A items, validates them against the bundled graph index, and writes a reproducible draft bundle for operator publish.
 
-Question **style and taxonomy** are inspired by three public financial QA benchmarks (FinanceBench, FinDER, FinAgentBench). Generated items are **native to this project's SEC/XBRL corpus**—we do not bulk-import upstream benchmark rows.
+**Published bundle:** `data/benchmarks/custom-judge/v2.0.0/` · **Release lock:** `releases/paper-v1.0/manifest.yaml`
 
-**Related specs:** [011 spec](../specs/011-judge-eval-dataset/spec.md) · [011 plan](../specs/011-judge-eval-dataset/plan.md) · [011 research](../specs/011-judge-eval-dataset/research.md) · [operator quickstart](../specs/011-judge-eval-dataset/quickstart.md)
+Question **style and taxonomy** are inspired by FinanceBench, FinDER, and FinAgentBench. Generated items are **native to this project's SEC/XBRL corpus**—we do not bulk-import upstream benchmark rows.
+
+**Paper reproduction (phase 2):** [research-reproduction.md](research-reproduction.md)
 
 ---
 
@@ -23,7 +25,7 @@ The `custom-judge` pipeline uses upstream work as **inspiration profiles** (prom
 | Profile | Borrowed from upstream | Adapted for this project |
 |---------|------------------------|---------------------------|
 | **FinanceBench** | Question-type taxonomy (`metrics-generated`, `domain-relevant`, `novel-generated`); short numeric or textual gold answers | Items bind to **graph-resolvable** `expected_section_paths` (`{accession}/{section_slug}`) instead of PDF page numbers |
-| **FinDER** | Retrieval-focused questions; **rubric-based** scoring with reference evidence | v1: `ground_truth.rubric` required, answer optional. **v2**: answer-GT required; rubric auxiliary only |
+| **FinDER** | Retrieval-focused questions; rubric-based scoring | Answer-GT required; `required_claims` on narrative answers |
 | **FinAgentBench** | Multi-hop, cross-filing agentic tasks | `expected_bindings.accessions` must span **≥2 filings**; v2 uses `answer_type: comparison_structured` with per-filing + cross-filing `required_claims` |
 
 Prompt templates: `configs/benchmarks/inspiration_profiles/{financebench,finder,finagentbench}.yaml`.  
@@ -69,7 +71,7 @@ flowchart LR
   F --> F1[manifest.json + generation_report.json]
 ```
 
-**v1.x** writes accepted rows directly to `items/dev.jsonl`. **v2.0** keeps the full accepted pool in `items/dev_pool.jsonl`, then selects a **quota-balanced** 200-item dev split (see [Bundle v2.0](#bundle-v20-net-new-pool)).
+**v2.0** keeps the full accepted pool in `items/dev_pool.jsonl`, then selects a **quota-balanced** 200-item dev split (see [Published bundle structure](#published-bundle-structure)).
 
 ### Phase 1 — Sampling
 
@@ -433,33 +435,19 @@ Generation code under `src/evaluation/generation/` must **not** import retrieval
 
 ---
 
-## Next step: paper reproduction
+## Next step: paper-v1.0 reproduction
 
-After you **publish** a bundle (or keep a draft for smoke), run phase 2 on the frozen corpus:
+After publish, run phase 2 on the frozen corpus:
 
-- **[Research reproduction guide](research-reproduction.md)** — `repro run-all`, five variants, live judge + LM Studio
-- **`releases/paper-v2.0`** — **current** release (v2.0.0 bundle, 200 answer-GT items, smoke gate + lock repro)
-- **`releases/paper-v2.0-smoke`** — 50-item stratified subset for agent iteration
-- **`releases/paper-live-smoke`** — 2-item live smoke (draft from `--run-id live-repro-smoke`)
-- **`releases/paper-v1.0`** — legacy v1.x published split (LFS corpus)
+- **[Research reproduction guide](research-reproduction.md)** — `repro run-all` on `releases/paper-v1.0/manifest.yaml`
+- **Baseline checksums:** `releases/paper-v1.0/expected_checksums.json`
+- **Local reference run:** `reports/repro-paper-v1.0/` (gitignored)
 
 ---
 
-## Bundle v2.0 (net-new pool)
+## Published bundle structure
 
-v2.0 is a **greenfield** dataset: new seed (`20260602`), refreshed fiscal window (2023–2026), **100% non-empty `ground_truth.answer`**, structured `required_claims`, and no reuse of v1.2.0 item IDs. Published bundle: `data/benchmarks/custom-judge/v2.0.0/`.
-
-### v2 vs v1 generation differences
-
-| Topic | v1.x | v2.0 |
-|-------|------|------|
-| Publish `pass_rate` gate | Blocking (≥ 0.95) | **Indicative only** (candidate yield tuning) |
-| Dev split selection | All accepts → `dev.jsonl` | Pool → **quota-balanced** 200 → `dev.jsonl` |
-| Finder items | Rubric-only allowed | Answer-GT required |
-| FinAgentBench | Answer or rubric | `comparison_structured` + semantic claims |
-| Multi-filing floor | — | ≥ 40 items at publish |
-| Macro-bindability | — | Blocking for all 200 items |
-| Publish sign-off | Optional | **`--publish-signoff` required** |
+The **v2.0.0** bundle is a greenfield dataset: seed `20260602`, fiscal window 2023–2026, **100% non-empty `ground_truth.answer`**, structured `required_claims`, and ≥40 multi-filing items. Path: `data/benchmarks/custom-judge/v2.0.0/`.
 
 ### Profile-balanced selection
 
@@ -514,7 +502,7 @@ uv run agent-query benchmark-dataset publish \
 
 **Not blocking**: `generation_report.pass_rate` (raw candidate yield).
 
-Paper reproduction: `releases/paper-v2.0` → [017 quickstart](../specs/017-custom-judge-v2/quickstart.md) · [017 spec](../specs/017-custom-judge-v2/spec.md) · [bundle v2 contract](../specs/017-custom-judge-v2/contracts/bundle-v2.0.md).
+Paper reproduction: [research-reproduction.md](research-reproduction.md) · `releases/paper-v1.0/manifest.yaml`
 
 ---
 

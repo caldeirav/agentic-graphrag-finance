@@ -1,17 +1,19 @@
 # Benchmark Reproduction
 
-> **Paper reproduction (custom-judge, five variants, table export):** see **[research-reproduction.md](research-reproduction.md)**.
->
-> **Current release:** `paper-v2.0` (custom-judge v2.0.0, 200 items, smoke gate + lock repro).
->
-> Quickstarts: [017 paper-v2.0](../specs/017-custom-judge-v2/quickstart.md) · [012](../specs/012-research-repro-kit/quickstart.md) · [013 defer-judge + resume](../specs/013-benchmark-eval-acceleration/quickstart.md) · [014 HTML report](../specs/014-repro-results-viewer/quickstart.md).
+Paper benchmark reproduction uses the **custom-judge v2.0.0** bundle and **`paper-v1.0`** release lock.
 
-Legacy single-suite benchmark notes:
+**Canonical guide:** [research-reproduction.md](research-reproduction.md)
 
-1. **Frozen graph snapshot** — record `snapshot_id` and `issuer_id` under `data/graphs/`
-2. **Dependency lock** — use `uv sync --locked` at the same commit SHA
-3. **Judge config** — hash of `configs/judges/gemini_2_5_pro.yaml` and `GOOGLE_API_KEY` profile
-4. **MLflow parent run** — note parent `run_id` from `reports/benchmark-*/summary.json`
+```bash
+uv run agent-query repro run-all \
+  --manifest releases/paper-v1.0/manifest.yaml \
+  --output reports/repro-paper-v1.0 \
+  --defer-judge --no-resume
+```
+
+The committed baseline (`releases/paper-v1.0/expected_checksums.json`) matches the lock reproduction run stored locally at `reports/repro-paper-v1.0/`.
+
+Legacy `sec-benchmark` / `evaluation.cli` notes below are for ad-hoc single-snapshot experiments only—not the paper tables.
 
 ```bash
 USE_MOCK_LLM=0 USE_MOCK_JUDGE=0 uv run python -m evaluation.cli \
@@ -21,5 +23,3 @@ USE_MOCK_LLM=0 USE_MOCK_JUDGE=0 uv run python -m evaluation.cli \
   --datasets finder,finagentbench,financebench \
   --max-items 100
 ```
-
-Aggregate metrics in `reports/benchmark-<id>/summary.json` should match within floating-point tolerance when re-run with identical inputs.

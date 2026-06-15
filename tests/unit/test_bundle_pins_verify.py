@@ -11,13 +11,13 @@ from evaluation.reproduction.manifest import load_release_manifest, sha256_text
 
 
 def test_verify_bundle_pins_passes_on_v2_manifest() -> None:
-    manifest = load_release_manifest(Path("releases/paper-v2.0/manifest.yaml"))
+    manifest = load_release_manifest(Path("releases/paper-v1.0/manifest.yaml"))
     result = verify_bundle_pins(manifest, repo_root=Path.cwd())
     assert result.ok, result.message
 
 
 def test_verify_bundle_pins_detects_items_mismatch(tmp_path: Path) -> None:
-    manifest = load_release_manifest(Path("releases/paper-v2.0/manifest.yaml"))
+    manifest = load_release_manifest(Path("releases/paper-v1.0/manifest.yaml"))
     bundle = tmp_path / "bundle"
     items_dir = bundle / "items"
     items_dir.mkdir(parents=True)

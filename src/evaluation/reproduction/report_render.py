@@ -806,7 +806,7 @@ def _render_comparison_html(comparison: VariantComparisonView, bundle: ReproOutp
         "",
     )
     v2_note = (
-        " Value-alignment only (paper-v2.0); missing VA counts as 0."
+        " Value-alignment only (paper-v1.0); missing VA counts as 0."
         if is_v2_repro_bundle(bundle)
         else ""
     )

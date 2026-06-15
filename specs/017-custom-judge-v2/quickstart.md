@@ -1,4 +1,4 @@
-# Quickstart: Custom-Judge Bundle v2.0 and paper-v2.0 (017)
+# Quickstart: Custom-Judge Bundle v2.0 and paper-v1.0 (017)
 
 **Feature**: 017-custom-judge-v2 | **Date**: 2026-06-02
 
@@ -68,14 +68,14 @@ Verify:
 - `dev_selection_report.json` on published bundle
 - v1.2.0 directory unchanged: `git diff data/benchmarks/custom-judge/v1.2.0`
 
-## Phase 4 — paper-v2.0 release lock
+## Phase 4 — paper-v1.0 release lock
 
 ```bash
 uv run agent-query repro materialize-relevance \
-  --manifest releases/paper-v2.0/manifest.yaml
+  --manifest releases/paper-v1.0/manifest.yaml
 ```
 
-Commit `releases/paper-v2.0/manifest.yaml` with pinned `items_hash`, `corpus_hashes`, `relevance_labels_hash` from published `v2.0.0` manifest.
+Commit `releases/paper-v1.0/manifest.yaml` with pinned hashes from published `v2.0.0`.
 
 ## Phase 5 — Full reproduction (five variants × 200 items)
 
@@ -84,39 +84,30 @@ export OFFLINE_BENCHMARK=1 USE_MOCK_LLM=0 USE_MOCK_JUDGE=0
 
 git lfs pull --include="data/benchmarks/custom-judge/v2.0.0/corpus/**"
 
-# Lock repro (requires REPRO_ALLOW_FULL=1 during agent iteration freeze)
-export REPRO_ALLOW_FULL=1
 uv run agent-query repro run-all \
-  --manifest releases/paper-v2.0/manifest.yaml \
-  --output reports/repro-paper-v2.0-lock \
+  --manifest releases/paper-v1.0/manifest.yaml \
+  --output reports/repro-paper-v1.0 \
   --defer-judge --no-resume
 
 uv run agent-query repro verify-tables \
-  --manifest releases/paper-v2.0/manifest.yaml \
-  --input reports/repro-paper-v2.0-lock
+  --manifest releases/paper-v1.0/manifest.yaml \
+  --input reports/repro-paper-v1.0
 
 uv run agent-query repro report \
-  --input reports/repro-paper-v2.0-lock \
-  --manifest releases/paper-v2.0/manifest.yaml
+  --input reports/repro-paper-v1.0 \
+  --manifest releases/paper-v1.0/manifest.yaml
 ```
-
-**No selective skip**: every item runs on every variant.
-
-For day-to-day agent work, use `repro smoke-run` + `repro smoke-gate` instead — see [research-reproduction.md § Agent iteration](../../docs/research-reproduction.md#agent-iteration-smoke-gate-frozen-full-repro).
 
 ## Phase 6 — Verify unified task_success
 
-Inspect `reports/repro-paper-v2.0-lock/tables/headline.csv`:
+Inspect `reports/repro-paper-v1.0/tables/headline.csv`:
 
 | Check | Expected |
 |-------|----------|
 | `task_success` item_count | 200 |
-| `task_success` value | mean value_alignment (baseline ≈ 0.467 on lock repro) |
+| `task_success` value | mean value_alignment (baseline ≈ 0.467) |
 | `rubric_alignment` row | absent |
-| MRR / nDCG@10 | present; definitions unchanged |
-| `verify-tables` | passes against `releases/paper-v2.0/expected_checksums.json` |
-
-Open `report.html` — headline section shows task_success as sole outcome metric; item drill-down groups by item with all variants adjacent.
+| `verify-tables` | passes against `releases/paper-v1.0/expected_checksums.json` |
 
 ## Phase 7 — Third-party reproduce (offline)
 

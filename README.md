@@ -11,7 +11,7 @@ This repo implements the research direction in [docs/research-proposal.md](docs/
 | Workflow | You get | Live models |
 |----------|---------|-------------|
 | **Interactive Q&A** (`materialize` + `ask`) | One issuer, one question, answer + MLflow trace | LM Studio (agent) + Gemini (judge on each `ask`) |
-| **Paper reproduction** (`benchmark-dataset` + `repro`) | Five system variants on the **custom-judge v2.0** benchmark (200 items), exported CSV tables + HTML report | Phase 1: EDGAR + Gemini (item authoring). Phase 2: LM Studio (graph variants) + Gemini (judge) + MiniLM (`flat-chunk` only) |
+| **Paper reproduction** (`benchmark-dataset` + `repro`) | Five variants on **custom-judge v2.0.0** (200 items) → **paper-v1.0** tables + HTML report | Phase 1: EDGAR + Gemini (only if regenerating bundle). Phase 2: LM Studio + Gemini judge + MiniLM (`flat-chunk`) |
 
 **Documentation map**
 
@@ -19,7 +19,7 @@ This repo implements the research direction in [docs/research-proposal.md](docs/
 |-----|-----------------|
 | [End-to-end walkthrough](docs/end-to-end-walkthrough.md) | First deep dive: XBRL, Docling, graph, agent stages, judge |
 | [Research reproduction](docs/research-reproduction.md) | Full paper repro: two phases, variants, defer-judge, recovery |
-| [Custom-judge dataset generation](docs/custom-judge-dataset-generation.md) | Building the evaluation corpus — v1.x and **v2.0** (phase 1 of paper repro) |
+| [Custom-judge dataset generation](docs/custom-judge-dataset-generation.md) | Published **v2.0.0** bundle used by **paper-v1.0** reproduction |
 | [docs/README.md](docs/README.md) | Index of all guides |
 
 ---
@@ -85,104 +85,49 @@ uv run agent-query --help
 | `graph-audit` | Re-run reachability audit on a snapshot |
 | `mlflow-clean` | Reset local MLflow SQLite store |
 | `benchmark-dataset` | Generate **custom-judge** evaluation items (live EDGAR + Gemini) |
-| `repro` | Run paper benchmark variants and export tables (offline corpus) |
-| `repro smoke-run` / `smoke-gate` | Fast 50-item agent iteration loop for **paper-v2.0** (see below) |
-| `repro report` | HTML investigation report (item-first drill-down, evidence-source matrix) + LaTeX/CSV/Markdown copy |
+| `repro` | Run **paper-v1.0** benchmark variants and export tables (offline corpus) |
+| `repro report` | HTML investigation report (item-first drill-down) + LaTeX/CSV/Markdown copy |
 
 Snapshots live under `data/graphs/{TICKER}/` (`{snapshot_id}.graphml`, manifest, reachability report). Raw XBRL: `data/raw/sec_downloads/{ticker}/{accession}/`.
 
 ---
 
-## Path B — Reproduce paper tables (live agent + live judge)
+## Path B — Reproduce paper-v1.0 tables
 
-Research reproduction is **two phases**. Phase 2 never hits EDGAR (`OFFLINE_BENCHMARK=1`); it scores a frozen bundle from phase 1 or from LFS.
+Five variants × 200 items on the frozen **custom-judge v2.0.0** bundle. Phase 2 is offline (`OFFLINE_BENCHMARK=1`).
 
 **Full guide:** [docs/research-reproduction.md](docs/research-reproduction.md)
-
-### `paper-v2.0` (current release — 5 variants × 200 items)
-
-Published bundle: `data/benchmarks/custom-judge/v2.0.0/`. Release lock: `releases/paper-v2.0/manifest.yaml`. Baseline checksums: `releases/paper-v2.0/expected_checksums.json` (from lock repro).
-
-**Agent iteration** uses a 50-item smoke subset (`repro smoke-run` → `repro smoke-gate`). Full repro requires `REPRO_ALLOW_FULL=1`.
 
 ```bash
 git lfs pull --include="data/benchmarks/custom-judge/v2.0.0/corpus/**"
 export OFFLINE_BENCHMARK=1 USE_MOCK_JUDGE=0 USE_MOCK_LLM=0
 
-# Fast loop (~50 items, graph-full only)
-uv run agent-query repro smoke-materialize   # after bundle/relevance changes
-uv run agent-query repro smoke-run --output reports/repro-paper-v2.0-smoke --no-resume
-uv run agent-query repro smoke-gate --input reports/repro-paper-v2.0-smoke
-
-# Lock repro (one-time baseline; ~8h+)
-export REPRO_ALLOW_FULL=1
-uv run agent-query repro run-all \
-  --manifest releases/paper-v2.0/manifest.yaml \
-  --output reports/repro-paper-v2.0-lock \
-  --defer-judge --no-resume
-
-uv run agent-query repro verify-tables \
-  --manifest releases/paper-v2.0/manifest.yaml \
-  --input reports/repro-paper-v2.0-lock
-
-uv run agent-query repro report --input reports/repro-paper-v2.0-lock
-```
-
-Headline metric: **`task_success`** = mean `value_alignment` over n=200 (no `rubric_alignment` row on v2 exports).
-
-### Smoke test (~2 items, live everything)
-
-**Phase 1** — build draft bundle from live SEC:
-
-```bash
-uv run agent-query benchmark-dataset generate \
-  -c configs/benchmarks/custom_judge_live.yaml \
-  --run-id live-repro-smoke --target-items 2 --trace verbose
-```
-
-**Phase 2** — five variants, live judge + LM Studio:
-
-```bash
-export OFFLINE_BENCHMARK=1 USE_MOCK_JUDGE=0 USE_MOCK_LLM=0
-
-uv run agent-query repro run-all \
-  --manifest releases/paper-live-smoke/manifest.yaml \
-  --output reports/repro-live-smoke \
-  --max-items 2
-```
-
-Tables: `reports/repro-live-smoke/tables/headline.csv`, etc.
-
-Generate an investigation report and copy LaTeX into your manuscript:
-
-```bash
-uv run agent-query repro report --input reports/repro-live-smoke
-```
-
-### Full `paper-v1.0` (legacy bundle — defer judge + resume)
-
-Batches Gemini judging after each variant and resumes interrupted runs. Per-item graphs load only filings in `expected_bindings` (faster than full-bundle graphs).
-
-```bash
-export OFFLINE_BENCHMARK=1 USE_MOCK_JUDGE=0 USE_MOCK_LLM=0
+uv run agent-query repro verify-corpus \
+  --manifest releases/paper-v1.0/manifest.yaml
 
 uv run agent-query repro run-all \
   --manifest releases/paper-v1.0/manifest.yaml \
   --output reports/repro-paper-v1.0 \
-  --defer-judge --resume
+  --defer-judge --no-resume
+
+uv run agent-query repro verify-tables \
+  --manifest releases/paper-v1.0/manifest.yaml \
+  --input reports/repro-paper-v1.0
+
+uv run agent-query repro report --input reports/repro-paper-v1.0 \
+  --manifest releases/paper-v1.0/manifest.yaml
 ```
 
-After an interrupt, re-run the **same** command. Judge-only or export-only recovery: [docs/research-reproduction.md](docs/research-reproduction.md#recovery-playbook-013).
+**Baseline:** `releases/paper-v1.0/expected_checksums.json` (graph-full `task_success` ≈ 0.467). Local reference run: `reports/repro-paper-v1.0/`.
 
 | `repro` flag | Effect |
 |--------------|--------|
-| `--defer-judge` | Skip per-item judge during generation; run `judge-batch` per variant |
+| `--defer-judge` | Batch Gemini judging after each variant (recommended) |
 | `--resume` / `--no-resume` | Skip completed items (default: resume) |
 | `--judge-only` | Score pending rows only |
 | `--export-only` | Rebuild CSV tables from checkpoints |
-| `--max-items N` | Limit items (smoke / debugging; not allowed on `paper-v2.0` full manifest) |
 
-CI uses mocks and fixtures: `releases/paper-smoke` — see [research reproduction § CI smoke](docs/research-reproduction.md#ci-smoke-fixtures-only-no-live-edgar-or-judge).
+CI wiring check (mocks, not paper numbers): `releases/paper-smoke` — see [research reproduction § CI](docs/research-reproduction.md#ci-wiring-check-fixtures-only).
 
 ---
 
@@ -260,11 +205,8 @@ Feature specs live under `specs/{NNN-feature-name}/` (spec, plan, tasks, contrac
 | 011 | Custom-judge dataset generation |
 | 012 | Research reproduction kit (five variants, table export) |
 | 013 | Eval acceleration (defer judge, per-item subgraph, resume) |
-| 014 | Reproduction results viewer (HTML report, investigation notes) |
-| 015 | Stratified ablation exports (`by_evidence_source`) |
-| 016 | Fair outcome scoring (v1.x bundles; value_alignment-only policy) |
-| 017 | Custom-judge **v2.0** bundle, smoke gate, **paper-v2.0** lock (merged on `main`) |
+| 017 | Custom-judge v2.0.0 bundle + **paper-v1.0** release lock |
 
-**Operator quickstarts:** [017 paper-v2.0](../specs/017-custom-judge-v2/quickstart.md) · [012 repro kit](../specs/012-research-repro-kit/quickstart.md) · [014 report](../specs/014-repro-results-viewer/quickstart.md)
+**Operator guides:** [research reproduction](docs/research-reproduction.md) · [custom-judge generation](docs/custom-judge-dataset-generation.md) · [014 report](specs/014-repro-results-viewer/quickstart.md)
 
 **Legacy staged scripts** (`sec-ingest`, `sec-graph-build`, `sec-query`, `sec-benchmark`) remain for layer debugging; prefer `agent-query` for normal use.

@@ -57,8 +57,10 @@ def verify_tables(
             if abs(got - float(expected_value)) > 1e-9:
                 diffs.append(f"exact mismatch {key}: expected {expected_value}, got {got}")
             continue
-        tol = bands.mean_outcome_accuracy
-        if metric_name == "rubric_alignment":
+        tol = bands.mean_task_success
+        if metric_name == "outcome_accuracy":
+            tol = bands.mean_outcome_accuracy
+        elif metric_name == "rubric_alignment":
             tol = bands.mean_rubric_alignment
         elif metric_name == "trajectory_fidelity":
             tol = bands.mean_trajectory_fidelity

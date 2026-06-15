@@ -210,7 +210,7 @@ def verify_tables_cmd(
 @app.command("run-all")
 def run_all(
     manifest: Path | None = typer.Option(None, "--manifest"),
-    release: str | None = typer.Option(None, "--release", help="Release tag e.g. paper-v2.0"),
+    release: str | None = typer.Option(None, "--release", help="Release tag e.g. paper-v1.0"),
     output: Path = typer.Option(None, "--output"),
     max_items: int | None = typer.Option(None, "--max-items"),
     item_ids_file: Path | None = typer.Option(
@@ -313,12 +313,12 @@ def report_cmd(
 @app.command("smoke-run")
 def smoke_run_cmd(
     output: Path = typer.Option(
-        Path("reports/repro-paper-v2.0-smoke"),
+        Path("reports/repro-paper-v1.0-smoke"),
         "--output",
         help="Smoke repro output directory",
     ),
     manifest: Path = typer.Option(
-        REPO_ROOT / "releases/paper-v2.0-smoke/manifest.yaml",
+        REPO_ROOT / "releases/paper-v1.0/manifest.yaml",
         "--manifest",
     ),
     subset: str = typer.Option(
@@ -377,7 +377,7 @@ def smoke_run_cmd(
 @app.command("smoke-materialize")
 def smoke_materialize_cmd(
     manifest: Path = typer.Option(
-        REPO_ROOT / "releases/paper-v2.0-smoke/manifest.yaml",
+        REPO_ROOT / "releases/paper-v1.0/manifest.yaml",
         "--manifest",
     ),
     subset: str = typer.Option("full", "--subset", help="full or finagent item list file"),
@@ -423,7 +423,7 @@ def smoke_materialize_cmd(
 def smoke_gate_cmd(
     input_dir: Path = typer.Option(..., "--input", help="Repro output with graph-full/results.json"),
     manifest: Path = typer.Option(
-        REPO_ROOT / "releases/paper-v2.0-smoke/manifest.yaml",
+        REPO_ROOT / "releases/paper-v1.0/manifest.yaml",
         "--manifest",
     ),
     subset: str = typer.Option(

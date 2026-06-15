@@ -15,7 +15,7 @@ from evaluation.reproduction.smoke_gate import (
 )
 
 SMOKE_DIRS = (
-    Path("reports/repro-paper-v2.0-smoke"),
+    Path("reports/repro-paper-v1.0-smoke"),
     Path("reports/smoke-v2-agent"),
 )
 

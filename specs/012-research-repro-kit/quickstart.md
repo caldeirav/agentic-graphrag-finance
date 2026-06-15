@@ -1,8 +1,8 @@
 # Quickstart: Research Reproduction Kit (012)
 
-**Feature**: 012-research-repro-kit | **Date**: 2026-05-30
+**Feature**: 012-research-repro-kit
 
-> **Current paper release:** use [017 quickstart](../017-custom-judge-v2/quickstart.md) and `releases/paper-v2.0/manifest.yaml`. This quickstart documents the **legacy `paper-v1.0`** workflow (v1.x bundle).
+> **Canonical workflow:** [research-reproduction.md](../../docs/research-reproduction.md) — `releases/paper-v1.0/manifest.yaml`, bundle `v2.0.0`.
 
 ## Prerequisites
 
