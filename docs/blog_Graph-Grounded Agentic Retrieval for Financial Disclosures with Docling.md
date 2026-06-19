@@ -28,7 +28,9 @@ We preserve three layers of semantics in the graph:
 
 SEC submissions arrive as **XBRL packages**: instance documents, taxonomy linkbases, and (often) HTML narrative exhibits—not as PDFs waiting for vision models.
 
-We configure **Docling** with its XBRL backend (Arelle under the hood) to parse instance files against US-GAAP taxonomies and emit a structured **DoclingDocument**. From that we build a normalized **ParsedDocument** that keeps:
+**Docling** is open source (from the [Docling project](https://github.com/docling-project/docling), with roots in IBM Research). It is also available as part of **[Red Hat AI](https://www.redhat.com/en/blog/red-hat-ai-modular-building-blocks-scalable-repeatable-model-customization)**—Red Hat’s supported document-intelligence component for preparing enterprise data for RAG, extraction, and model customization, including integration with **Red Hat OpenShift AI** and Kubeflow Pipelines for scaled ingestion. We use the upstream library directly in this project; teams operating on OpenShift can run the same parsing stack as a managed, pipeline-native workload.
+
+We configure Docling with its XBRL backend (Arelle under the hood) to parse instance files against US-GAAP taxonomies and emit a structured **DoclingDocument**. From that we build a normalized **ParsedDocument** that keeps:
 
 - **Metadata** — entity, accession, form type, reporting periods.
 - **Narrative blocks** — MD&A prose, risk factors, footnotes (from HTML where present).
@@ -114,6 +116,6 @@ Stratifying by evidence type (HTML vs XBRL vs mixed) avoids misleading pooled sc
 2. **Use docling-graph as a contract, not always as a black-box CLI.** For tagged SEC data, deterministic mapping from Docling output is faster, cheaper, and easier to audit than LLM graph extraction on every document.
 3. **Stage your agent and log trajectories.** When answers fail, you need to know whether macro binding, section routing, chunk ranking, or synthesis broke—not one blended retrieval score.
 4. **Measure retrieval and outcome separately.** Ranking metrics on citations and judge scores on answers tell different stories; both are necessary for financial QA.
-5. **Keep an open stack.** Docling, docling-graph, LangGraph, and local LLM serving (e.g. LM Studio) let you run the full pipeline on your own infrastructure without locking graph semantics inside a proprietary parser.
+5. **Keep an open stack—and know the enterprise path.** Docling, docling-graph, LangGraph, and local LLM serving (e.g. LM Studio) let you run the full pipeline on your own infrastructure. When you need supported builds and scaled document pipelines, the same Docling tooling is part of Red Hat AI on OpenShift AI—not a separate proprietary parser.
 
 We are still hardening synthesis and multi-filing comparison answers—but graph-grounded agentic retrieval already makes **where the system looked** as inspectable as **what it said**. For financial disclosures, that transparency is not optional.
