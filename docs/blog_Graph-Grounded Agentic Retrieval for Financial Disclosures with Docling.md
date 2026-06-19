@@ -89,6 +89,8 @@ Even though we build graphs deterministically from XBRL—not via docling-graph�
 | **FinDER** | What risk factors does the company highlight for supply chain? | `FY2024 10-K` → Item 1A → HTML risk narrative |
 | **FinAgentBench** | Compare net sales discussion across the two most recent 10-K filings. | Both 10-K documents → respective Item 7 sections, linked by `TEMPORAL_TRANSITION` |
 
+**Note on filing dates:** The demo uses a **frozen benchmark corpus** (FY2024 and FY2023 Apple 10-K accessions) so evaluation runs stay reproducible—it is not a live “as of today” EDGAR snapshot. In mid-2026, Apple’s most recent annual filing is the **FY2025 10-K** (period ended September 27, 2025, filed October 31, 2025). A live `ask` run would macro-bind that filing; the graph here shows structure and routing on the pinned corpus used in our paper baseline.
+
 **[Open the interactive graph →](https://caldeirav.github.io/agentic-graphrag-finance/assets/aapl-eval-graph/visualization.html?v=2)**
 
 Use the link above (GitHub Pages viewer). Opening `visualization.html` from the GitHub repo file browser or a local checkout often renders a broken graph because browsers block the Cytoscape scripts in that context.
