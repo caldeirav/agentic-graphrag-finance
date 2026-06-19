@@ -38,22 +38,6 @@ We configure Docling with its XBRL backend (Arelle under the hood) to parse inst
 
 **Important design choice:** upstream **docling-graph** tutorials often build graphs from PDFs via LLM/VLM extraction pipelines. SEC XBRL is already tagged. We treat docling-graph as a **schema contract**—typed nodes and edges with explicit meaning—and implement a **deterministic mapper** (`Docling → ParsedDocument → GraphSnapshot`) instead of re-extracting structure from prose on every filing.
 
-Typical node types:
-
-- **DOCUMENT** — one filing (e.g. Apple Q3 2024 10-Q).
-- **SECTION** — Item 1A, Item 7 MD&A, and similar.
-- **CHUNK_*** — paragraphs, table rows, and **CHUNK_XBRL_FACT** nodes for tagged numbers.
-
-Typical edge types:
-
-- **CONTAINS** — document → section → chunk hierarchy.
-- **NEXT** — reading order within a section.
-- **FOOTNOTE_OF** — footnote linked to a table or fact.
-- **REFERENCES** — cross-links where modeled.
-- **TEMPORAL_TRANSITION** — optional links between filings on a timeline.
-
-Snapshots are exported as **GraphML** plus a manifest (not a generic opaque database), so traversals are auditable and versioned per issuer.
-
 Minimal Docling XBRL setup (the same pattern our pipeline uses):
 
 ```python
@@ -78,6 +62,34 @@ converter = DocumentConverter(
 result = converter.convert(accession_dir / "000032019324000123_htm.xml")
 docling_doc = result.document  # → ParsedDocument → docling-graph-aligned GraphSnapshot
 ```
+
+That parse feeds a typed graph. Typical node types:
+
+- **DOCUMENT** — one filing (e.g. Apple Q3 2024 10-Q).
+- **SECTION** — Item 1A, Item 7 MD&A, and similar.
+- **CHUNK_*** — paragraphs, table rows, and **CHUNK_XBRL_FACT** nodes for tagged numbers.
+
+Typical edge types:
+
+- **CONTAINS** — document → section → chunk hierarchy.
+- **NEXT** — reading order within a section.
+- **FOOTNOTE_OF** — footnote linked to a table or fact.
+- **REFERENCES** — cross-links where modeled.
+- **TEMPORAL_TRANSITION** — optional links between filings on a timeline.
+
+Snapshots are exported as **GraphML** plus a manifest (not a generic opaque database), so traversals are auditable and versioned per issuer.
+
+### Example graph (docling-graph visualization)
+
+Even though we build graphs deterministically from XBRL—not via docling-graph’s LLM extraction pipeline—we still use **[docling-graph’s visualization tooling](https://github.com/docling-project/docling-graph/blob/main/docs/fundamentals/graph-management/visualization.md)** to explore structure. The demo below is a **compact Apple (AAPL) subgraph** aligned with three accepted custom-judge evaluation items—FinanceBench-style numeric lookup, FinDER-style risk-factor retrieval, and FinAgentBench-style multi-filing comparison:
+
+| Benchmark style | Example question | Graph path |
+|-----------------|------------------|------------|
+| **FinanceBench** | What was total net sales in the most recent fiscal year? | `FY2024 10-K` → Item 7 MD&A → XBRL net-sales fact |
+| **FinDER** | What risk factors does the company highlight for supply chain? | `FY2024 10-K` → Item 1A → HTML risk narrative |
+| **FinAgentBench** | Compare net sales discussion across the two most recent 10-K filings. | Both 10-K documents → respective Item 7 sections, linked by `TEMPORAL_TRANSITION` |
+
+**[Open the interactive graph](assets/aapl-eval-graph/visualization.html)** (download or clone the repo and open locally; requires network for Cytoscape CDN scripts). Generated artifacts live under [`docs/assets/aapl-eval-graph/`](assets/aapl-eval-graph/): `visualization.html`, `report.md`, `graph_stats.json`, and `eval_demo.graphml`.
 
 For a full materialize → ask walkthrough with traces and judge output, see the [end-to-end guide on GitHub](https://github.com/caldeirav/agentic-graphrag-finance/blob/main/docs/end-to-end-walkthrough.md).
 

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <title>Knowledge Graph - Cytoscape</title>
+                <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+                <style>
+                    body { margin: 0; padding: 0; }
+                    #cy { width: 100%; height: 100vh; background: #1a1a2e; }
+                </style>
+            </head>
+            <body>
+                <div id="cy"></div>
+                <script>
+                    const graphElements = {
+  "nodes": [
+    {
+      "data": {
+        "id": "doc-0000320193-24-000123",
+        "node_type": "DOCUMENT",
+        "label": "Apple 10-K FY2024",
+        "accession": "0000320193-24-000123",
+        "form_type": "10-K",
+        "period_end": "2024-09-28"
+      }
+    },
+    {
+      "data": {
+        "id": "doc-0000320193-24-000076",
+        "node_type": "DOCUMENT",
+        "label": "Apple 10-K FY2023",
+        "accession": "0000320193-24-000076",
+        "form_type": "10-K",
+        "period_end": "2023-09-30"
+      }
+    },
+    {
+      "data": {
+        "id": "0000320193-24-000123/Item7",
+        "node_type": "SECTION",
+        "label": "Item 7 MD&A",
+        "section_path": "0000320193-24-000123/Item7"
+      }
+    },
+    {
+      "data": {
+        "id": "0000320193-24-000123/Item1A",
+        "node_type": "SECTION",
+        "label": "Item 1A Risk Factors",
+        "section_path": "0000320193-24-000123/Item1A"
+      }
+    },
+    {
+      "data": {
+        "id": "0000320193-24-000076/Item7",
+        "node_type": "SECTION",
+        "label": "Item 7 MD&A (prior year)",
+        "section_path": "0000320193-24-000076/Item7"
+      }
+    },
+    {
+      "data": {
+        "id": "chunk-xbrl-net-sales-fy2024",
+        "node_type": "CHUNK_XBRL_FACT",
+        "label": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "prop_text": "391,035 (USD millions, FY2024)",
+        "prop_xbrl_concept": "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "prop_period": "FY2024",
+        "eval_profiles": "financebench"
+      }
+    },
+    {
+      "data": {
+        "id": "chunk-item7-p1",
+        "node_type": "CHUNK_PARAGRAPH",
+        "label": "Net sales narrative",
+        "prop_text": "Net sales were $391.0 billion in fiscal 2024.",
+        "eval_profiles": "financebench,finagentbench",
+        "prop_sec_source": "XBRL"
+      }
+    },
+    {
+      "data": {
+        "id": "chunk-item1a-p1",
+        "node_type": "CHUNK_PARAGRAPH",
+        "label": "Supply chain risks",
+        "prop_text": "The Company depends on single or limited sources for many components.",
+        "eval_profiles": "finder",
+        "prop_sec_source": "HTML"
+      }
+    },
+    {
+      "data": {
+        "id": "chunk-item7-old-p1",
+        "node_type": "CHUNK_PARAGRAPH",
+        "label": "Prior-year net sales",
+        "prop_text": "Net sales were $383.3 billion in fiscal 2023.",
+        "eval_profiles": "finagentbench",
+        "prop_sec_source": "XBRL"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "data": {
+        "source": "doc-0000320193-24-000123",
+        "target": "0000320193-24-000123/Item7",
+        "edge_type": "CONTAINS",
+        "label": "CONTAINS",
+        "edge_id": "e1",
+        "id": "doc-0000320193-24-000123-0000320193-24-000123/Item7-0"
+      }
+    },
+    {
+      "data": {
+        "source": "doc-0000320193-24-000123",
+        "target": "0000320193-24-000123/Item1A",
+        "edge_type": "CONTAINS",
+        "label": "CONTAINS",
+        "edge_id": "e2",
+        "id": "doc-0000320193-24-000123-0000320193-24-000123/Item1A-1"
+      }
+    },
+    {
+      "data": {
+        "source": "doc-0000320193-24-000123",
+        "target": "doc-0000320193-24-000076",
+        "edge_type": "TEMPORAL_TRANSITION",
+        "label": "TEMPORAL_TRANSITION",
+        "edge_id": "e10",
+        "id": "doc-0000320193-24-000123-doc-0000320193-24-000076-2"
+      }
+    },
+    {
+      "data": {
+        "source": "doc-0000320193-24-000076",
+        "target": "0000320193-24-000076/Item7",
+        "edge_type": "CONTAINS",
+        "label": "CONTAINS",
+        "edge_id": "e3",
+        "id": "doc-0000320193-24-000076-0000320193-24-000076/Item7-3"
+      }
+    },
+    {
+      "data": {
+        "source": "0000320193-24-000123/Item7",
+        "target": "chunk-xbrl-net-sales-fy2024",
+        "edge_type": "CONTAINS",
+        "label": "CONTAINS",
+        "edge_id": "e4",
+        "id": "0000320193-24-000123/Item7-chunk-xbrl-net-sales-fy2024-4"
+      }
+    },
+    {
+      "data": {
+        "source": "0000320193-24-000123/Item7",
+        "target": "chunk-item7-p1",
+        "edge_type": "CONTAINS",
+        "label": "CONTAINS",
+        "edge_id": "e5",
+        "id": "0000320193-24-000123/Item7-chunk-item7-p1-5"
+      }
+    },
+    {
+      "data": {
+        "source": "0000320193-24-000123/Item1A",
+        "target": "chunk-item1a-p1",
+        "edge_type": "CONTAINS",
+        "label": "CONTAINS",
+        "edge_id": "e6",
+        "id": "0000320193-24-000123/Item1A-chunk-item1a-p1-6"
+      }
+    },
+    {
+      "data": {
+        "source": "0000320193-24-000076/Item7",
+        "target": "chunk-item7-old-p1",
+        "edge_type": "CONTAINS",
+        "label": "CONTAINS",
+        "edge_id": "e7",
+        "id": "0000320193-24-000076/Item7-chunk-item7-old-p1-7"
+      }
+    },
+    {
+      "data": {
+        "source": "chunk-xbrl-net-sales-fy2024",
+        "target": "chunk-item7-p1",
+        "edge_type": "NEXT",
+        "label": "NEXT",
+        "edge_id": "e8",
+        "id": "chunk-xbrl-net-sales-fy2024-chunk-item7-p1-8"
+      }
+    },
+    {
+      "data": {
+        "source": "chunk-item7-old-p1",
+        "target": "chunk-item7-p1",
+        "edge_type": "REFERENCES",
+        "label": "REFERENCES",
+        "edge_id": "e9",
+        "id": "chunk-item7-old-p1-chunk-item7-p1-9"
+      }
+    }
+  ],
+  "meta": {
+    "node_types": {
+      "Apple 10-K FY2024": 1,
+      "Apple 10-K FY2023": 1,
+      "Item 7 MD&A": 1,
+      "Item 1A Risk Factors": 1,
+      "Item 7 MD&A (prior year)": 1,
+      "RevenueFromContractWithCustomerExcludingAssessedTax": 1,
+      "Net sales narrative": 1,
+      "Supply chain risks": 1,
+      "Prior-year net sales": 1
+    },
+    "node_count": 9,
+    "edge_count": 10
+  }
+};
+                    cytoscape({
+                        container: document.getElementById('cy'),
+                        elements: [...graphElements.nodes, ...graphElements.edges],
+                        style: [
+                            { selector: 'node', style: { 'background-color': '#667eea', 'label': 'data(label)' }},
+                            { selector: 'edge', style: { 'width': 2, 'line-color': '#718096', 'target-arrow-shape': 'triangle' }}
+                        ],
+                        layout: { name: 'cose', animate: true }
+                    });
+                </script>
+            </body>
+            </html>
