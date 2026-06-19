@@ -89,7 +89,7 @@ Even though we build graphs deterministically from XBRL—not via docling-graph�
 | **FinDER** | What risk factors does the company highlight for supply chain? | `FY2024 10-K` → Item 1A → HTML risk narrative |
 | **FinAgentBench** | Compare net sales discussion across the two most recent 10-K filings. | Both 10-K documents → respective Item 7 sections, linked by `TEMPORAL_TRANSITION` |
 
-**[Open the interactive graph](assets/aapl-eval-graph/visualization.html)** (download or clone the repo and open locally; requires network for Cytoscape CDN scripts). Generated artifacts live under [`docs/assets/aapl-eval-graph/`](assets/aapl-eval-graph/): `visualization.html`, `report.md`, `graph_stats.json`, and `eval_demo.graphml`.
+**[Open the interactive graph](https://caldeirav.github.io/agentic-graphrag-finance/assets/aapl-eval-graph/visualization.html)** (opens in your browser; served via [GitHub Pages](https://caldeirav.github.io/agentic-graphrag-finance/)). Source artifacts are in [`docs/assets/aapl-eval-graph/`](assets/aapl-eval-graph/): `visualization.html`, `report.md`, `graph_stats.json`, and `eval_demo.graphml`.
 
 For a full materialize → ask walkthrough with traces and judge output, see the [end-to-end guide on GitHub](https://github.com/caldeirav/agentic-graphrag-finance/blob/main/docs/end-to-end-walkthrough.md).
 
