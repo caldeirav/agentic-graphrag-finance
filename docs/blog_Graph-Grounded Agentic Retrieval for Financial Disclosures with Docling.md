@@ -93,10 +93,6 @@ Even though we build graphs deterministically from XBRL—not via docling-graph�
 
 **[Open the interactive graph →](https://caldeirav.github.io/agentic-graphrag-finance/assets/aapl-eval-graph/visualization.html?v=2)**
 
-Use the link above (GitHub Pages viewer). Opening `visualization.html` from the GitHub repo file browser or a local checkout often renders a broken graph because browsers block the Cytoscape scripts in that context.
-
-Source files: [docs/assets/aapl-eval-graph/](https://github.com/caldeirav/agentic-graphrag-finance/tree/main/docs/assets/aapl-eval-graph) (`visualization.html`, `report.md`, `graph_stats.json`, `eval_demo.graphml`).
-
 For a full materialize → ask walkthrough with traces and judge output, see the [end-to-end guide on GitHub](https://github.com/caldeirav/agentic-graphrag-finance/blob/main/docs/end-to-end-walkthrough.md).
 
 ## Multi-stage agentic retrieval (not one vector search)
