@@ -6,19 +6,23 @@ import json
 import os
 import random
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 import httpx
 
-from evaluation.generation.deduplicator import deduplicate_items, is_duplicate
+from evaluation.generation.bundle_version import is_v2_or_later
+from evaluation.generation.comparison_gt import format_generation_validation_feedback
+from evaluation.generation.deduplicator import deduplicate_items, find_duplicate_match
 from evaluation.generation.gemini_item_generator import GeminiItemGenerator
 from evaluation.generation.governance import BudgetTracker
-from evaluation.generation.bundle_version import is_v2_or_later
 from evaluation.generation.item_validator import load_graph_paths, validate_item
+from evaluation.generation.review.diversity import append_duplicate_feedback, write_diversity_report
 from evaluation.generation.v2_item_normalize import normalize_v2_item
 from evaluation.judges.gemini_panel import JudgeParseError
 from models.benchmark_generation import (
+    DuplicateRejectionFeedback,
     GeneratedBenchmarkItem,
     GenerationConfig,
     GenerationReport,
@@ -179,6 +183,34 @@ def _build_generation_report(
     )
 
 
+def _accession_to_ticker(sampling: SamplingManifest) -> dict[str, str]:
+    mapping: dict[str, str] = {}
+    for issuer in sampling.selected_issuers:
+        for acc in issuer.accessions:
+            mapping[acc] = issuer.ticker
+    return mapping
+
+
+def _issuer_for_item(item: GeneratedBenchmarkItem, acc_to_ticker: dict[str, str]) -> str:
+    accs = item.expected_bindings.accessions or []
+    if not accs:
+        return "unknown"
+    return acc_to_ticker.get(accs[0], accs[0][:8])
+
+
+def _blocked_tickers_for_profile(
+    profile: str,
+    issuer_counts: dict[tuple[str, str], int],
+    *,
+    cap: int,
+) -> list[str]:
+    blocked: list[str] = []
+    for (prof, ticker), count in issuer_counts.items():
+        if prof == profile and count >= cap:
+            blocked.append(ticker)
+    return sorted(set(blocked))
+
+
 def _generate_one_candidate(
     *,
     profile: str,
@@ -192,10 +224,14 @@ def _generate_one_candidate(
     graph_paths: set[str],
     snapshot_accessions: set[str],
     tracer: ItemGenerationTracer | None,
+    negative_questions: list[str] | None = None,
+    blocked_tickers: list[str] | None = None,
 ) -> GeneratedBenchmarkItem:
     validated: GeneratedBenchmarkItem | None = None
     feedback: str | None = None
     max_attempts = 1 if use_mock else config.governance.judge_retries_per_item + 1
+
+    v2 = is_v2_or_later(config.bundle_schema_version)
 
     for attempt in range(max_attempts):
         try:
@@ -215,6 +251,8 @@ def _generate_one_candidate(
                     sampling=sampling,
                     section_paths=sorted_paths,
                     validation_feedback=feedback,
+                    negative_questions=negative_questions,
+                    blocked_tickers=blocked_tickers,
                 )
                 if tracer:
                     tracer.gemini_call(
@@ -223,6 +261,8 @@ def _generate_one_candidate(
                         model=live_generator.model_name,
                         duration_ms=duration_ms,
                     )
+            if v2:
+                item = normalize_v2_item(item)
             validated = validate_item(
                 item,
                 graph_paths=graph_paths,
@@ -231,7 +271,10 @@ def _generate_one_candidate(
             )
             if validated.validation_status == "accepted":
                 break
-            feedback = "; ".join(validated.validation_errors)
+            feedback = format_generation_validation_feedback(
+                validated.validation_errors,
+                profile=profile,
+            )
         except (JudgeParseError, RuntimeError, ValueError, httpx.HTTPError) as exc:
             feedback = str(exc)
             if attempt + 1 >= max_attempts:
@@ -322,6 +365,10 @@ def generate_items(
     accessions: list[str] = []
     for issuer in sampling.selected_issuers:
         accessions.extend(issuer.accessions)
+    acc_to_ticker = _accession_to_ticker(sampling)
+    issuer_accept_counts: dict[tuple[str, str], int] = {}
+    issuer_cap = config.governance.max_items_per_issuer_per_profile
+    neg_example_count = config.governance.prompt_negative_examples_count
 
     if tracer:
         mode = "mock" if use_mock else (live_generator.model_name if live_generator else "live")
@@ -366,6 +413,13 @@ def generate_items(
         if tracer:
             tracer.item_start(seq, profile)
 
+        negative_qs = [
+            item.question
+            for item in reversed(unique_accepted)
+            if item.inspiration_profile == profile
+        ][:neg_example_count]
+        blocked = _blocked_tickers_for_profile(profile, issuer_accept_counts, cap=issuer_cap)
+
         validated = _generate_one_candidate(
             profile=profile,
             seq=seq,
@@ -378,10 +432,17 @@ def generate_items(
             graph_paths=graph_paths,
             snapshot_accessions=snapshot_accessions,
             tracer=tracer,
+            negative_questions=negative_qs or None,
+            blocked_tickers=blocked or None,
         )
 
         if validated.validation_status == "accepted":
-            if is_duplicate(validated, unique_accepted, threshold=dedup_threshold):
+            matched, sim_score = find_duplicate_match(
+                validated,
+                unique_accepted,
+                threshold=dedup_threshold,
+            )
+            if matched is not None:
                 validated = validated.model_copy(
                     update={
                         "validation_status": "rejected",
@@ -391,8 +452,34 @@ def generate_items(
                         ],
                     }
                 )
+                if config.governance.duplicate_feedback_enabled:
+                    append_duplicate_feedback(
+                        draft_dir,
+                        DuplicateRejectionFeedback(
+                            rejected_question=validated.question,
+                            matched_item_id=matched.item_id,
+                            inspiration_profile=profile,
+                            issuer_ticker=_issuer_for_item(validated, acc_to_ticker),
+                            similarity_score=sim_score,
+                            rejected_at=datetime.now(UTC),
+                        ),
+                    )
             else:
-                unique_accepted.append(validated)
+                ticker = _issuer_for_item(validated, acc_to_ticker)
+                key = (profile, ticker)
+                if issuer_accept_counts.get(key, 0) >= issuer_cap:
+                    validated = validated.model_copy(
+                        update={
+                            "validation_status": "rejected",
+                            "validation_errors": [
+                                *validated.validation_errors,
+                                "issuer_cap_exceeded",
+                            ],
+                        }
+                    )
+                else:
+                    unique_accepted.append(validated)
+                    issuer_accept_counts[key] = issuer_accept_counts.get(key, 0) + 1
 
         if tracer:
             tracer.item_end(
@@ -422,6 +509,7 @@ def generate_items(
         judge_api_calls=budget.judge_api_calls,
         started=started,
     )
+    write_diversity_report(draft_dir)
     if tracer and resumed:
         tracer.budget(
             f"resumed={resumed} generated_this_run={generated_this_run} total={len(candidates)}"

@@ -5,13 +5,13 @@ from pathlib import Path
 from evaluation.generation.bundle import validate_bundle_feasibility, validate_section_reachability
 from evaluation.generation.gt_classifier import is_numeric_answer_gt
 from evaluation.generation.migrate_v1_1_0 import build_draft_from_parent as build_v1_1_draft
+from evaluation.generation.migrate_v1_1_0 import load_items
 from evaluation.generation.migrate_v1_2_0 import (
     align_question_to_binding_years,
     build_draft_from_parent,
     derive_short_label_claims,
     enhance_required_claims,
 )
-from evaluation.generation.migrate_v1_1_0 import load_items
 from models.benchmark_generation import ExpectedBindings, GeneratedBenchmarkItem
 from models.enums import OperationClass
 from models.evaluation import GroundTruth

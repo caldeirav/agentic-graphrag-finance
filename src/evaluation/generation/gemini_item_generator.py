@@ -12,9 +12,15 @@ from langchain_core.messages import HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from evaluation.generation.api_retry import with_transient_retry
+from evaluation.generation.comparison_gt import format_generation_validation_feedback
 from evaluation.generation.v2_item_normalize import normalize_v2_item
 from evaluation.judges.gemini_panel import JudgeParseError, _extract_json
-from models.benchmark_generation import AnswerType, GeneratedBenchmarkItem, GenerationConfig, SamplingManifest
+from models.benchmark_generation import (
+    AnswerType,
+    GeneratedBenchmarkItem,
+    GenerationConfig,
+    SamplingManifest,
+)
 from models.enums import OperationClass
 from models.evaluation import ExpectedBindings, GroundTruth
 
@@ -61,6 +67,8 @@ class GeminiItemGenerator:
         sampling: SamplingManifest,
         section_paths: list[str],
         validation_feedback: str | None = None,
+        negative_questions: list[str] | None = None,
+        blocked_tickers: list[str] | None = None,
     ) -> str:
         profile_cfg = self._load_profile(profile)
         template = str(profile_cfg.get("prompt_template", ""))
@@ -76,9 +84,25 @@ class GeminiItemGenerator:
         paths_preview = section_paths[:80]
         feedback_block = ""
         if validation_feedback:
-            feedback_block = (
-                f"\nPrevious attempt failed validation:\n{validation_feedback}\n"
-                "Fix the JSON so all section paths exist in available_section_paths.\n"
+            feedback_block = format_generation_validation_feedback(
+                validation_feedback,
+                profile=profile,
+            )
+        negative_block = ""
+        if negative_questions:
+            negative_block = (
+                "\nDo NOT repeat or closely paraphrase these prior accepted questions "
+                f"for profile {profile}:\n"
+                + "\n".join(f"- {q}" for q in negative_questions[:20])
+                + "\n"
+            )
+        blocked_block = ""
+        if blocked_tickers:
+            blocked_block = (
+                "\nIssuer caps reached for these tickers in this profile — "
+                "prefer other sampled issuers:\n"
+                + ", ".join(blocked_tickers)
+                + "\n"
             )
         profile_v2 = ""
         if v2:
@@ -95,13 +119,17 @@ class GeminiItemGenerator:
             elif profile == "finagentbench":
                 profile_v2 = (
                     "- finagentbench v2: answer_type comparison_structured; >=2 accessions; "
-                    "canonical answer: Both {FY_a} and {FY_b} discuss {topic} in {section}; "
+                    "canonical answer MUST state a compared conclusion (difference, similarity, "
+                    "or relative emphasis), not only section co-occurrence; "
                     ">=3 required_claims (per-filing + cross-filing).\n"
+                    "- Valid canonical answers: 'Both {A} and {B} discuss ... differently' OR "
+                    "'Both {A} and {B} emphasize ... whereas ...'.\n"
                 )
         rules_tail = (
             "- v2 bundle: ground_truth.answer is REQUIRED for every profile (non-empty).\n"
             "- v2 bundle: narrative items need 2-8 required_claims; comparison_structured needs >=3.\n"
-            "- v2 comparison answer template: Both {label_a} and {label_b} discuss {topic} in {section}.\n"
+            "- v2 comparison answers MUST include a compared conclusion (whereas/while/emphasizes/differs), "
+            "not only that both filings mention a topic.\n"
             f"{profile_v2}"
             if v2
             else (
@@ -118,7 +146,7 @@ class GeminiItemGenerator:
             f"Sampled issuers JSON:\n{json.dumps(issuers, indent=2)}\n"
             f"Available section paths ({len(section_paths)} total, showing up to 80):\n"
             f"{json.dumps(paths_preview, indent=2)}\n"
-            f"{feedback_block}\n"
+            f"{feedback_block}{negative_block}{blocked_block}\n"
             "Return ONLY valid JSON with this shape (no markdown fences):\n"
             "{\n"
             '  "question": "string",\n'
@@ -148,6 +176,8 @@ class GeminiItemGenerator:
         sampling: SamplingManifest,
         section_paths: list[str],
         validation_feedback: str | None = None,
+        negative_questions: list[str] | None = None,
+        blocked_tickers: list[str] | None = None,
     ) -> tuple[GeneratedBenchmarkItem, int]:
         """Returns parsed item and Gemini call duration in milliseconds."""
         self.require_api_key()
@@ -157,6 +187,8 @@ class GeminiItemGenerator:
             sampling=sampling,
             section_paths=section_paths,
             validation_feedback=validation_feedback,
+            negative_questions=negative_questions,
+            blocked_tickers=blocked_tickers,
         )
         llm = ChatGoogleGenerativeAI(model=self._model, temperature=self._temperature)
         started = time.perf_counter()

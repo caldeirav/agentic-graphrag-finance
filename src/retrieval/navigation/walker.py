@@ -11,6 +11,7 @@ from models.enums import EvidenceSourceType, GraphNodeType, QueryIntent, QuerySt
 from models.filing import FilingRef
 from models.graph import GraphNode, GraphSnapshot
 from models.query import EvidenceChunk, SectionCandidate
+from retrieval.navigation.benchmark_injection import filter_benchmark_injection_paths
 from retrieval.navigation.budget import NavigationBudgetState, load_navigation_budget
 from retrieval.navigation.models import (
     MesoRankRecord,
@@ -24,7 +25,6 @@ from retrieval.navigation.scope import (
     chunk_ids_in_section_subtree,
     narrative_kind_for_section_id,
 )
-from retrieval.navigation.benchmark_injection import filter_benchmark_injection_paths
 from retrieval.navigation.section_resolve import section_node_ids_for_path
 from retrieval.navigation.toc_planner import build_filing_toc, plan_meso_sections_toc
 from retrieval.navigation.validator import is_chunk_node, validate_hop_proposal

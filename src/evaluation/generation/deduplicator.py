@@ -16,6 +16,22 @@ def similarity(a: str, b: str) -> float:
     return SequenceMatcher(None, _normalize(a), _normalize(b)).ratio()
 
 
+def find_duplicate_match(
+    candidate: GeneratedBenchmarkItem,
+    accepted: list[GeneratedBenchmarkItem],
+    *,
+    threshold: float,
+) -> tuple[GeneratedBenchmarkItem | None, float]:
+    best: GeneratedBenchmarkItem | None = None
+    best_score = 0.0
+    for prior in accepted:
+        score = similarity(candidate.question, prior.question)
+        if score >= threshold and score > best_score:
+            best = prior
+            best_score = score
+    return best, best_score
+
+
 def is_duplicate(
     candidate: GeneratedBenchmarkItem,
     accepted: list[GeneratedBenchmarkItem],

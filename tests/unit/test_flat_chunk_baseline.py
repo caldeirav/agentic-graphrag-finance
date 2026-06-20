@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from evaluation.reproduction.flat_chunk import FlatChunkBaseline, _HASH_EMBED_DIM
+from evaluation.reproduction.flat_chunk import _HASH_EMBED_DIM, FlatChunkBaseline
 from evaluation.reproduction.manifest import load_system_variant
 
 

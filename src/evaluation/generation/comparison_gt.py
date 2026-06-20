@@ -15,10 +15,159 @@ _ENTITY_STOP = frozenset(
     {"inc", "corp", "corporation", "company", "ltd", "llc", "plc", "the", "and", "for"}
 )
 _CROSS_VERB = re.compile(
-    r"\b(compare|comparison|contrast|compared|versus|vs\.?|whereas|"
-    r"similar|differ|difference|shared|common|in common|relative to)\b",
+    r"\b(compare|comparison|contrast|compared|versus|vs\.?|whereas|while|"
+    r"similar|differ|difference|differently|shared|common|in common|relative to|"
+    r"emphasiz\w+)\b",
     re.IGNORECASE,
 )
+_BOTH_AND_PATTERN = re.compile(r"both\s+.+\s+and\s+.+", re.IGNORECASE)
+
+
+def is_comparison_canonical_answer(answer: str) -> bool:
+    """True when answer names both filings in a comparison-structured canonical form."""
+    text = (answer or "").strip()
+    if not text:
+        return False
+    if _BOTH_FILINGS_PATTERN.search(text):
+        return True
+    return bool(_BOTH_AND_PATTERN.search(text) and _CROSS_VERB.search(text))
+
+
+COMPARISON_ANSWER_PROMPT_RULES = """\
+Comparison canonical answer rules (finagentbench / comparison_structured):
+- ground_truth.answer MUST open with "Both {filing A} and {filing B} ..." naming both compared filings.
+- The answer MUST state a compared conclusion (difference, similarity, or relative emphasis).
+- Valid opening patterns include:
+  * "Both Caterpillar's 2025 10-K and Exxon Mobil's 2025 10-K discuss {topic} differently: ..."
+  * "Both Caterpillar and Exxon Mobil emphasize different risks, with Caterpillar ... whereas Exxon ..."
+- Use contrast language: whereas, while, emphasizes, differs, contrasts, relative to.
+- Do NOT only state that both filings mention a topic in a section (boilerplate).
+- required_claims: 3-8 claims with per-filing (A only, B only) + at least one cross-filing synthesis claim.
+"""
+
+_COMPARISON_ERROR_CODES = frozenset(
+    {
+        "invalid_answer_type",
+        "boilerplate_comparison_answer",
+        "required_claims",
+        "comparison_bindings",
+        "missing_answer_gt",
+    }
+)
+
+_VALIDATION_FEEDBACK_HINTS: dict[str, str] = {
+    "invalid_answer_type": (
+        "ground_truth.answer must use 'Both {A} and {B} ...' with a compared conclusion "
+        "(discuss/address OR emphasize/whereas/differs/contrast)."
+    ),
+    "boilerplate_comparison_answer": (
+        "Answer only states section co-occurrence. Add an explicit compared conclusion "
+        "(difference, similarity, or relative emphasis) using whereas/while/emphasizes/differs."
+    ),
+    "required_claims": (
+        "required_claims must include: (1) claim for filing A only, (2) claim for filing B only, "
+        "(3) at least one cross-filing synthesis claim comparing both on the topic."
+    ),
+    "comparison_bindings": "expected_bindings.accessions must include >=2 distinct accessions.",
+    "missing_answer_gt": "ground_truth.answer is required and must be non-empty.",
+    "finagentbench_requires_multi_filing": (
+        "finagentbench items require >=2 accessions and multi_filing_required=true."
+    ),
+    "unknown_section_path": (
+        "Copy expected_section_paths exactly from available_section_paths (section slugs only)."
+    ),
+}
+
+
+def format_generation_validation_feedback(
+    feedback: str | list[str] | None,
+    *,
+    profile: str = "",
+) -> str:
+    """Turn validator error codes into actionable Gemini retry guidance."""
+    if not feedback:
+        return ""
+    if isinstance(feedback, str):
+        codes = [part.strip() for part in feedback.split(";") if part.strip()]
+    else:
+        codes = [str(part).strip() for part in feedback if str(part).strip()]
+    if not codes:
+        return ""
+
+    lines = ["Previous attempt failed validation:"]
+    seen_hints: set[str] = set()
+    comparison_related = profile == "finagentbench"
+    for code in codes:
+        base = code.split(":", 1)[0]
+        if base in _COMPARISON_ERROR_CODES:
+            comparison_related = True
+        hint = _VALIDATION_FEEDBACK_HINTS.get(base)
+        if hint and hint not in seen_hints:
+            lines.append(f"- {base}: {hint}")
+            seen_hints.add(hint)
+        elif base.startswith("unknown_section_path"):
+            key = "unknown_section_path"
+            if key not in seen_hints:
+                lines.append(f"- {key}: {_VALIDATION_FEEDBACK_HINTS[key]}")
+                seen_hints.add(key)
+        elif base not in _VALIDATION_FEEDBACK_HINTS:
+            lines.append(f"- {code}")
+
+    if comparison_related:
+        lines.append(COMPARISON_ANSWER_PROMPT_RULES)
+    lines.append("Fix the JSON so all section paths exist in available_section_paths.")
+    return "\n".join(lines) + "\n"
+
+
+_PERCENT = re.compile(r"\d+\.?\d*%")
+_DOLLAR = re.compile(r"\$[\d,]+(?:\.\d+)?")
+_TEMPLATE_STRIP = re.compile(
+    r"\b(?:both|and|discuss|address|describe|mention|cover|in|item|risk|factors|"
+    r"management|discussion|10-k|10-q|fy20\d{2})\b",
+    re.IGNORECASE,
+)
+
+
+def _normalized_word_count(answer: str) -> int:
+    tokens = [t for t in _TEMPLATE_STRIP.sub(" ", answer.lower()).split() if t]
+    return len(tokens)
+
+
+def _has_numeric_contrast(answer: str) -> bool:
+    pcts = _PERCENT.findall(answer)
+    dollars = _DOLLAR.findall(answer)
+    return len(set(pcts)) >= 2 or len(set(dollars)) >= 2
+
+
+def is_boilerplate_comparison_answer(answer: str) -> bool:
+    """True when canonical comparison answer is section co-occurrence only (018)."""
+    text = (answer or "").strip()
+    if not text:
+        return False
+    if not _BOTH_FILINGS_PATTERN.search(text):
+        return False
+    if _CROSS_VERB.search(text):
+        return False
+    if _normalized_word_count(text) >= 25:
+        return False
+    if _has_numeric_contrast(text):
+        return False
+    return True
+
+
+def comparison_answer_informativeness_score(answer: str) -> float:
+    text = (answer or "").strip()
+    if not text or is_boilerplate_comparison_answer(text):
+        return 0.0
+    score = 0.2 if _BOTH_FILINGS_PATTERN.search(text) else 0.4
+    if _CROSS_VERB.search(text):
+        score += 0.4
+    words = len(text.split())
+    if words >= 25:
+        score += 0.2
+    if _has_numeric_contrast(text):
+        score += 0.2
+    return min(1.0, score)
 
 
 def is_comparison_item(item: GeneratedBenchmarkItem) -> bool:
@@ -46,9 +195,22 @@ def extract_comparison_entities(answer: str) -> tuple[str | None, str | None]:
     match = _BOTH_FILINGS_PATTERN.search(text)
     if match:
         prefix = match.group(0)
-        inner = re.match(r"both\s+(.+?)\s+and\s+(.+?)\s+(?:discuss|address|describe|mention|cover)", prefix, re.I)
+        inner = re.match(
+            r"both\s+(.+?)\s+and\s+(.+?)\s+(?:discuss|address|describe|mention|cover)",
+            prefix,
+            re.I,
+        )
         if inner:
             return _normalize_entity(inner.group(1)), _normalize_entity(inner.group(2))
+    match = re.search(
+        r"both\s+([^,]+?)\s+and\s+([^,]+?)\s+"
+        r"(?:emphasiz\w*|contrast(?:s|ed|ing)?|differ(?:s|ent|ently)?|compare[ds]?|"
+        r"frame[ds]?|highlight(?:s|ed|ing)?|whereas|while)\b",
+        text,
+        re.IGNORECASE,
+    )
+    if match:
+        return _normalize_entity(match.group(1)), _normalize_entity(match.group(2))
     return None, None
 
 
@@ -158,8 +320,10 @@ def validate_comparison_structured(item: GeneratedBenchmarkItem) -> list[str]:
     if not answer:
         errors.append("missing_answer_gt")
         return errors
-    if not _BOTH_FILINGS_PATTERN.search(answer):
+    if not is_comparison_canonical_answer(answer):
         errors.append("invalid_answer_type")
+    if is_boilerplate_comparison_answer(answer):
+        errors.append("boilerplate_comparison_answer")
     accs = list(dict.fromkeys(item.expected_bindings.accessions))
     if len(accs) < 2:
         errors.append("comparison_bindings")

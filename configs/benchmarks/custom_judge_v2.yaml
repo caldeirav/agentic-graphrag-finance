@@ -42,6 +42,10 @@ governance:
   dedup_similarity_threshold: 0.85
   judge_retries_per_item: 2
   multi_filing_min: 40
+  duplicate_feedback_enabled: true
+  max_items_per_issuer_per_profile: 8
+  min_unique_question_type_tags_per_profile: 6
+  prompt_negative_examples_count: 5
 
 output:
   drafts_root: data/benchmarks/custom-judge/drafts

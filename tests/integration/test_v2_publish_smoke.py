@@ -16,6 +16,16 @@ from models.benchmark_generation import (
     GenerationReport,
 )
 
+_COMPARISON_ANSWER = (
+    "Both FY2025 and FY2024 10-K filings frame revenue differently: FY2025 emphasizes "
+    "Services growth whereas FY2024 stresses iPhone cyclicality in Item 7 MD&A."
+)
+_COMPARISON_CLAIMS = [
+    "FY2025 10-K discusses revenue in Item 7 MD&A.",
+    "FY2024 10-K discusses revenue in Item 7 MD&A.",
+    "Both filings contrast Services growth versus iPhone cyclicality.",
+]
+
 
 def _write_min_v2_draft(draft: Path, *, item_count: int = 200, multi_filing: int = 40) -> None:
     draft.mkdir(parents=True)
@@ -70,18 +80,8 @@ def _write_min_v2_draft(draft: Path, *, item_count: int = 200, multi_filing: int
                 "answer_type": "comparison_structured" if multi else "numeric",
                 "inspiration_profile": "financebench",
                 "ground_truth": {
-                    "answer": "42" if not multi else (
-                        "Both FY2025 and FY2024 10-K filings discuss revenue in Item 7 MD&A."
-                    ),
-                    "required_claims": (
-                        [
-                            "FY2025 10-K discusses revenue in Item 7 MD&A.",
-                            "FY2024 10-K discusses revenue in Item 7 MD&A.",
-                            "Both filings compare the topic across the cited sections.",
-                        ]
-                        if multi
-                        else None
-                    ),
+                    "answer": "42" if not multi else _COMPARISON_ANSWER,
+                    "required_claims": (_COMPARISON_CLAIMS if multi else None),
                 },
                 "expected_bindings": {
                     "accessions": (
@@ -147,18 +147,8 @@ def test_v2_publish_selects_balanced_subset_from_pool(tmp_path: Path) -> None:
                     "answer_type": "comparison_structured" if multi else "numeric",
                     "inspiration_profile": profile,
                     "ground_truth": {
-                        "answer": "42"
-                        if not multi
-                        else "Both FY2025 and FY2024 10-K filings discuss revenue in Item 7 MD&A.",
-                        "required_claims": (
-                            [
-                                "FY2025 10-K discusses revenue in Item 7 MD&A.",
-                                "FY2024 10-K discusses revenue in Item 7 MD&A.",
-                                "Both filings compare the topic across the cited sections.",
-                            ]
-                            if multi
-                            else None
-                        ),
+                        "answer": "42" if not multi else _COMPARISON_ANSWER,
+                        "required_claims": (_COMPARISON_CLAIMS if multi else None),
                     },
                     "expected_bindings": {
                         "accessions": (

@@ -4,13 +4,12 @@ from __future__ import annotations
 
 from datetime import date
 
-from models.enums import EvidenceSourceType, QueryStatus, Sufficiency
+from models.enums import EvidenceSourceType
 from models.filing import FilingRef
-from models.query import AnswerPackage, EvidenceChunk
+from models.query import EvidenceChunk
 from retrieval.synthesis import (
     _extract_risk_sentences,
     _is_risk_comparison_query,
-    _risk_topic_phrase,
     _try_synthesize_comparison_risk,
 )
 

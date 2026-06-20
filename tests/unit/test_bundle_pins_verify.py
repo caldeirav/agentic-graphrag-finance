@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-from evaluation.generation.bundle import items_hash
+import pytest
+
 from evaluation.reproduction.corpus_verify import verify_bundle_pins
 from evaluation.reproduction.manifest import load_release_manifest, sha256_text
 
 
 def test_verify_bundle_pins_passes_on_v2_manifest() -> None:
     manifest = load_release_manifest(Path("releases/paper-v1.0/manifest.yaml"))
+    bundle_root = Path.cwd() / manifest.custom_judge_bundle_path
+    dev_split = bundle_root / "items" / "dev.jsonl"
+    if not dev_split.is_file():
+        pytest.skip("v2.0.0 bundle not present")
     result = verify_bundle_pins(manifest, repo_root=Path.cwd())
     assert result.ok, result.message
 

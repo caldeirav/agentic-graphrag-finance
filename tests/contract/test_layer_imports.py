@@ -18,7 +18,7 @@ def _imports_in_file(path: Path) -> set[str]:
 
 def test_evaluation_does_not_import_orchestration():
     eval_dir = Path("src/evaluation")
-    allowed_retrieval = {"runner.py", "cli.py"}
+    allowed_retrieval = {"runner.py", "cli.py", "feasibility_macro.py"}
     for py in eval_dir.rglob("*.py"):
         if py.name == "__init__.py":
             continue

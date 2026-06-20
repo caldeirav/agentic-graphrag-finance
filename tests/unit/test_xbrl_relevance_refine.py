@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, UTC
+from datetime import UTC, date, datetime
 
+from evaluation.reproduction.relevance import refine_xbrl_relevance_chunks
 from models.enums import GraphEdgeType, GraphNodeType
 from models.filing import FilingRef
 from models.graph import GraphEdge, GraphManifest, GraphNode, GraphSnapshot
-
-from evaluation.reproduction.relevance import refine_xbrl_relevance_chunks
 
 
 def _xbrl_node(node_id: str, concept: str, excerpt: str) -> GraphNode:

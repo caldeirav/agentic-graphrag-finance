@@ -18,7 +18,10 @@ _AAPL_SNAPSHOT = Path("data/graphs/AAPL/dd81bf32-7bdb-4414-b2b7-ce93bea04b7b")
 
 
 @pytest.mark.skipif(os.environ.get("USE_MOCK_LLM", "1") != "1", reason="mock")
-@pytest.mark.skipif(not _AAPL_SNAPSHOT.parent.exists(), reason="materialized AAPL graph required")
+@pytest.mark.skipif(
+    not (_AAPL_SNAPSHOT.with_suffix(".graphml")).is_file(),
+    reason="materialized AAPL graph required",
+)
 def test_micro_toc_scores_xbrl_fact_chunks(tmp_path):
     snap = load_snapshot("AAPL", "dd81bf32-7bdb-4414-b2b7-ce93bea04b7b", Path("data/graphs"))
     api = LocalGraphQueryAPI(Path("data/graphs"), "AAPL")

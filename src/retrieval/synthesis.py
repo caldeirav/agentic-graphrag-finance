@@ -25,8 +25,8 @@ from retrieval.evidence_scope import (
     period_matches_anchor,
 )
 from retrieval.orchestration.llm import create_chat_llm
-from retrieval.orchestration.micro_scoring import excerpt_topic_score, rank_evidence_by_topic
 from retrieval.orchestration.meso_scoring import is_risk_only_query
+from retrieval.orchestration.micro_scoring import excerpt_topic_score, rank_evidence_by_topic
 from retrieval.orchestration.state import AgentState
 from tracing.console_trace.llm import traced_llm_invoke
 

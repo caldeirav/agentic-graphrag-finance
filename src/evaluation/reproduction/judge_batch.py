@@ -166,6 +166,8 @@ def run_judge_batch(
     max_items: int | None = None,
     force_rescore: bool = False,
     progress: Callable[[str], None] | None = None,
+    bundle_override: Path | None = None,
+    item_ids: set[str] | None = None,
 ) -> dict[str, int]:
     """Score pending items in per-variant results.json files."""
     panel = judge or GeminiJudgePanel()
@@ -176,6 +178,12 @@ def run_judge_batch(
             version = json.loads(manifest_path.read_text(encoding="utf-8")).get("version", "")
     ds = CustomJudgeDataset(version=version, bundle_root=bundle_root)
     items_by_id = {item.item_id: item for item in ds.load_split(split)}
+    if bundle_override is not None:
+        override_ds = CustomJudgeDataset(version="", bundle_root=bundle_override)
+        for item in override_ds.load_split(split):
+            items_by_id[item.item_id] = item
+    if item_ids is not None:
+        items_by_id = {k: v for k, v in items_by_id.items() if k in item_ids}
     if max_items:
         keep = set(list(items_by_id.keys())[:max_items])
         items_by_id = {k: v for k, v in items_by_id.items() if k in keep}
@@ -203,6 +211,8 @@ def run_judge_batch(
             log(f"judge-batch: skip {variant_dir.name} (no results.json)")
             continue
         results = _load_results(results_path)
+        if item_ids is not None:
+            results = [row for row in results if row.item_id in item_ids]
         pending, missing_bundle = _pending_results(
             results,
             items_by_id,
