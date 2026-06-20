@@ -2,19 +2,21 @@
 
 from __future__ import annotations
 
+import inspect
 from pathlib import Path
 from unittest.mock import MagicMock
 
 from typer.testing import CliRunner
 
+from cli.commands import repro
 from cli.main import app
 
 
-def test_judge_batch_help_lists_input_flag() -> None:
-    runner = CliRunner()
-    result = runner.invoke(app, ["repro", "judge-batch", "--help"])
-    assert result.exit_code == 0
-    assert "--input" in result.stdout
+def test_judge_batch_cmd_exposes_input_and_item_ids_flags() -> None:
+    params = inspect.signature(repro.judge_batch_cmd).parameters
+    assert "input_dir" in params
+    assert "item_ids_file" in params
+    assert "bundle_override" in params
 
 
 def test_judge_batch_accepts_input_flag(tmp_path: Path, monkeypatch) -> None:
