@@ -30,10 +30,48 @@ uv run agent-query benchmark-dataset review export-queue \
   --repro-input reports/repro-paper-v1.0 \
   --variant graph-full \
   --tier 1 \
-  --output review_queue_tier1
+  --output review_queue
 ```
 
-Inspect `review_queue_tier1.json` — expect tier-1 items (MRR ≥ 0.5 or nDCG@10 ≥ 0.3, outcome = 0) ranked first.
+Inspect `review_queue.json` — expect tier-1 items (MRR ≥ 0.5 or nDCG@10 ≥ 0.3, outcome = 0) ranked first.
+
+## Phase 2b — Bulk fix boilerplate comparisons (preferred)
+
+```bash
+uv run agent-query benchmark-dataset review fix-boilerplate \
+  --draft data/benchmarks/custom-judge/drafts/quality-v2.0.1 \
+  --queue-file data/benchmarks/custom-judge/drafts/quality-v2.0.1/review_queue.json \
+  --dry-run
+
+uv run agent-query benchmark-dataset review fix-boilerplate \
+  --draft data/benchmarks/custom-judge/drafts/quality-v2.0.1 \
+  --queue-file data/benchmarks/custom-judge/drafts/quality-v2.0.1/review_queue.json \
+  --max-items 20
+```
+
+Requires `GOOGLE_API_KEY`. Regenerates comparison items whose canonical answer is section co-occurrence only.
+
+## Phase 2c — CSV annotation sheet (exceptions)
+
+```bash
+uv run agent-query benchmark-dataset review export-sheet \
+  --draft data/benchmarks/custom-judge/drafts/quality-v2.0.1 \
+  --queue-file data/benchmarks/custom-judge/drafts/quality-v2.0.1/review_queue.json \
+  --repro-input reports/repro-paper-v1.0 \
+  --output annotation_sheet_tier1.csv
+```
+
+Fill reviewer columns in Excel/Sheets, then:
+
+```bash
+uv run agent-query benchmark-dataset review import-csv \
+  --draft data/benchmarks/custom-judge/drafts/quality-v2.0.1 \
+  --csv annotation_sheet_tier1_filled.csv \
+  --reviewer-id "${USER}" \
+  --apply
+```
+
+See [eval-dataset-quality.md](../../docs/eval-dataset-quality.md) for column reference.
 
 ## Phase 3 — Export review pack (20-item audit)
 

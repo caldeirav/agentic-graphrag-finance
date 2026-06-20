@@ -29,6 +29,19 @@ from evaluation.generation.sampler import (
     sampling_manifest_hash,
 )
 from evaluation.generation.review.annotations import append_annotation
+from evaluation.generation.review.bulk_regenerate import (
+    regenerate_boilerplate_items,
+    regenerate_items_from_file,
+    write_bulk_regenerate_report,
+)
+from evaluation.generation.review.feedback import BOILERPLATE_REGEN_FEEDBACK
+from evaluation.generation.review.csv_annotations import (
+    _load_item_ids_file,
+    build_annotation_sheet_rows,
+    import_annotations_from_csv,
+    list_boilerplate_comparison_items,
+    write_annotation_sheet,
+)
 from evaluation.generation.review.overrides import apply_overrides
 from evaluation.generation.review.quality_summary import build_quality_pass_summary, write_quality_pass_summary
 from evaluation.generation.review.queue import build_review_queue, write_review_queue
@@ -60,6 +73,14 @@ app.add_typer(review_app, name="review")
 CI_CONFIG_ID = "custom_judge_ci"
 LIVE_CONFIG_ID = "custom_judge_live"
 REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _review_progress(message: str) -> None:
+    """Echo progress and flush so long Gemini calls show status immediately."""
+    import sys
+
+    typer.echo(message)
+    sys.stdout.flush()
 
 
 def _mock_judge_requested(*, mock_judge: bool) -> bool:
@@ -512,6 +533,175 @@ def review_export_queue(
     typer.echo(f"Review queue: {len(entries)} entries -> {json_path}, {csv_path}")
 
 
+@review_app.command("export-sheet")
+def review_export_sheet(
+    draft: Path = typer.Option(..., "--draft", exists=True, file_okay=False, dir_okay=True),
+    item_ids_file: Path | None = typer.Option(None, "--item-ids-file", exists=True),
+    queue_file: Path | None = typer.Option(
+        None,
+        "--queue-file",
+        exists=True,
+        help="review_queue.json from export-queue",
+    ),
+    repro_input: Path | None = typer.Option(None, "--repro-input", exists=True, file_okay=False, dir_okay=True),
+    variant: str = typer.Option("graph-full", "--variant"),
+    output: Path = typer.Option(Path("annotation_sheet.csv"), "--output"),
+    max_items: int | None = typer.Option(None, "--max-items"),
+) -> None:
+    """Export annotatable CSV (context columns + empty reviewer fields)."""
+    if item_ids_file is None and queue_file is None:
+        raise typer.BadParameter("Provide --item-ids-file or --queue-file")
+    if queue_file is not None:
+        item_ids = _load_item_ids_file(queue_file)
+    else:
+        assert item_ids_file is not None
+        item_ids = _load_item_ids_file(item_ids_file)
+    if max_items:
+        item_ids = item_ids[:max_items]
+    rows = build_annotation_sheet_rows(
+        draft,
+        item_ids,
+        repro_input=repro_input,
+        variant=variant,
+    )
+    out_path = output if output.is_absolute() else draft / output
+    write_annotation_sheet(out_path, rows)
+    typer.echo(f"Annotation sheet ({len(rows)} rows) -> {out_path}")
+    typer.echo(
+        "Fill failure_class, corpus_spot_check, notes, proposed_answer/proposed_question, "
+        "apply=yes — then run review import-csv"
+    )
+
+
+@review_app.command("import-csv")
+def review_import_csv(
+    draft: Path = typer.Option(..., "--draft", exists=True, file_okay=False, dir_okay=True),
+    csv: Path = typer.Option(..., "--csv", exists=True, readable=True),
+    reviewer_id: str = typer.Option(..., "--reviewer-id"),
+    apply: bool = typer.Option(False, "--apply", help="Apply overrides after import"),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+    skip_failed: bool = typer.Option(False, "--skip-failed"),
+    force: bool = typer.Option(False, "--force", help="Allow agent_failure overrides on apply"),
+) -> None:
+    """Import reviewer annotations from CSV into annotations.jsonl."""
+    result = import_annotations_from_csv(
+        draft,
+        csv,
+        reviewer_id=reviewer_id,
+        apply_after=apply,
+        dry_run=dry_run,
+        skip_failed=skip_failed,
+        force_agent_failure=force,
+    )
+    typer.echo(
+        f"CSV import: imported={result.imported} skipped={result.skipped} "
+        f"dry_run={dry_run} apply={apply}"
+    )
+    if result.errors:
+        for err in result.errors[:10]:
+            typer.echo(f"  error: {err}", err=True)
+        if len(result.errors) > 10:
+            typer.echo(f"  ... and {len(result.errors) - 10} more", err=True)
+    if result.errors and apply and not skip_failed:
+        raise typer.Exit(code=1)
+
+
+@review_app.command("fix-boilerplate")
+def review_fix_boilerplate(
+    draft: Path = typer.Option(..., "--draft", exists=True, file_okay=False, dir_okay=True),
+    item_ids_file: Path | None = typer.Option(
+        None,
+        "--item-ids-file",
+        exists=True,
+        help="Limit to tier-1 queue or subset (JSON list or review_queue.json)",
+    ),
+    queue_file: Path | None = typer.Option(
+        None,
+        "--queue-file",
+        exists=True,
+        help="Alias for --item-ids-file (review_queue.json from export-queue)",
+    ),
+    max_items: int | None = typer.Option(None, "--max-items"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="List targets only"),
+    feedback_file: Path | None = typer.Option(None, "--feedback-file", exists=True),
+    quiet: bool = typer.Option(False, "--quiet", help="Suppress per-item progress lines"),
+) -> None:
+    """Bulk-regenerate comparison items with boilerplate canonical answers via Gemini."""
+    if not dry_run:
+        try:
+            GeminiItemGenerator.require_api_key()
+        except RuntimeError as exc:
+            raise typer.BadParameter(str(exc)) from exc
+    ids_path = queue_file or item_ids_file
+    feedback = (
+        feedback_file.read_text(encoding="utf-8")
+        if feedback_file
+        else BOILERPLATE_REGEN_FEEDBACK
+    )
+    if dry_run:
+        item_ids = _load_item_ids_file(ids_path) if ids_path else None
+        targets = list_boilerplate_comparison_items(draft, item_ids=item_ids)
+        if max_items:
+            targets = targets[:max_items]
+        typer.echo(f"Boilerplate comparison items: {len(targets)}")
+        for item in targets[:20]:
+            typer.echo(f"  {item.item_id}")
+        if len(targets) > 20:
+            typer.echo(f"  ... and {len(targets) - 20} more")
+        return
+    report = regenerate_boilerplate_items(
+        draft,
+        item_ids_file=ids_path,
+        feedback=feedback,
+        repo_root=REPO_ROOT,
+        max_items=max_items,
+        progress=None if quiet else _review_progress,
+    )
+    write_bulk_regenerate_report(draft, report)
+    if quiet:
+        typer.echo(
+            f"fix-boilerplate: targeted={report.targeted} succeeded={report.succeeded} "
+            f"failed={report.failed}"
+        )
+    if report.failures:
+        typer.echo(f"First failure: {report.failures[0]}", err=True)
+        raise typer.Exit(code=1)
+
+
+@review_app.command("regenerate-items")
+def review_regenerate_items(
+    draft: Path = typer.Option(..., "--draft", exists=True, file_okay=False, dir_okay=True),
+    item_ids_file: Path = typer.Option(..., "--item-ids-file", exists=True),
+    max_items: int | None = typer.Option(None, "--max-items"),
+    feedback_file: Path | None = typer.Option(None, "--feedback-file", exists=True),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+    quiet: bool = typer.Option(False, "--quiet", help="Suppress per-item progress lines"),
+) -> None:
+    """Bulk regenerate explicit item_ids (e.g. after CSV review)."""
+    if not dry_run:
+        try:
+            GeminiItemGenerator.require_api_key()
+        except RuntimeError as exc:
+            raise typer.BadParameter(str(exc)) from exc
+    feedback = feedback_file.read_text(encoding="utf-8") if feedback_file else ""
+    report = regenerate_items_from_file(
+        draft,
+        item_ids_file,
+        feedback=feedback,
+        repo_root=REPO_ROOT,
+        dry_run=dry_run,
+        max_items=max_items,
+        progress=None if quiet else _review_progress,
+    )
+    if not dry_run:
+        write_bulk_regenerate_report(draft, report)
+    if quiet or dry_run:
+        typer.echo(
+            f"regenerate-items: targeted={report.targeted} succeeded={report.succeeded} "
+            f"failed={report.failed} dry_run={dry_run}"
+        )
+
+
 @review_app.command("export-pack")
 def review_export_pack(
     draft: Path = typer.Option(..., "--draft", exists=True, file_okay=False, dir_okay=True),
@@ -527,11 +717,7 @@ def review_export_pack(
     if item_ids:
         ids = [part.strip() for part in item_ids.split(",") if part.strip()]
     elif item_ids_file:
-        payload = json.loads(item_ids_file.read_text(encoding="utf-8"))
-        if isinstance(payload, list):
-            ids = [str(i) for i in payload]
-        else:
-            ids = [str(i) for i in payload.get("item_ids", [])]
+        ids = _load_item_ids_file(item_ids_file)
     else:
         raise typer.BadParameter("Provide --item-ids or --item-ids-file")
     if max_items:

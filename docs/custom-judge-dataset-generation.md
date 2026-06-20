@@ -510,7 +510,14 @@ Paper reproduction: [research-reproduction.md](research-reproduction.md) · `rel
 
 Feature **018** adds a human-in-the-loop path to patch the frozen **200-item `dev.jsonl`** in place (no `dev_pool` re-selection). Published **v2.0.0** and **paper-v1.0** remain immutable; quality work targets a draft extended from v2.0.0 and publishes **v2.0.1** with a new **paper-v1.1** release lock.
 
-**Operator guide:** [018 quickstart](../specs/018-eval-dataset-quality/quickstart.md) · **Checklist:** [quality-pass.md](../specs/018-eval-dataset-quality/checklists/quality-pass.md)
+**Operator guide:** [eval-dataset-quality.md](eval-dataset-quality.md) · [018 quickstart](../specs/018-eval-dataset-quality/quickstart.md) · **Checklist:** [quality-pass.md](../specs/018-eval-dataset-quality/checklists/quality-pass.md)
+
+### Two paths: bulk generation fix vs CSV review
+
+1. **Bulk fix boilerplate** (preferred for comparison co-occurrence answers): `review fix-boilerplate`
+2. **CSV annotation** (exceptions): `review export-sheet` → edit CSV → `review import-csv --apply`
+
+See [eval-dataset-quality.md](eval-dataset-quality.md) for the full tier-1 workflow.
 
 ### Quick commands
 
@@ -527,6 +534,20 @@ uv run agent-query benchmark-dataset review export-queue \
   --repro-input reports/repro-paper-v1.0 \
   --variant graph-full \
   --tier 1
+
+# 2b. Bulk-fix boilerplate comparisons (generation-level; preferred over hand edits)
+uv run agent-query benchmark-dataset review fix-boilerplate \
+  --draft data/benchmarks/custom-judge/drafts/quality-v2.0.1 \
+  --queue-file data/benchmarks/custom-judge/drafts/quality-v2.0.1/review_queue.json \
+  --dry-run
+
+# 2c. CSV annotation sheet for exceptions
+uv run agent-query benchmark-dataset review export-sheet \
+  --draft data/benchmarks/custom-judge/drafts/quality-v2.0.1 \
+  --queue-file data/benchmarks/custom-judge/drafts/quality-v2.0.1/review_queue.json \
+  --repro-input reports/repro-paper-v1.0 \
+  --output annotation_sheet_tier1.csv
+# Fill CSV → import-csv --apply (see docs/eval-dataset-quality.md)
 
 # 3. Annotate + apply approved overrides
 uv run agent-query benchmark-dataset review annotate \

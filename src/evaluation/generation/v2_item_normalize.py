@@ -7,6 +7,7 @@ import re
 from evaluation.generation.comparison_gt import (
     comparison_claims_are_structured,
     derive_comparison_claims,
+    extract_comparison_entities,
     is_comparison_item,
 )
 from evaluation.generation.gt_classifier import is_numeric_answer_gt
@@ -45,6 +46,9 @@ def infer_answer_type(item: GeneratedBenchmarkItem) -> AnswerType:
 
 
 def _comparison_labels_from_answer(answer: str) -> tuple[str, str]:
+    entity_a, entity_b = extract_comparison_entities(answer)
+    if entity_a and entity_b:
+        return entity_a, entity_b
     labels = _FY_LABEL.findall(answer)
     if len(labels) >= 2:
         return labels[0], labels[1]

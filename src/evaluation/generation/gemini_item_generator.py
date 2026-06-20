@@ -12,6 +12,7 @@ from langchain_core.messages import HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from evaluation.generation.api_retry import with_transient_retry
+from evaluation.generation.comparison_gt import format_generation_validation_feedback
 from evaluation.generation.v2_item_normalize import normalize_v2_item
 from evaluation.judges.gemini_panel import JudgeParseError, _extract_json
 from models.benchmark_generation import AnswerType, GeneratedBenchmarkItem, GenerationConfig, SamplingManifest
@@ -78,9 +79,9 @@ class GeminiItemGenerator:
         paths_preview = section_paths[:80]
         feedback_block = ""
         if validation_feedback:
-            feedback_block = (
-                f"\nPrevious attempt failed validation:\n{validation_feedback}\n"
-                "Fix the JSON so all section paths exist in available_section_paths.\n"
+            feedback_block = format_generation_validation_feedback(
+                validation_feedback,
+                profile=profile,
             )
         negative_block = ""
         if negative_questions:
@@ -113,13 +114,17 @@ class GeminiItemGenerator:
             elif profile == "finagentbench":
                 profile_v2 = (
                     "- finagentbench v2: answer_type comparison_structured; >=2 accessions; "
-                    "canonical answer: Both {FY_a} and {FY_b} discuss {topic} in {section}; "
+                    "canonical answer MUST state a compared conclusion (difference, similarity, "
+                    "or relative emphasis), not only section co-occurrence; "
                     ">=3 required_claims (per-filing + cross-filing).\n"
+                    "- Valid canonical answers: 'Both {A} and {B} discuss ... differently' OR "
+                    "'Both {A} and {B} emphasize ... whereas ...'.\n"
                 )
         rules_tail = (
             "- v2 bundle: ground_truth.answer is REQUIRED for every profile (non-empty).\n"
             "- v2 bundle: narrative items need 2-8 required_claims; comparison_structured needs >=3.\n"
-            "- v2 comparison answer template: Both {label_a} and {label_b} discuss {topic} in {section}.\n"
+            "- v2 comparison answers MUST include a compared conclusion (whereas/while/emphasizes/differs), "
+            "not only that both filings mention a topic.\n"
             f"{profile_v2}"
             if v2
             else (

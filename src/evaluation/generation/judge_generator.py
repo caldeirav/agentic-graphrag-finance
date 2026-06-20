@@ -13,6 +13,7 @@ import httpx
 
 from datetime import UTC, datetime
 
+from evaluation.generation.comparison_gt import format_generation_validation_feedback
 from evaluation.generation.deduplicator import deduplicate_items, find_duplicate_match
 from evaluation.generation.gemini_item_generator import GeminiItemGenerator
 from evaluation.generation.governance import BudgetTracker
@@ -231,6 +232,8 @@ def _generate_one_candidate(
     feedback: str | None = None
     max_attempts = 1 if use_mock else config.governance.judge_retries_per_item + 1
 
+    v2 = is_v2_or_later(config.bundle_schema_version)
+
     for attempt in range(max_attempts):
         try:
             if use_mock:
@@ -259,6 +262,8 @@ def _generate_one_candidate(
                         model=live_generator.model_name,
                         duration_ms=duration_ms,
                     )
+            if v2:
+                item = normalize_v2_item(item)
             validated = validate_item(
                 item,
                 graph_paths=graph_paths,
@@ -267,7 +272,10 @@ def _generate_one_candidate(
             )
             if validated.validation_status == "accepted":
                 break
-            feedback = "; ".join(validated.validation_errors)
+            feedback = format_generation_validation_feedback(
+                validated.validation_errors,
+                profile=profile,
+            )
         except (JudgeParseError, RuntimeError, ValueError, httpx.HTTPError) as exc:
             feedback = str(exc)
             if attempt + 1 >= max_attempts:

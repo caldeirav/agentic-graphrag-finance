@@ -13,12 +13,14 @@
 
 - [ ] `review export-queue` run against repro-paper-v1.0
 - [ ] Tier-1 count recorded (target: identify dataset-likely zero-outcome items)
-- [ ] `review export-pack` generated for tier-1 subset (HTML + CSV)
+- [ ] `review fix-boilerplate --dry-run` on tier-1 queue (count boilerplate comparisons)
+- [ ] `review export-sheet` generated for CSV workflow OR bulk fix-boilerplate pilot run
 
 ## Phase 3 — Human review
 
-- [ ] 20-item structural spot-check completed from review pack
-- [ ] Annotations appended to `annotations.jsonl` with failure class + corpus spot-check
+- [ ] Boilerplate comparisons fixed via `review fix-boilerplate` (batched) OR CSV import for exceptions
+- [ ] Annotated CSV imported with `review import-csv` (if used)
+- [ ] 20-item structural spot-check from review pack (optional)
 - [ ] `agent_failure` items excluded from override apply unless `--force`
 
 ## Phase 4 — Apply fixes

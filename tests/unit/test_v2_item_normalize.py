@@ -73,6 +73,34 @@ def test_comparison_keeps_natural_claims_without_boilerplate() -> None:
     assert len(claims) >= 3
 
 
+def test_emphasize_answer_derives_entity_labels() -> None:
+    answer = (
+        "Both Caterpillar and Exxon Mobil emphasize different risks, with Caterpillar "
+        "highlighting cyclical demand whereas Exxon Mobil stresses commodity volatility."
+    )
+    raw = GeneratedBenchmarkItem.model_validate(
+        {
+            "item_id": "v2-finagentbench-011",
+            "question": "How do Caterpillar and Exxon Mobil frame risk?",
+            "question_type_tag": "cross-filing-comparison",
+            "answer_type": "comparison_structured",
+            "inspiration_profile": "finagentbench",
+            "ground_truth": {"answer": answer, "required_claims": []},
+            "expected_bindings": {
+                "accessions": ["0000320193-25-000079", "0000320193-24-000123"],
+            },
+            "expected_section_paths": ["0000320193-25-000079/item_1a"],
+            "operation_class": "QUALITATIVE",
+        }
+    )
+    item = normalize_v2_item(raw)
+    claims = item.ground_truth.required_claims or []
+    assert len(claims) >= 3
+    joined = " ".join(claims).lower()
+    assert "caterpillar" in joined
+    assert "exxon" in joined
+
+
 def test_normalize_passes_validator_for_numeric() -> None:
     item = normalize_v2_item(_item(answer_type=None))
     validated = validate_item(

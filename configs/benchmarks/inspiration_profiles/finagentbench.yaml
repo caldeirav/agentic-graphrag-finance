@@ -18,10 +18,13 @@ prompt_template: |
   - question_type_tag: agentic-multi-hop or cross-filing-comparison
   - answer_type: comparison_structured
   - multi_filing_required: true
-  - ground_truth.answer: one sentence naming both filings that states a **compared conclusion**
-    (difference, similarity, or relative emphasis on the topic). Do NOT only state that both
-    filings mention a topic in a section — the canonical answer MUST articulate how the
-    disclosures differ or align (e.g. cyclical demand vs commodity price volatility).
+  - ground_truth.answer: one sentence opening with "Both {filing A} and {filing B} ..." that
+    states a **compared conclusion** (difference, similarity, or relative emphasis on the topic).
+    Do NOT only state that both filings mention a topic in a section — the canonical answer MUST
+    articulate how the disclosures differ or align (e.g. cyclical demand vs commodity price volatility).
+    Valid forms:
+    * "Both Caterpillar's 2025 10-K and Exxon Mobil's 2025 10-K discuss {topic} differently: ..."
+    * "Both Caterpillar and Exxon Mobil emphasize different risks, with Caterpillar ... whereas Exxon ..."
   - ground_truth.required_claims: 3–8 atomic claims structured as:
     1) one claim grounded in filing A only (cite company, form/year, section, fact)
     2) one claim grounded in filing B only (same structure)

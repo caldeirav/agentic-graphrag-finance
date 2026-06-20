@@ -2,6 +2,7 @@
 
 from evaluation.generation.comparison_gt import (
     is_boilerplate_comparison_answer,
+    is_comparison_canonical_answer,
     validate_comparison_structured,
 )
 from models.benchmark_generation import AnswerType, GeneratedBenchmarkItem
@@ -40,9 +41,11 @@ def test_reject_boilerplate_co_occurrence_only():
 
 def test_accept_substantive_comparison():
     answer = (
-        "Caterpillar frames geopolitical risk around supply-chain and end-market cyclicality, "
-        "while Exxon Mobil emphasizes sanctions and commodity price volatility in their "
-        "2025 10-K risk disclosures."
+        "Both Caterpillar's 2025 10-K and Exxon Mobil's 2025 10-K emphasize geopolitical risk "
+        "differently: Caterpillar frames supply-chain cyclicality whereas Exxon Mobil highlights "
+        "sanctions and commodity price volatility."
     )
+    assert is_comparison_canonical_answer(answer) is True
     assert is_boilerplate_comparison_answer(answer) is False
     assert "boilerplate_comparison_answer" not in validate_comparison_structured(_item(answer))
+    assert "invalid_answer_type" not in validate_comparison_structured(_item(answer))
