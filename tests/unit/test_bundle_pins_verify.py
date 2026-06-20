@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-from evaluation.generation.bundle import items_hash
 from evaluation.reproduction.corpus_verify import verify_bundle_pins
 from evaluation.reproduction.manifest import load_release_manifest, sha256_text
 

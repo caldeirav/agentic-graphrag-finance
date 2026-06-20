@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from evaluation.generation.review.annotations import latest_annotations_by_item, load_annotation_history
+from evaluation.generation.review.annotations import latest_annotations_by_item
 from evaluation.generation.review.overrides import _load_changelog
 from evaluation.generation.review.queue import assign_priority_tier, build_review_queue
 from models.benchmark_generation import FailureClass, QualityPassSummary
@@ -18,7 +18,6 @@ def build_quality_pass_summary(
     baseline_repro_input: Path | None = None,
     variant: str = "graph-full",
 ) -> QualityPassSummary:
-    history = load_annotation_history(bundle_root)
     latest = latest_annotations_by_item(bundle_root)
     changelog = _load_changelog(bundle_root)
 

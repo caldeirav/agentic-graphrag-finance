@@ -4,11 +4,17 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock
 
 from evaluation.reproduction.judge_batch import run_judge_batch
 from models.benchmark_generation import GeneratedBenchmarkItem
-from models.evaluation import AnswerPackage, BenchmarkItem, BenchmarkResult, ExpectedBindings, GroundTruth, JudgeVerdict
+from models.evaluation import (
+    AnswerPackage,
+    BenchmarkItem,
+    BenchmarkResult,
+    ExpectedBindings,
+    GroundTruth,
+    JudgeVerdict,
+)
 
 
 def _write_bundle(root: Path, items: list[GeneratedBenchmarkItem], version: str) -> None:

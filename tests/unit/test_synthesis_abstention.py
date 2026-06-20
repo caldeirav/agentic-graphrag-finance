@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from models.enums import ComparisonMode, EvidenceSourceType, QueryIntent
+from models.enums import ComparisonMode, EvidenceSourceType
 from models.filing import FilingRef
 from models.query import EvidenceChunk
 from retrieval.synthesis import _correct_abstention_denial, _yoy_comparison_intent

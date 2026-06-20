@@ -3,7 +3,6 @@
 from evaluation.generation.item_validator import validate_item
 from evaluation.generation.v2_item_normalize import normalize_v2_item
 from models.benchmark_generation import AnswerType, GeneratedBenchmarkItem
-from models.evaluation import ExpectedBindings, GroundTruth
 
 
 def _item(**kwargs) -> GeneratedBenchmarkItem:

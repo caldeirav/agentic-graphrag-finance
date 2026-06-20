@@ -20,21 +20,21 @@ from evaluation.generation.bundle import (
     write_draft_manifest,
     write_scorability_report,
 )
-from evaluation.generation.publish_audit import write_audit_sample, write_publish_audit
 from evaluation.generation.config_loader import load_allowlist, load_generation_config
 from evaluation.generation.gemini_item_generator import GeminiItemGenerator
-from evaluation.generation.judge_generator import PUBLISH_MIN_ACCEPTED, generate_items, write_items_jsonl
-from evaluation.generation.sampler import (
-    run_sampling,
-    sampling_manifest_hash,
+from evaluation.generation.judge_generator import (
+    PUBLISH_MIN_ACCEPTED,
+    generate_items,
+    write_items_jsonl,
 )
+from evaluation.generation.publish_audit import write_audit_sample, write_publish_audit
+from evaluation.generation.review._paths import resolve_draft_bundle
 from evaluation.generation.review.annotations import append_annotation
 from evaluation.generation.review.bulk_regenerate import (
     regenerate_boilerplate_items,
     regenerate_items_from_file,
     write_bulk_regenerate_report,
 )
-from evaluation.generation.review.feedback import BOILERPLATE_REGEN_FEEDBACK
 from evaluation.generation.review.csv_annotations import (
     _load_item_ids_file,
     build_annotation_sheet_rows,
@@ -42,18 +42,24 @@ from evaluation.generation.review.csv_annotations import (
     list_boilerplate_comparison_items,
     write_annotation_sheet,
 )
+from evaluation.generation.review.feedback import BOILERPLATE_REGEN_FEEDBACK
 from evaluation.generation.review.overrides import apply_overrides, load_regenerated_item_ids
-from evaluation.generation.review.quality_summary import build_quality_pass_summary, write_quality_pass_summary
+from evaluation.generation.review.quality_summary import (
+    build_quality_pass_summary,
+    write_quality_pass_summary,
+)
 from evaluation.generation.review.queue import build_review_queue, write_review_queue
 from evaluation.generation.review.regenerate_item import regenerate_item
 from evaluation.generation.review.review_pack import write_review_pack
-from evaluation.generation.review._paths import resolve_draft_bundle
+from evaluation.generation.sampler import (
+    run_sampling,
+    sampling_manifest_hash,
+)
 from models.benchmark_generation import (
     CorpusSpotCheckStatus,
     DatasetManifest,
     FailureClass,
     ProposedOverrides,
-    ReproContextSnapshot,
     SamplingManifest,
 )
 

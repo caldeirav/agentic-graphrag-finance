@@ -11,7 +11,7 @@ from evaluation.generation.bundle import load_dev_split_items
 from evaluation.generation.comparison_gt import is_boilerplate_comparison_answer, is_comparison_item
 from evaluation.generation.review._paths import resolve_draft_bundle
 from evaluation.generation.review.annotations import append_annotation
-from evaluation.generation.review.overrides import apply_overrides, load_regenerated_item_ids
+from evaluation.generation.review.overrides import apply_overrides
 from evaluation.generation.review.queue import build_review_queue
 from evaluation.generation.review.review_pack import build_review_pack_rows
 from models.benchmark_generation import (

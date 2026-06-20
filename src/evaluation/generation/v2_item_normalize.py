@@ -13,7 +13,6 @@ from evaluation.generation.comparison_gt import (
 from evaluation.generation.gt_classifier import is_numeric_answer_gt
 from evaluation.generation.migrate_v1_1_0 import derive_required_claims
 from models.benchmark_generation import AnswerType, GeneratedBenchmarkItem
-from models.evaluation import GroundTruth
 
 _FY_LABEL = re.compile(r"(FY20\d{2}\s+10-[KQ])", re.IGNORECASE)
 

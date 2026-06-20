@@ -6,21 +6,20 @@ import json
 import os
 import random
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 import httpx
 
-from datetime import UTC, datetime
-
+from evaluation.generation.bundle_version import is_v2_or_later
 from evaluation.generation.comparison_gt import format_generation_validation_feedback
 from evaluation.generation.deduplicator import deduplicate_items, find_duplicate_match
 from evaluation.generation.gemini_item_generator import GeminiItemGenerator
 from evaluation.generation.governance import BudgetTracker
-from evaluation.generation.bundle_version import is_v2_or_later
 from evaluation.generation.item_validator import load_graph_paths, validate_item
-from evaluation.generation.v2_item_normalize import normalize_v2_item
 from evaluation.generation.review.diversity import append_duplicate_feedback, write_diversity_report
+from evaluation.generation.v2_item_normalize import normalize_v2_item
 from evaluation.judges.gemini_panel import JudgeParseError
 from models.benchmark_generation import (
     DuplicateRejectionFeedback,

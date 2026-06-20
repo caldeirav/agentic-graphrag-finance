@@ -12,7 +12,11 @@ import typer
 from evaluation.reproduction.defer_config import resolve_defer_config
 from evaluation.reproduction.export import export_tables_from_disk, write_paper_tables
 from evaluation.reproduction.judge_batch import run_judge_batch
-from evaluation.reproduction.manifest import load_expected_checksums, load_release_manifest, resolve_release_manifest_path
+from evaluation.reproduction.manifest import (
+    load_expected_checksums,
+    load_release_manifest,
+    resolve_release_manifest_path,
+)
 from evaluation.reproduction.relevance import materialize_relevance_labels
 from evaluation.reproduction.report_errors import ReportInputError, ReportRenderError
 from evaluation.reproduction.report_loader import load_repro_report_bundle

@@ -6,7 +6,11 @@ import json
 from pathlib import Path
 
 from evaluation.generation.bundle import load_dev_split_items
-from models.benchmark_generation import DiversityReport, DuplicateRejectionFeedback, ProfileDiversityStats
+from models.benchmark_generation import (
+    DiversityReport,
+    DuplicateRejectionFeedback,
+    ProfileDiversityStats,
+)
 
 
 def duplicate_feedback_path(bundle_root: Path) -> Path:

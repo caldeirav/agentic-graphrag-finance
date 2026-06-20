@@ -13,7 +13,10 @@ from parsing.xbrl_facts import (
     is_securities_sales_false_positive,
 )
 from retrieval.evidence_scope import period_alignment_score
-from retrieval.orchestration.meso_scoring import is_divestiture_query, is_mda_query, is_narrative_mda_query
+from retrieval.orchestration.meso_scoring import (
+    is_divestiture_query,
+    is_narrative_mda_query,
+)
 
 _FINANCIAL_QUERY = re.compile(
     r"\b(revenue|sales|income|earnings|profit|assets|liabilities|cash|eps|margin|"

@@ -10,7 +10,7 @@ from pathlib import Path
 from evaluation.generation.bundle import load_dev_split_items
 from evaluation.generation.review._paths import resolve_draft_bundle
 from evaluation.generation.review.annotations import latest_annotations_by_item
-from models.benchmark_generation import GeneratedBenchmarkItem, ReviewQueueEntry
+from models.benchmark_generation import ReviewQueueEntry
 from models.evaluation import BenchmarkResult
 
 

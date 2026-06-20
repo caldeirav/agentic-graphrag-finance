@@ -9,6 +9,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from evaluation.generation.bundle_version import is_v2_or_later
 from models.reproduction import ReproRun
 
 
@@ -50,8 +51,6 @@ class MetricDefinition(BaseModel):
     definition: str
     source: str
 
-
-from evaluation.generation.bundle_version import is_v2_or_later
 
 TASK_SUCCESS_V2_DEFINITION = (
     "Mean value_alignment (outcome_score) over all headline-eligible dev items (n=200 for full split). "

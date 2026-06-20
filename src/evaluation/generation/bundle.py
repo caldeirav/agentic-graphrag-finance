@@ -16,21 +16,21 @@ from pathlib import Path
 
 import yaml
 
+from evaluation.generation.bundle_version import is_v2_bundle, is_v2_or_later
 from evaluation.generation.comparison_gt import (
     comparison_answer_informativeness_score,
     is_boilerplate_comparison_answer,
     is_comparison_item,
     validate_comparison_structured,
 )
-from evaluation.generation.bundle_version import is_v2_bundle, is_v2_or_later
 from evaluation.generation.feasibility_macro import audit_macro_bindability
+from evaluation.generation.gt_classifier import is_numeric_answer_gt
+from evaluation.generation.item_validator import load_graph_paths
 from evaluation.generation.profile_selection import (
     quota_targets,
     select_profile_balanced_items,
     selection_report,
 )
-from evaluation.generation.gt_classifier import is_numeric_answer_gt
-from evaluation.generation.item_validator import load_graph_paths
 from evaluation.generation.section_paths import resolve_section_paths
 from models.benchmark_generation import (
     AnswerType,

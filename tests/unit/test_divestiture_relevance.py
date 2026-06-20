@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, UTC
+from datetime import UTC, date, datetime
 
 from evaluation.reproduction.relevance import refine_divestiture_relevance_chunks
 from models.enums import GraphNodeType

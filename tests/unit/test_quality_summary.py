@@ -7,7 +7,7 @@ from pathlib import Path
 
 from evaluation.generation.review.annotations import append_annotation
 from evaluation.generation.review.quality_summary import build_quality_pass_summary
-from models.benchmark_generation import CorpusSpotCheckStatus, FailureClass
+from models.benchmark_generation import FailureClass
 from models.evaluation import BenchmarkResult, RankingMetrics
 
 

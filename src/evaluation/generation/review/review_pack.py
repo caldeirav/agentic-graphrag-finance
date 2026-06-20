@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import csv
 import html
-import json
 from pathlib import Path
 
 from evaluation.generation.bundle import load_dev_split_items

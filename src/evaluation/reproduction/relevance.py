@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import deque
 from pathlib import Path
-
-import re
 
 from evaluation.generation.item_validator import load_graph_paths
 from evaluation.generation.numeric_gt import (
@@ -14,7 +13,6 @@ from evaluation.generation.numeric_gt import (
     xbrl_excerpt_matches_gt,
 )
 from evaluation.generation.path_sanitize import filter_canonical_graph_paths
-from parsing.xbrl_facts import xbrl_concept_matches_query
 from evaluation.generation.section_paths import (
     item_number_key,
     normalize_section_key,
@@ -26,6 +24,7 @@ from evaluation.reproduction.snapshot_loader import load_bundle_snapshot
 from models.enums import GraphEdgeType, GraphNodeType
 from models.graph import GraphNode, GraphSnapshot
 from models.reproduction import RelevanceFailure, RelevanceLabelSet
+from parsing.xbrl_facts import xbrl_concept_matches_query
 
 EVIDENCE_CHUNK_TYPES = frozenset(
     {
@@ -246,7 +245,6 @@ def refine_divestiture_relevance_chunks(
     if not is_divestiture_item(question, answer=gt_answer):
         return chunk_ids
 
-    gt_lower = gt_answer.lower()
     gt_tokens = [
         t
         for t in re.findall(r"[a-zA-Z][a-zA-Z0-9'.& -]{2,}", gt_answer)

@@ -14,7 +14,7 @@ from models.benchmark_generation import (
     GeneratedBenchmarkItem,
     ProposedOverrides,
 )
-from models.evaluation import ExpectedBindings, GroundTruth, RankingMetrics, BenchmarkResult
+from models.evaluation import BenchmarkResult, ExpectedBindings, GroundTruth, RankingMetrics
 
 
 def _minimal_draft(tmp_path: Path) -> Path:
