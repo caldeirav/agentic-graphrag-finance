@@ -252,6 +252,8 @@ uv run agent-query benchmark-dataset review import-csv \
 
 Rows are **skipped** when: `failure_class` empty, `corpus_spot_check` not `passed`, `apply=no`, or both `proposed_answer` and `proposed_question` empty.
 
+`import-csv --apply` and `apply-overrides` automatically refresh `fixed_items.json` from `override_changelog.jsonl` (for `repro judge-batch --item-ids-file`).
+
 ### Step C — Spot-check review pack (optional, ~20 items)
 
 Before large CSV edits, skim a structural sample in the browser:
@@ -270,24 +272,7 @@ Open `review/pack_tier1/review_pack.html`. Check: question clarity, canonical an
 ### Step D — Validate fixes (selective re-judge)
 
 ```bash
-# Build item-id list from fix-boilerplate + CSV overrides (accepted changelog entries)
-uv run python -c "
-import json
-from pathlib import Path
-root = Path('data/benchmarks/custom-judge/drafts/quality-v2.0.1')
-ids = []
-for line in (root / 'override_changelog.jsonl').read_text().splitlines():
-    if not line.strip():
-        continue
-    row = json.loads(line)
-    if row.get('validation_outcome') == 'accepted':
-        ids.append(row['item_id'])
-out = root / 'fixed_items.json'
-out.write_text(json.dumps({'item_ids': sorted(set(ids))}, indent=2) + '\n')
-print(f'Wrote {len(set(ids))} item ids -> {out}')
-"
-
-uv run agent-query repro judge-batch \
+# Build item-id list from fix-boilerplate + CSV overrides (written automatically to fixed_items.json)
   --manifest releases/paper-v1.0/manifest.yaml \
   --input reports/repro-paper-v1.0 \
   --variant graph-full \

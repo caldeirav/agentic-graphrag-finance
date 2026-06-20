@@ -622,6 +622,8 @@ def review_import_csv(
         f"CSV import: imported={result.imported} skipped={result.skipped} "
         f"dry_run={dry_run} apply={apply}"
     )
+    if result.fixed_items_path is not None:
+        typer.echo(f"fixed_items.json refreshed -> {result.fixed_items_path}")
     if result.errors:
         for err in result.errors[:10]:
             typer.echo(f"  error: {err}", err=True)
@@ -812,6 +814,10 @@ def review_apply_overrides(
     accepted = sum(1 for entry in changelog if entry.validation_outcome == "accepted")
     rejected = sum(1 for entry in changelog if entry.validation_outcome == "rejected")
     typer.echo(f"Apply overrides: accepted={accepted} rejected={rejected} dry_run={dry_run}")
+    if not dry_run and accepted:
+        fixed_path = resolve_draft_bundle(draft) / "fixed_items.json"
+        if fixed_path.is_file():
+            typer.echo(f"fixed_items.json refreshed -> {fixed_path}")
     if rejected and not skip_failed and not dry_run:
         raise typer.Exit(code=1)
 

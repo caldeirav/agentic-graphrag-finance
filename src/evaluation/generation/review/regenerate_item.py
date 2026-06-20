@@ -20,7 +20,7 @@ from evaluation.generation.item_validator import load_graph_paths, validate_item
 from evaluation.generation.judge_generator import _use_mock_judge
 from evaluation.generation.review.feedback import BOILERPLATE_REGEN_FEEDBACK
 from evaluation.generation.review._paths import resolve_draft_bundle
-from evaluation.generation.review.overrides import item_content_hash, write_override_changelog
+from evaluation.generation.review.overrides import item_content_hash, write_fixed_items_file, write_override_changelog
 from evaluation.generation.v2_item_normalize import normalize_v2_item
 from evaluation.judges.gemini_panel import JudgeParseError
 from models.benchmark_generation import GeneratedBenchmarkItem, OverrideChangelogEntry, SamplingManifest
@@ -164,4 +164,5 @@ def regenerate_item(
             validation_outcome="accepted",
         ),
     )
+    write_fixed_items_file(root)
     return validated

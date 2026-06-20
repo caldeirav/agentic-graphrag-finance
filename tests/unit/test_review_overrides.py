@@ -109,3 +109,6 @@ def test_apply_overrides_writes_changelog(tmp_path: Path) -> None:
     updated = json.loads((draft / "items" / "dev.jsonl").read_text().strip())
     assert updated["question"] == "Revised revenue question?"
     assert updated["ground_truth"]["answer"] == "150"
+    assert (draft / "fixed_items.json").is_file()
+    fixed = json.loads((draft / "fixed_items.json").read_text(encoding="utf-8"))
+    assert fixed["item_ids"] == [item.item_id]

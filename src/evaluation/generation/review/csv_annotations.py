@@ -63,6 +63,7 @@ class CsvImportResult:
     skipped: int = 0
     errors: list[str] = field(default_factory=list)
     annotation_ids: list[str] = field(default_factory=list)
+    fixed_items_path: Path | None = None
 
 
 def _parse_bool(value: str) -> bool:
@@ -261,5 +262,8 @@ def import_annotations_from_csv(
         rejected = sum(1 for entry in changelog if entry.validation_outcome == "rejected")
         if rejected and not skip_failed:
             result.errors.append(f"apply-overrides rejected {rejected} item(s)")
+        fixed_path = resolve_draft_bundle(bundle_root) / "fixed_items.json"
+        if fixed_path.is_file():
+            result.fixed_items_path = fixed_path
 
     return result

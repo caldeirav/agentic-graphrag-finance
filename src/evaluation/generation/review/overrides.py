@@ -46,6 +46,30 @@ def load_regenerated_item_ids(bundle_root: Path) -> set[str]:
     return ids
 
 
+def load_accepted_fixed_item_ids(bundle_root: Path) -> list[str]:
+    """Sorted item ids with accepted overrides (CSV apply, regenerate, etc.)."""
+    return sorted(
+        {
+            entry.item_id
+            for entry in _load_changelog(bundle_root)
+            if entry.validation_outcome == "accepted"
+        }
+    )
+
+
+def write_fixed_items_file(bundle_root: Path) -> Path | None:
+    """Write fixed_items.json for selective repro judge-batch."""
+    root = resolve_draft_bundle(bundle_root)
+    ids = load_accepted_fixed_item_ids(root)
+    path = root / "fixed_items.json"
+    if not ids:
+        if path.is_file():
+            path.unlink()
+        return None
+    path.write_text(json.dumps({"item_ids": ids}, indent=2) + "\n", encoding="utf-8")
+    return path
+
+
 def _load_changelog(bundle_root: Path) -> list[OverrideChangelogEntry]:
     path = override_changelog_path(bundle_root)
     if not path.is_file():
@@ -273,4 +297,5 @@ def apply_overrides(
             )
         except ValidationError:
             pass
+    write_fixed_items_file(root)
     return changelog
