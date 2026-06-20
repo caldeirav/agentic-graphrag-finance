@@ -8,6 +8,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from evaluation.generation.bundle import write_scorability_report
+from evaluation.generation.review._paths import resolve_draft_bundle
 from evaluation.generation.review.csv_annotations import _load_item_ids_file, list_boilerplate_comparison_items
 from evaluation.generation.review.feedback import BOILERPLATE_REGEN_FEEDBACK
 from evaluation.generation.review.regenerate_item import regenerate_item
@@ -82,6 +84,12 @@ def _run_bulk_regenerate(
         f"{label}: complete — targeted={report.targeted} succeeded={report.succeeded} "
         f"failed={report.failed} elapsed={_format_duration(total)}"
     )
+    if not dry_run and report.succeeded > 0:
+        root = resolve_draft_bundle(bundle_root)
+        items_path = root / "items" / "dev.jsonl"
+        if items_path.is_file():
+            write_scorability_report(root, items_path)
+            log(f"{label}: refreshed scorability_report.json")
     return report
 
 

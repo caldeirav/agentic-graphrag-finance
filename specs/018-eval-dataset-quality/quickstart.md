@@ -51,7 +51,9 @@ uv run agent-query benchmark-dataset review fix-boilerplate \
 
 Requires `GOOGLE_API_KEY`. Regenerates comparison items whose canonical answer is section co-occurrence only.
 
-## Phase 2c — CSV annotation sheet (exceptions)
+When complete (`succeeded=N failed=0`), items are already in `items/dev.jsonl`. Confirm with `--dry-run` (expect 0 targets), then proceed to Phase 2c.
+
+## Phase 2c — CSV annotation sheet (remaining tier-1 items)
 
 ```bash
 uv run agent-query benchmark-dataset review export-sheet \
@@ -71,7 +73,9 @@ uv run agent-query benchmark-dataset review import-csv \
   --apply
 ```
 
-See [eval-dataset-quality.md](../../docs/eval-dataset-quality.md) for column reference.
+See [eval-dataset-quality.md](../../docs/eval-dataset-quality.md) for column reference and **worked CSV examples**.
+
+Filter the sheet on `is_boilerplate_comparison=no` after fix-boilerplate — those rows still need review.
 
 ## Phase 3 — Export review pack (20-item audit)
 

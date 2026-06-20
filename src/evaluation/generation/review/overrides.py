@@ -35,6 +35,17 @@ def item_content_hash(item: GeneratedBenchmarkItem) -> str:
     return f"sha256:{digest}"
 
 
+def load_regenerated_item_ids(bundle_root: Path) -> set[str]:
+    """Item ids accepted via fix-boilerplate / regenerate-item (override_changelog)."""
+    ids: set[str] = set()
+    for entry in _load_changelog(bundle_root):
+        if entry.validation_outcome != "accepted":
+            continue
+        if "regenerate" in (entry.rationale or "").lower():
+            ids.add(entry.item_id)
+    return ids
+
+
 def _load_changelog(bundle_root: Path) -> list[OverrideChangelogEntry]:
     path = override_changelog_path(bundle_root)
     if not path.is_file():

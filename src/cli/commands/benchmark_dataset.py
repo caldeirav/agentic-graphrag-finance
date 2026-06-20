@@ -42,7 +42,7 @@ from evaluation.generation.review.csv_annotations import (
     list_boilerplate_comparison_items,
     write_annotation_sheet,
 )
-from evaluation.generation.review.overrides import apply_overrides
+from evaluation.generation.review.overrides import apply_overrides, load_regenerated_item_ids
 from evaluation.generation.review.quality_summary import build_quality_pass_summary, write_quality_pass_summary
 from evaluation.generation.review.queue import build_review_queue, write_review_queue
 from evaluation.generation.review.regenerate_item import regenerate_item
@@ -547,6 +547,11 @@ def review_export_sheet(
     variant: str = typer.Option("graph-full", "--variant"),
     output: Path = typer.Option(Path("annotation_sheet.csv"), "--output"),
     max_items: int | None = typer.Option(None, "--max-items"),
+    exclude_regenerated: bool = typer.Option(
+        False,
+        "--exclude-regenerated",
+        help="Omit items already fixed via fix-boilerplate/regenerate-item",
+    ),
 ) -> None:
     """Export annotatable CSV (context columns + empty reviewer fields)."""
     if item_ids_file is None and queue_file is None:
@@ -556,6 +561,12 @@ def review_export_sheet(
     else:
         assert item_ids_file is not None
         item_ids = _load_item_ids_file(item_ids_file)
+    excluded = 0
+    if exclude_regenerated:
+        regen_ids = load_regenerated_item_ids(draft)
+        before = len(item_ids)
+        item_ids = [item_id for item_id in item_ids if item_id not in regen_ids]
+        excluded = before - len(item_ids)
     if max_items:
         item_ids = item_ids[:max_items]
     rows = build_annotation_sheet_rows(
@@ -565,8 +576,22 @@ def review_export_sheet(
         variant=variant,
     )
     out_path = output if output.is_absolute() else draft / output
+    if out_path.is_file():
+        typer.echo(
+            f"Note: overwriting existing sheet at {out_path} "
+            "(copy your filled CSV first if you need to keep prior edits)",
+            err=True,
+        )
     write_annotation_sheet(out_path, rows)
+    boilerplate_yes = sum(1 for row in rows if row.get("is_boilerplate_comparison") == "yes")
+    boilerplate_no = len(rows) - boilerplate_yes
     typer.echo(f"Annotation sheet ({len(rows)} rows) -> {out_path}")
+    if exclude_regenerated and excluded:
+        typer.echo(f"Excluded {excluded} already-regenerated item(s) (--exclude-regenerated)")
+    typer.echo(
+        f"Breakdown: is_boilerplate_comparison=yes {boilerplate_yes}, no {boilerplate_no} "
+        f"(review rows with no; skip rows already fixed by fix-boilerplate)"
+    )
     typer.echo(
         "Fill failure_class, corpus_spot_check, notes, proposed_answer/proposed_question, "
         "apply=yes — then run review import-csv"

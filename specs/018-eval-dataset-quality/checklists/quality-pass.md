@@ -18,10 +18,13 @@
 
 ## Phase 3 — Human review
 
-- [ ] Boilerplate comparisons fixed via `review fix-boilerplate` (batched) OR CSV import for exceptions
-- [ ] Annotated CSV imported with `review import-csv` (if used)
+- [ ] Boilerplate comparisons fixed via `review fix-boilerplate` (batched) — **27/27 done** if `failed=0`
+- [ ] `fix-boilerplate --dry-run` shows 0 remaining boilerplate in tier-1 queue
+- [ ] `scorability_report.json` shows reduced `boilerplate_comparison_count`
+- [ ] Annotated CSV exported (`review export-sheet`) and filled for non-boilerplate tier-1 items
+- [ ] CSV imported with `review import-csv --apply` (or dry-run first)
+- [ ] `agent_failure` items recorded via `review annotate` (no override apply)
 - [ ] 20-item structural spot-check from review pack (optional)
-- [ ] `agent_failure` items excluded from override apply unless `--force`
 
 ## Phase 4 — Apply fixes
 
@@ -48,6 +51,6 @@
 
 ## Notes
 
-| Run date | Tier-1 count | Items fixed | Rejudge improved rate |
-|----------|--------------|-------------|------------------------|
-|          |              |             |                        |
+| Run date | Tier-1 count | Boilerplate fixed | CSV reviewed | Rejudge improved rate |
+|----------|--------------|-------------------|--------------|------------------------|
+| 2026-06-20 | 84 | 27 (fix-boilerplate) | | |
