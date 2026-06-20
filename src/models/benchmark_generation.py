@@ -44,6 +44,22 @@ class FilingFilters(BaseModel):
     max_filings_per_issuer: int
 
 
+class FailureClass(StrEnum):
+    GT_TOO_STRICT = "gt_too_strict"
+    GT_WRONG = "gt_wrong"
+    GT_BOILERPLATE = "gt_boilerplate"
+    QUESTION_AMBIGUOUS = "question_ambiguous"
+    CLAIMS_MISALIGNED = "claims_misaligned"
+    ACCEPTABLE_HARD = "acceptable_hard"
+    AGENT_FAILURE = "agent_failure"
+
+
+class CorpusSpotCheckStatus(StrEnum):
+    PENDING = "pending"
+    PASSED = "passed"
+    FAILED = "failed"
+
+
 class GovernanceCaps(BaseModel):
     max_issuers: int
     max_filings_per_issuer: int
@@ -55,6 +71,10 @@ class GovernanceCaps(BaseModel):
     dedup_similarity_threshold: float
     judge_retries_per_item: int
     multi_filing_min: int = 0
+    duplicate_feedback_enabled: bool = True
+    max_items_per_issuer_per_profile: int = 8
+    min_unique_question_type_tags_per_profile: int = 6
+    prompt_negative_examples_count: int = 5
 
 
 class OutputPaths(BaseModel):
@@ -199,3 +219,86 @@ class GenerationReport(BaseModel):
     storage_bytes_used: int
     duration_seconds: float
     budget_exceeded: bool = False
+
+
+class ReproContextSnapshot(BaseModel):
+    mrr: float | None = None
+    ndcg_at_10: float | None = None
+    outcome_score: float | None = None
+
+
+class ProposedOverrides(BaseModel):
+    question: str | None = None
+    ground_truth: GroundTruth | None = None
+    expected_bindings: ExpectedBindings | None = None
+    expected_section_paths: list[str] | None = None
+
+
+class ItemAnnotation(BaseModel):
+    annotation_id: str
+    item_id: str
+    reviewer_id: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    failure_class: FailureClass
+    notes: str = ""
+    corpus_spot_check: CorpusSpotCheckStatus = CorpusSpotCheckStatus.PENDING
+    proposed_overrides: ProposedOverrides | None = None
+    repro_context: ReproContextSnapshot | None = None
+
+
+class ReviewQueueEntry(BaseModel):
+    item_id: str
+    priority_tier: int
+    priority_score: float
+    mrr: float | None = None
+    ndcg_at_10: float | None = None
+    outcome_score: float | None = None
+    inspiration_profile: str
+    question_preview: str
+    latest_failure_class: str | None = None
+
+
+class OverrideChangelogEntry(BaseModel):
+    item_id: str
+    parent_item_hash: str
+    applied_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    reviewer_id: str
+    annotation_id: str
+    changed_fields: list[str] = Field(default_factory=list)
+    rationale: str = ""
+    validation_outcome: Literal["accepted", "rejected"]
+    validation_errors: list[str] = Field(default_factory=list)
+
+
+class DuplicateRejectionFeedback(BaseModel):
+    rejected_question: str
+    matched_item_id: str
+    inspiration_profile: str
+    issuer_ticker: str
+    similarity_score: float
+    rejected_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class ProfileDiversityStats(BaseModel):
+    unique_issuers: int = 0
+    unique_question_type_tags: int = 0
+    items_accepted: int = 0
+
+
+class DiversityReport(BaseModel):
+    duplicate_rejection_rate: float = 0.0
+    duplicate_rejection_count: int = 0
+    candidates_total: int = 0
+    by_profile: dict[str, ProfileDiversityStats] = Field(default_factory=dict)
+    baseline_reference: str = "v2.0.0"
+
+
+class QualityPassSummary(BaseModel):
+    items_reviewed: int = 0
+    items_fixed_override: int = 0
+    items_fixed_regenerate: int = 0
+    failure_class_counts: dict[str, int] = Field(default_factory=dict)
+    dataset_caused_zero_score_count: int = 0
+    dataset_caused_zero_score_rate: float = 0.0
+    rejudge_improved_count: int = 0
+    rejudge_improved_rate: float = 0.0

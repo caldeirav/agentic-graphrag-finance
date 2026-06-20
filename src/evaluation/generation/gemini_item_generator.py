@@ -61,6 +61,8 @@ class GeminiItemGenerator:
         sampling: SamplingManifest,
         section_paths: list[str],
         validation_feedback: str | None = None,
+        negative_questions: list[str] | None = None,
+        blocked_tickers: list[str] | None = None,
     ) -> str:
         profile_cfg = self._load_profile(profile)
         template = str(profile_cfg.get("prompt_template", ""))
@@ -79,6 +81,22 @@ class GeminiItemGenerator:
             feedback_block = (
                 f"\nPrevious attempt failed validation:\n{validation_feedback}\n"
                 "Fix the JSON so all section paths exist in available_section_paths.\n"
+            )
+        negative_block = ""
+        if negative_questions:
+            negative_block = (
+                "\nDo NOT repeat or closely paraphrase these prior accepted questions "
+                f"for profile {profile}:\n"
+                + "\n".join(f"- {q}" for q in negative_questions[:20])
+                + "\n"
+            )
+        blocked_block = ""
+        if blocked_tickers:
+            blocked_block = (
+                "\nIssuer caps reached for these tickers in this profile — "
+                "prefer other sampled issuers:\n"
+                + ", ".join(blocked_tickers)
+                + "\n"
             )
         profile_v2 = ""
         if v2:
@@ -118,7 +136,7 @@ class GeminiItemGenerator:
             f"Sampled issuers JSON:\n{json.dumps(issuers, indent=2)}\n"
             f"Available section paths ({len(section_paths)} total, showing up to 80):\n"
             f"{json.dumps(paths_preview, indent=2)}\n"
-            f"{feedback_block}\n"
+            f"{feedback_block}{negative_block}{blocked_block}\n"
             "Return ONLY valid JSON with this shape (no markdown fences):\n"
             "{\n"
             '  "question": "string",\n'
@@ -148,6 +166,8 @@ class GeminiItemGenerator:
         sampling: SamplingManifest,
         section_paths: list[str],
         validation_feedback: str | None = None,
+        negative_questions: list[str] | None = None,
+        blocked_tickers: list[str] | None = None,
     ) -> tuple[GeneratedBenchmarkItem, int]:
         """Returns parsed item and Gemini call duration in milliseconds."""
         self.require_api_key()
@@ -157,6 +177,8 @@ class GeminiItemGenerator:
             sampling=sampling,
             section_paths=section_paths,
             validation_feedback=validation_feedback,
+            negative_questions=negative_questions,
+            blocked_tickers=blocked_tickers,
         )
         llm = ChatGoogleGenerativeAI(model=self._model, temperature=self._temperature)
         started = time.perf_counter()

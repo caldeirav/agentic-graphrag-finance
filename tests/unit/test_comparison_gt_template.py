@@ -19,7 +19,9 @@ def _comparison_item(**overrides) -> GeneratedBenchmarkItem:
         "inspiration_profile": "finagentbench",
         "ground_truth": {
             "answer": (
-                "Both FY2025 and FY2024 10-K filings discuss supply chain risk in Item 7 MD&A."
+                "Both FY2025 and FY2024 10-K filings discuss supply chain risk in Item 7 MD&A, "
+                "with FY2025 emphasizing inventory buffers whereas FY2024 emphasizes supplier "
+                "diversification."
             ),
             "required_claims": [
                 "FY2025 10-K discusses supply chain risk in Item 7 MD&A.",
@@ -45,7 +47,11 @@ def test_valid_comparison_item_passes() -> None:
 def test_comparison_requires_three_claims() -> None:
     item = _comparison_item(
         ground_truth={
-            "answer": "Both FY2025 and FY2024 10-K filings discuss supply chain risk in Item 7 MD&A.",
+            "answer": (
+                "Both FY2025 and FY2024 10-K filings discuss supply chain risk in Item 7 MD&A, "
+                "with FY2025 emphasizing inventory buffers whereas FY2024 emphasizes supplier "
+                "diversification."
+            ),
             "required_claims": ["only one claim"],
         }
     )

@@ -16,7 +16,12 @@ from pathlib import Path
 
 import yaml
 
-from evaluation.generation.comparison_gt import is_comparison_item, validate_comparison_structured
+from evaluation.generation.comparison_gt import (
+    comparison_answer_informativeness_score,
+    is_boilerplate_comparison_answer,
+    is_comparison_item,
+    validate_comparison_structured,
+)
 from evaluation.generation.bundle_version import is_v2_bundle, is_v2_or_later
 from evaluation.generation.feasibility_macro import audit_macro_bindability
 from evaluation.generation.profile_selection import (
@@ -211,6 +216,8 @@ def build_scorability_report(items: list[GeneratedBenchmarkItem]) -> dict[str, o
     by_answer_type: dict[str, int] = {}
     rubric_only = 0
     scorable = 0
+    boilerplate_count = 0
+    borderline_ids: list[str] = []
     for item in items:
         gt = item.ground_truth
         has_answer = bool((gt.answer or "").strip())
@@ -221,12 +228,20 @@ def build_scorability_report(items: list[GeneratedBenchmarkItem]) -> dict[str, o
             scorable += 1
         key = item.answer_type.value if item.answer_type else "unknown"
         by_answer_type[key] = by_answer_type.get(key, 0) + 1
+        if is_comparison_item(item) and has_answer:
+            answer = (gt.answer or "").strip()
+            if is_boilerplate_comparison_answer(answer):
+                boilerplate_count += 1
+            elif comparison_answer_informativeness_score(answer) < 0.5:
+                borderline_ids.append(item.item_id)
     return {
         "scorable_item_count": scorable,
         "item_count": len(items),
         "by_answer_type": by_answer_type,
         "rubric_only_count": rubric_only,
         "answer_gt_coverage": scorable / len(items) if items else 0.0,
+        "boilerplate_comparison_count": boilerplate_count,
+        "borderline_comparison_item_ids": sorted(borderline_ids),
     }
 
 
@@ -541,6 +556,12 @@ def check_publish_gates(
                     scorability = json.loads(scorability_path.read_text(encoding="utf-8"))
                     if int(scorability.get("rubric_only_count", 0)) > 0:
                         msg = "Publish gate failed: rubric_only_count must be 0 for v2 bundles"
+                        raise ValueError(msg)
+                    if int(scorability.get("boilerplate_comparison_count", 0)) > 0:
+                        msg = (
+                            "Publish gate failed: boilerplate_comparison_count must be 0 "
+                            "for v2.0.1+ bundles"
+                        )
                         raise ValueError(msg)
                 if multi_filing_min >= 0:
                     floor = multi_filing_min if multi_filing_min > 0 else 40

@@ -15,10 +15,60 @@ _ENTITY_STOP = frozenset(
     {"inc", "corp", "corporation", "company", "ltd", "llc", "plc", "the", "and", "for"}
 )
 _CROSS_VERB = re.compile(
-    r"\b(compare|comparison|contrast|compared|versus|vs\.?|whereas|"
-    r"similar|differ|difference|shared|common|in common|relative to)\b",
+    r"\b(compare|comparison|contrast|compared|versus|vs\.?|whereas|while|"
+    r"similar|differ|difference|differently|shared|common|in common|relative to|"
+    r"emphasiz\w+)\b",
     re.IGNORECASE,
 )
+_PERCENT = re.compile(r"\d+\.?\d*%")
+_DOLLAR = re.compile(r"\$[\d,]+(?:\.\d+)?")
+_TEMPLATE_STRIP = re.compile(
+    r"\b(?:both|and|discuss|address|describe|mention|cover|in|item|risk|factors|"
+    r"management|discussion|10-k|10-q|fy20\d{2})\b",
+    re.IGNORECASE,
+)
+
+
+def _normalized_word_count(answer: str) -> int:
+    tokens = [t for t in _TEMPLATE_STRIP.sub(" ", answer.lower()).split() if t]
+    return len(tokens)
+
+
+def _has_numeric_contrast(answer: str) -> bool:
+    pcts = _PERCENT.findall(answer)
+    dollars = _DOLLAR.findall(answer)
+    return len(set(pcts)) >= 2 or len(set(dollars)) >= 2
+
+
+def is_boilerplate_comparison_answer(answer: str) -> bool:
+    """True when canonical comparison answer is section co-occurrence only (018)."""
+    text = (answer or "").strip()
+    if not text:
+        return False
+    if not _BOTH_FILINGS_PATTERN.search(text):
+        return False
+    if _CROSS_VERB.search(text):
+        return False
+    if _normalized_word_count(text) >= 25:
+        return False
+    if _has_numeric_contrast(text):
+        return False
+    return True
+
+
+def comparison_answer_informativeness_score(answer: str) -> float:
+    text = (answer or "").strip()
+    if not text or is_boilerplate_comparison_answer(text):
+        return 0.0
+    score = 0.2 if _BOTH_FILINGS_PATTERN.search(text) else 0.4
+    if _CROSS_VERB.search(text):
+        score += 0.4
+    words = len(text.split())
+    if words >= 25:
+        score += 0.2
+    if _has_numeric_contrast(text):
+        score += 0.2
+    return min(1.0, score)
 
 
 def is_comparison_item(item: GeneratedBenchmarkItem) -> bool:
@@ -160,6 +210,8 @@ def validate_comparison_structured(item: GeneratedBenchmarkItem) -> list[str]:
         return errors
     if not _BOTH_FILINGS_PATTERN.search(answer):
         errors.append("invalid_answer_type")
+    if is_boilerplate_comparison_answer(answer):
+        errors.append("boilerplate_comparison_answer")
     accs = list(dict.fromkeys(item.expected_bindings.accessions))
     if len(accs) < 2:
         errors.append("comparison_bindings")

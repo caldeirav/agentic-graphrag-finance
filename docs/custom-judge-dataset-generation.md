@@ -506,6 +506,58 @@ Paper reproduction: [research-reproduction.md](research-reproduction.md) · `rel
 
 ---
 
+## Quality pass workflow (v2.0.1 / paper-v1.1)
+
+Feature **018** adds a human-in-the-loop path to patch the frozen **200-item `dev.jsonl`** in place (no `dev_pool` re-selection). Published **v2.0.0** and **paper-v1.0** remain immutable; quality work targets a draft extended from v2.0.0 and publishes **v2.0.1** with a new **paper-v1.1** release lock.
+
+**Operator guide:** [018 quickstart](../specs/018-eval-dataset-quality/quickstart.md) · **Checklist:** [quality-pass.md](../specs/018-eval-dataset-quality/checklists/quality-pass.md)
+
+### Quick commands
+
+```bash
+# 1. Extend v2.0.0 into a quality draft
+uv run agent-query benchmark-dataset extend-quality \
+  --parent-version 2.0.0 \
+  --config configs/benchmarks/custom_judge_v2_quality.yaml \
+  --run-id quality-v2.0.1
+
+# 2. Export reproduction-driven review queue (tier-1 = high retrieval + zero outcome)
+uv run agent-query benchmark-dataset review export-queue \
+  --draft data/benchmarks/custom-judge/drafts/quality-v2.0.1 \
+  --repro-input reports/repro-paper-v1.0 \
+  --variant graph-full \
+  --tier 1
+
+# 3. Annotate + apply approved overrides
+uv run agent-query benchmark-dataset review annotate \
+  --draft data/benchmarks/custom-judge/drafts/quality-v2.0.1 \
+  --item-id v2-finagentbench-0022 \
+  --failure-class gt_boilerplate \
+  --corpus-spot-check passed \
+  --reviewer-id "${USER}"
+
+uv run agent-query benchmark-dataset review apply-overrides \
+  --draft data/benchmarks/custom-judge/drafts/quality-v2.0.1
+
+# 4. Selective re-judge fixed items (same agent checkpoints, updated GT)
+uv run agent-query repro judge-batch \
+  --manifest releases/paper-v1.0/manifest.yaml \
+  --input reports/repro-paper-v1.0 \
+  --variant graph-full \
+  --bundle-override data/benchmarks/custom-judge/drafts/quality-v2.0.1 \
+  --item-ids-file fixed_items.json \
+  --force-rescore
+
+# 5. Publish v2.0.1 and adopt paper-v1.1
+uv run agent-query benchmark-dataset publish \
+  data/benchmarks/custom-judge/drafts/quality-v2.0.1 \
+  --version 2.0.1 --publish-signoff
+```
+
+**v2.0.1 publish gates** add `boilerplate_comparison_count == 0` to the scorability report. Sidecar files (`annotations.jsonl`, `override_changelog.jsonl`) are copied to the published bundle for audit.
+
+---
+
 ## Further reading
 
 | Topic | Location |

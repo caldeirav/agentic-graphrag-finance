@@ -32,9 +32,9 @@ description: "Task list for evaluation dataset quality improvement and managemen
 
 **Purpose**: Confirm branch baseline and 018 design contracts
 
-- [ ] T001 Confirm branch `018-eval-dataset-quality` is rebased on `main` with 017 custom-judge v2.0.0 publish path and `reports/repro-paper-v1.0/` baseline present
-- [ ] T002 [P] Review normative contracts in `specs/018-eval-dataset-quality/contracts/` against current `src/cli/commands/benchmark_dataset.py` and `src/evaluation/generation/bundle.py`
-- [ ] T003 [P] Add `configs/benchmarks/custom_judge_v2_quality.yaml` skeleton per `specs/018-eval-dataset-quality/contracts/diversity-governance.md` (extend parent v2.0.0, diversity governance fields)
+- [X] T001 Confirm branch `018-eval-dataset-quality` is rebased on `main` with 017 custom-judge v2.0.0 publish path and `reports/repro-paper-v1.0/` baseline present
+- [X] T002 [P] Review normative contracts in `specs/018-eval-dataset-quality/contracts/` against current `src/cli/commands/benchmark_dataset.py` and `src/evaluation/generation/bundle.py`
+- [X] T003 [P] Add `configs/benchmarks/custom_judge_v2_quality.yaml` skeleton per `specs/018-eval-dataset-quality/contracts/diversity-governance.md` (extend parent v2.0.0, diversity governance fields)
 
 **Checkpoint**: `uv run pytest tests/unit/test_bundle_feasibility_gates.py tests/unit/test_comparison_gt_template.py -q` passes on feature branch
 
@@ -46,11 +46,11 @@ description: "Task list for evaluation dataset quality improvement and managemen
 
 **⚠️ CRITICAL**: Blocks all user stories
 
-- [ ] T004 Add `FailureClass`, `ItemAnnotation`, `ReviewQueueEntry`, `OverrideChangelogEntry`, `DuplicateRejectionFeedback`, `DiversityReport`, `QualityPassSummary` models in `src/models/benchmark_generation.py` per `specs/018-eval-dataset-quality/data-model.md`
-- [ ] T005 [P] Create `src/evaluation/generation/review/__init__.py` and package docstring referencing 011 judge-generation boundary
-- [ ] T006 [P] Add `review` Typer subcommand group in `src/cli/commands/benchmark_dataset.py` per `specs/018-eval-dataset-quality/contracts/dataset-review-cli.md`
-- [ ] T007 [P] Add contract test `tests/contract/test_review_import_boundary.py` ensuring `src/evaluation/generation/review/` does not import retrieval or ingestion paths
-- [ ] T008 [P] Add helper `resolve_draft_bundle(path)` in `src/evaluation/generation/review/_paths.py` for draft/published bundle root validation
+- [X] T004 Add `FailureClass`, `ItemAnnotation`, `ReviewQueueEntry`, `OverrideChangelogEntry`, `DuplicateRejectionFeedback`, `DiversityReport`, `QualityPassSummary` models in `src/models/benchmark_generation.py` per `specs/018-eval-dataset-quality/data-model.md`
+- [X] T005 [P] Create `src/evaluation/generation/review/__init__.py` and package docstring referencing 011 judge-generation boundary
+- [X] T006 [P] Add `review` Typer subcommand group in `src/cli/commands/benchmark_dataset.py` per `specs/018-eval-dataset-quality/contracts/dataset-review-cli.md`
+- [X] T007 [P] Add contract test `tests/contract/test_review_import_boundary.py` ensuring `src/evaluation/generation/review/` does not import retrieval or ingestion paths
+- [X] T008 [P] Add helper `resolve_draft_bundle(path)` in `src/evaluation/generation/review/_paths.py` for draft/published bundle root validation
 
 **Checkpoint**: `uv run python -c "from models.benchmark_generation import ItemAnnotation; from evaluation.generation.review import __init__"` succeeds
 
@@ -64,13 +64,13 @@ description: "Task list for evaluation dataset quality improvement and managemen
 
 ### Tests for User Story 1
 
-- [ ] T009 [P] [US1] Add unit tests `tests/unit/test_review_queue.py` for tier assignment, sort order, and missing-repro fallback
+- [X] T009 [P] [US1] Add unit tests `tests/unit/test_review_queue.py` for tier assignment, sort order, and missing-repro fallback
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Implement `build_review_queue` and `write_review_queue` in `src/evaluation/generation/review/queue.py` loading `items/dev.jsonl` and `{variant}/results.json`
-- [ ] T011 [US1] Implement `review export-queue` command in `src/cli/commands/benchmark_dataset.py` with `--draft`, `--repro-input`, `--variant`, `--tier`, `--output` flags
-- [ ] T012 [P] [US1] Add integration test `tests/integration/test_review_export_queue.py` using fixture repro dir and v2.0.0 bundle subset
+- [X] T010 [US1] Implement `build_review_queue` and `write_review_queue` in `src/evaluation/generation/review/queue.py` loading `items/dev.jsonl` and `{variant}/results.json`
+- [X] T011 [US1] Implement `review export-queue` command in `src/cli/commands/benchmark_dataset.py` with `--draft`, `--repro-input`, `--variant`, `--tier`, `--output` flags
+- [X] T012 [P] [US1] Add integration test `tests/integration/test_review_export_queue.py` using fixture repro dir and v2.0.0 bundle subset
 
 **Checkpoint**: `uv run pytest tests/unit/test_review_queue.py -q` passes; tier-1 count > 0 against local `reports/repro-paper-v1.0`
 
@@ -84,12 +84,12 @@ description: "Task list for evaluation dataset quality improvement and managemen
 
 ### Tests for User Story 2
 
-- [ ] T013 [P] [US2] Add unit tests `tests/unit/test_review_annotations.py` for append-only writes, failure class validation, and history load
+- [X] T013 [P] [US2] Add unit tests `tests/unit/test_review_annotations.py` for append-only writes, failure class validation, and history load
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] Implement `append_annotation`, `load_annotation_history`, `latest_annotation` in `src/evaluation/generation/review/annotations.py`
-- [ ] T015 [US2] Implement `review annotate` command in `src/cli/commands/benchmark_dataset.py` with `--failure-class`, `--corpus-spot-check`, `--proposed-overrides-file`, `--reviewer-id`
+- [X] T014 [US2] Implement `append_annotation`, `load_annotation_history`, `latest_annotation` in `src/evaluation/generation/review/annotations.py`
+- [X] T015 [US2] Implement `review annotate` command in `src/cli/commands/benchmark_dataset.py` with `--failure-class`, `--corpus-spot-check`, `--proposed-overrides-file`, `--reviewer-id`
 
 **Checkpoint**: `uv run agent-query benchmark-dataset review annotate --help` shows required flags; annotations append without mutating `items/dev.jsonl`
 
@@ -103,14 +103,14 @@ description: "Task list for evaluation dataset quality improvement and managemen
 
 ### Tests for User Story 3
 
-- [ ] T016 [P] [US3] Add unit tests `tests/unit/test_review_overrides.py` for patch merge, parent item hash, and gate failure rollback
+- [X] T016 [P] [US3] Add unit tests `tests/unit/test_review_overrides.py` for patch merge, parent item hash, and gate failure rollback
 
 ### Implementation for User Story 3
 
-- [ ] T017 [US3] Implement `apply_overrides` and `write_override_changelog` in `src/evaluation/generation/review/overrides.py` integrating `validate_item` and `validate_bundle_feasibility`
-- [ ] T018 [US3] Implement `review apply-overrides` command in `src/cli/commands/benchmark_dataset.py` with `--annotation-ids`, `--dry-run`, `--skip-failed`
-- [ ] T019 [US3] Extend `publish_draft` in `src/evaluation/generation/bundle.py` to support semver `2.0.1`, copy `annotations.jsonl` and `override_changelog.jsonl` to published bundle
-- [ ] T020 [US3] Add integration test `tests/integration/test_quality_apply_overrides.py` for extend→annotate→apply on fixture draft
+- [X] T017 [US3] Implement `apply_overrides` and `write_override_changelog` in `src/evaluation/generation/review/overrides.py` integrating `validate_item` and `validate_bundle_feasibility`
+- [X] T018 [US3] Implement `review apply-overrides` command in `src/cli/commands/benchmark_dataset.py` with `--annotation-ids`, `--dry-run`, `--skip-failed`
+- [X] T019 [US3] Extend `publish_draft` in `src/evaluation/generation/bundle.py` to support semver `2.0.1`, copy `annotations.jsonl` and `override_changelog.jsonl` to published bundle
+- [X] T020 [US3] Add integration test `tests/integration/test_quality_apply_overrides.py` for extend→annotate→apply on fixture draft
 
 **Checkpoint**: Apply 3 overrides on quality draft; `override_changelog.jsonl` has 3 rows; only patched item_ids differ from parent
 
@@ -124,16 +124,16 @@ description: "Task list for evaluation dataset quality improvement and managemen
 
 ### Tests for User Story 4
 
-- [ ] T021 [P] [US4] Add unit tests `tests/unit/test_diversity_governance.py` for issuer cap skip and duplicate feedback record shape
+- [X] T021 [P] [US4] Add unit tests `tests/unit/test_diversity_governance.py` for issuer cap skip and duplicate feedback record shape
 
 ### Implementation for User Story 4
 
-- [ ] T022 [US4] Extend `src/evaluation/generation/deduplicator.py` and `src/evaluation/generation/judge_generator.py` to append `duplicate_feedback.jsonl` on duplicate rejection per FR-007
-- [ ] T023 [US4] Add diversity governance fields to `GenerationConfig` / governance model in `src/models/benchmark_generation.py` and `configs/benchmarks/custom_judge_v2.yaml`
-- [ ] T024 [US4] Implement issuer cap and negative-example injection in `src/evaluation/generation/judge_generator.py` schedule loop per research R5
-- [ ] T025 [P] [US4] Implement `write_diversity_report` in `src/evaluation/generation/review/diversity.py` (or extend `bundle.py`) emitting `diversity_report.json`
-- [ ] T026 [US4] Implement `regenerate_item` in `src/evaluation/generation/review/regenerate_item.py` reusing `GeminiItemGenerator` with merged feedback constraints
-- [ ] T027 [US4] Implement `regenerate-item` command in `src/cli/commands/benchmark_dataset.py` preserving `item_id` on success
+- [X] T022 [US4] Extend `src/evaluation/generation/deduplicator.py` and `src/evaluation/generation/judge_generator.py` to append `duplicate_feedback.jsonl` on duplicate rejection per FR-007
+- [X] T023 [US4] Add diversity governance fields to `GenerationConfig` / governance model in `src/models/benchmark_generation.py` and `configs/benchmarks/custom_judge_v2.yaml`
+- [X] T024 [US4] Implement issuer cap and negative-example injection in `src/evaluation/generation/judge_generator.py` schedule loop per research R5
+- [X] T025 [P] [US4] Implement `write_diversity_report` in `src/evaluation/generation/review/diversity.py` (or extend `bundle.py`) emitting `diversity_report.json`
+- [X] T026 [US4] Implement `regenerate_item` in `src/evaluation/generation/review/regenerate_item.py` reusing `GeminiItemGenerator` with merged feedback constraints
+- [X] T027 [US4] Implement `regenerate-item` command in `src/cli/commands/benchmark_dataset.py` preserving `item_id` on success
 
 **Checkpoint**: Pilot judge run produces `duplicate_feedback.jsonl` and `diversity_report.json`; duplicate rate computable vs v2.0.0 baseline
 
@@ -147,14 +147,14 @@ description: "Task list for evaluation dataset quality improvement and managemen
 
 ### Tests for User Story 5
 
-- [ ] T028 [P] [US5] Add unit tests `tests/unit/test_boilerplate_comparison.py` with reject/accept examples from contract
+- [X] T028 [P] [US5] Add unit tests `tests/unit/test_boilerplate_comparison.py` with reject/accept examples from contract
 
 ### Implementation for User Story 5
 
-- [ ] T029 [US5] Implement `is_boilerplate_comparison_answer` in `src/evaluation/generation/comparison_gt.py` per contract rules
-- [ ] T030 [US5] Extend `validate_comparison_structured` in `src/evaluation/generation/comparison_gt.py` to emit `boilerplate_comparison_answer`
-- [ ] T031 [US5] Extend `write_scorability_report` in `src/evaluation/generation/bundle.py` with `boilerplate_comparison_count` and `borderline_comparison_item_ids`
-- [ ] T032 [US5] Update `configs/benchmarks/inspiration_profiles/finagentbench.yaml` prompt to require substantive compared conclusion in canonical answer
+- [X] T029 [US5] Implement `is_boilerplate_comparison_answer` in `src/evaluation/generation/comparison_gt.py` per contract rules
+- [X] T030 [US5] Extend `validate_comparison_structured` in `src/evaluation/generation/comparison_gt.py` to emit `boilerplate_comparison_answer`
+- [X] T031 [US5] Extend `write_scorability_report` in `src/evaluation/generation/bundle.py` with `boilerplate_comparison_count` and `borderline_comparison_item_ids`
+- [X] T032 [US5] Update `configs/benchmarks/inspiration_profiles/finagentbench.yaml` prompt to require substantive compared conclusion in canonical answer
 
 **Checkpoint**: `uv run pytest tests/unit/test_boilerplate_comparison.py -q` passes; scorability report blocks publish when boilerplate count > 0
 
@@ -168,15 +168,15 @@ description: "Task list for evaluation dataset quality improvement and managemen
 
 ### Tests for User Story 6
 
-- [ ] T033 [P] [US6] Add unit tests `tests/unit/test_quality_summary.py` for dataset-caused zero-score rate and rejudge delta aggregation
+- [X] T033 [P] [US6] Add unit tests `tests/unit/test_quality_summary.py` for dataset-caused zero-score rate and rejudge delta aggregation
 
 ### Implementation for User Story 6
 
-- [ ] T034 [US6] Extend `run_judge_batch` in `src/evaluation/reproduction/judge_batch.py` to load ground truth from `--bundle-override` path by `item_id`
-- [ ] T035 [US6] Add `--bundle-override` and `--item-ids-file` flags to `judge-batch` in `src/cli/commands/repro.py`
-- [ ] T036 [US6] Implement `build_quality_pass_summary` in `src/evaluation/generation/review/quality_summary.py`
-- [ ] T037 [US6] Implement `review summary` command in `src/cli/commands/benchmark_dataset.py` writing `quality_pass_summary.json`
-- [ ] T038 [P] [US6] Add integration test `tests/integration/test_selective_rejudge.py` comparing pre/post VA on fixture fixed items
+- [X] T034 [US6] Extend `run_judge_batch` in `src/evaluation/reproduction/judge_batch.py` to load ground truth from `--bundle-override` path by `item_id`
+- [X] T035 [US6] Add `--bundle-override` and `--item-ids-file` flags to `judge-batch` in `src/cli/commands/repro.py`
+- [X] T036 [US6] Implement `build_quality_pass_summary` in `src/evaluation/generation/review/quality_summary.py`
+- [X] T037 [US6] Implement `review summary` command in `src/cli/commands/benchmark_dataset.py` writing `quality_pass_summary.json`
+- [X] T038 [P] [US6] Add integration test `tests/integration/test_selective_rejudge.py` comparing pre/post VA on fixture fixed items
 
 **Checkpoint**: Selective re-judge on 10-item fixture shows `rejudge_improved_rate` in summary JSON
 
@@ -190,13 +190,13 @@ description: "Task list for evaluation dataset quality improvement and managemen
 
 ### Tests for User Story 7
 
-- [ ] T039 [P] [US7] Add unit tests `tests/unit/test_review_pack.py` for CSV/HTML row parity and required columns
+- [X] T039 [P] [US7] Add unit tests `tests/unit/test_review_pack.py` for CSV/HTML row parity and required columns
 
 ### Implementation for User Story 7
 
-- [ ] T040 [US7] Implement `build_review_pack_rows` and corpus section excerpt resolver in `src/evaluation/generation/review/review_pack.py`
-- [ ] T041 [P] [US7] Reuse HTML panel styling from `src/evaluation/reproduction/report_render.py` for `review_pack.html` template
-- [ ] T042 [US7] Implement `review export-pack` command in `src/cli/commands/benchmark_dataset.py` with `--item-ids-file`, `--max-items`, `--repro-input`, `--output-dir`
+- [X] T040 [US7] Implement `build_review_pack_rows` and corpus section excerpt resolver in `src/evaluation/generation/review/review_pack.py`
+- [X] T041 [P] [US7] Reuse HTML panel styling from `src/evaluation/reproduction/report_render.py` for `review_pack.html` template
+- [X] T042 [US7] Implement `review export-pack` command in `src/cli/commands/benchmark_dataset.py` with `--item-ids-file`, `--max-items`, `--repro-input`, `--output-dir`
 
 **Checkpoint**: Open `review_pack.html` in browser; CSV row count matches HTML item sections
 
@@ -206,12 +206,12 @@ description: "Task list for evaluation dataset quality improvement and managemen
 
 **Purpose**: paper-v1.1 release, docs, end-to-end quality pass validation
 
-- [ ] T043 Add `releases/paper-v1.1/manifest.yaml` template per `specs/018-eval-dataset-quality/contracts/paper-v1.1-release.md` with `parent_release: paper-v1.0` and `custom_judge_version: 2.0.1`
-- [ ] T044 [P] Update `docs/custom-judge-dataset-generation.md` with quality-pass workflow section linking `specs/018-eval-dataset-quality/quickstart.md`
-- [ ] T045 [P] Add `specs/018-eval-dataset-quality/checklists/quality-pass.md` operator checklist mirroring quickstart Phases 1–7
-- [ ] T046 Add end-to-end smoke test `tests/integration/test_quality_pass_smoke.py` using fixtures: queue→annotate→apply dry-run on 3 items
-- [ ] T047 Run `specs/018-eval-dataset-quality/quickstart.md` Phase 1–5 against local v2.0.0 + repro-paper-v1.0; record tier-1 count and quality summary targets in checklist notes
-- [ ] T048 [P] Verify `data/benchmarks/custom-judge/v2.0.0/` unchanged after quality draft publish dry-run (`git diff` empty on v2.0.0)
+- [X] T043 Add `releases/paper-v1.1/manifest.yaml` template per `specs/018-eval-dataset-quality/contracts/paper-v1.1-release.md` with `parent_release: paper-v1.0` and `custom_judge_version: 2.0.1`
+- [X] T044 [P] Update `docs/custom-judge-dataset-generation.md` with quality-pass workflow section linking `specs/018-eval-dataset-quality/quickstart.md`
+- [X] T045 [P] Add `specs/018-eval-dataset-quality/checklists/quality-pass.md` operator checklist mirroring quickstart Phases 1–7
+- [X] T046 Add end-to-end smoke test `tests/integration/test_quality_pass_smoke.py` using fixtures: queue→annotate→apply dry-run on 3 items
+- [X] T047 Run `specs/018-eval-dataset-quality/quickstart.md` Phase 1–5 against local v2.0.0 + repro-paper-v1.0; record tier-1 count and quality summary targets in checklist notes
+- [X] T048 [P] Verify `data/benchmarks/custom-judge/v2.0.0/` unchanged after quality draft publish dry-run (`git diff` empty on v2.0.0)
 
 ---
 

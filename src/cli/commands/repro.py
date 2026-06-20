@@ -130,6 +130,16 @@ def judge_batch_cmd(
     concurrency: int = typer.Option(2, "--concurrency"),
     max_items: int | None = typer.Option(None, "--max-items"),
     force_rescore: bool = typer.Option(False, "--force-rescore", help="Re-judge all items"),
+    bundle_override: Path | None = typer.Option(
+        None,
+        "--bundle-override",
+        help="Load ground truth from draft/published bundle by item_id",
+    ),
+    item_ids_file: Path | None = typer.Option(
+        None,
+        "--item-ids-file",
+        help="JSON file with item_ids[] to limit re-judge scope",
+    ),
     quiet: bool = typer.Option(False, "--quiet", help="Suppress per-item progress lines"),
 ) -> None:
     """Run deferred judge batch on pending items in results.json."""
@@ -146,6 +156,7 @@ def judge_batch_cmd(
         f"Judge batch: input={input_dir} manifest={manifest.name} "
         f"release={rel.release_tag} split={rel.eval_split}"
     )
+    item_ids = set(_load_item_ids_file(item_ids_file)) if item_ids_file else None
     stats = run_judge_batch(
         input_dir,
         bundle_root=bundle,
@@ -156,6 +167,8 @@ def judge_batch_cmd(
         force_rescore=force_rescore,
         variant_id=variant or None,
         progress=_progress,
+        bundle_override=bundle_override,
+        item_ids=item_ids,
     )
     typer.echo(f"Judge batch summary: {stats}")
 

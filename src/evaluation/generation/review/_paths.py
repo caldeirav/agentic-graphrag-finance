@@ -1,0 +1,18 @@
+"""Bundle path helpers for dataset quality review (018)."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+
+def resolve_draft_bundle(path: Path) -> Path:
+    """Validate bundle root contains a dev split and return resolved path."""
+    root = path.expanduser().resolve()
+    if not root.is_dir():
+        msg = f"Bundle root is not a directory: {root}"
+        raise FileNotFoundError(msg)
+    items_path = root / "items" / "dev.jsonl"
+    if not items_path.is_file():
+        msg = f"Missing dev split at {items_path}"
+        raise FileNotFoundError(msg)
+    return root

@@ -28,13 +28,34 @@ from evaluation.generation.sampler import (
     run_sampling,
     sampling_manifest_hash,
 )
-from models.benchmark_generation import DatasetManifest, SamplingManifest
+from evaluation.generation.review.annotations import append_annotation
+from evaluation.generation.review.overrides import apply_overrides
+from evaluation.generation.review.quality_summary import build_quality_pass_summary, write_quality_pass_summary
+from evaluation.generation.review.queue import build_review_queue, write_review_queue
+from evaluation.generation.review.regenerate_item import regenerate_item
+from evaluation.generation.review.review_pack import write_review_pack
+from evaluation.generation.review._paths import resolve_draft_bundle
+from models.benchmark_generation import (
+    CorpusSpotCheckStatus,
+    DatasetManifest,
+    FailureClass,
+    ProposedOverrides,
+    ReproContextSnapshot,
+    SamplingManifest,
+)
 
 app = typer.Typer(
     name="benchmark-dataset",
     help="Generate, publish, and reproduce custom-judge evaluation datasets",
     no_args_is_help=True,
 )
+
+review_app = typer.Typer(
+    name="review",
+    help="Human-in-the-loop dataset quality review (018)",
+    no_args_is_help=True,
+)
+app.add_typer(review_app, name="review")
 
 CI_CONFIG_ID = "custom_judge_ci"
 LIVE_CONFIG_ID = "custom_judge_live"
@@ -456,3 +477,195 @@ def extend(
     draft_data["status"] = "draft"
     draft_manifest_path.write_text(json.dumps(draft_data, indent=2) + "\n")
     typer.echo(f"Extend draft prepared at {draft} from parent v{parent_version}")
+
+
+@review_app.command("export-queue")
+def review_export_queue(
+    draft: Path = typer.Option(..., "--draft", exists=True, file_okay=False, dir_okay=True),
+    repro_input: Path | None = typer.Option(None, "--repro-input", exists=True, file_okay=False, dir_okay=True),
+    variant: str = typer.Option("graph-full", "--variant"),
+    output: Path = typer.Option(Path("review_queue"), "--output"),
+    tier: int | None = typer.Option(None, "--tier"),
+    exclude_annotated: str | None = typer.Option(None, "--exclude-annotated"),
+    max_items: int | None = typer.Option(None, "--max-items"),
+) -> None:
+    """Export prioritized review queue from repro results and dev split."""
+    if repro_input is None:
+        typer.echo("Warning: --repro-input omitted; all items assigned tier 3", err=True)
+    exclude = {exclude_annotated} if exclude_annotated else None
+    entries = build_review_queue(
+        draft,
+        repro_input=repro_input,
+        variant=variant,
+        tier_filter=tier,
+        exclude_failure_classes=exclude,
+        max_items=max_items,
+    )
+    out_base = output if output.is_absolute() else draft / output
+    json_path, csv_path = write_review_queue(
+        draft,
+        entries,
+        out_base,
+        repro_input=repro_input,
+        variant=variant,
+    )
+    typer.echo(f"Review queue: {len(entries)} entries -> {json_path}, {csv_path}")
+
+
+@review_app.command("export-pack")
+def review_export_pack(
+    draft: Path = typer.Option(..., "--draft", exists=True, file_okay=False, dir_okay=True),
+    item_ids: str | None = typer.Option(None, "--item-ids"),
+    item_ids_file: Path | None = typer.Option(None, "--item-ids-file", exists=True),
+    repro_input: Path | None = typer.Option(None, "--repro-input", exists=True, file_okay=False, dir_okay=True),
+    output_dir: Path | None = typer.Option(None, "--output-dir"),
+    variant: str = typer.Option("graph-full", "--variant"),
+    max_items: int | None = typer.Option(None, "--max-items"),
+) -> None:
+    """Export HTML + CSV review pack for a subset of dev items."""
+    ids: list[str] = []
+    if item_ids:
+        ids = [part.strip() for part in item_ids.split(",") if part.strip()]
+    elif item_ids_file:
+        payload = json.loads(item_ids_file.read_text(encoding="utf-8"))
+        if isinstance(payload, list):
+            ids = [str(i) for i in payload]
+        else:
+            ids = [str(i) for i in payload.get("item_ids", [])]
+    else:
+        raise typer.BadParameter("Provide --item-ids or --item-ids-file")
+    if max_items:
+        ids = ids[:max_items]
+    dest = output_dir or draft / "review"
+    html_path, csv_path = write_review_pack(
+        draft,
+        ids,
+        dest,
+        repro_input=repro_input,
+        variant=variant,
+    )
+    typer.echo(f"Review pack -> {html_path}, {csv_path}")
+
+
+@review_app.command("annotate")
+def review_annotate(
+    draft: Path = typer.Option(..., "--draft", exists=True, file_okay=False, dir_okay=True),
+    item_id: str = typer.Option(..., "--item-id"),
+    failure_class: FailureClass = typer.Option(..., "--failure-class"),
+    reviewer_id: str = typer.Option(..., "--reviewer-id"),
+    notes: str = typer.Option("", "--notes"),
+    corpus_spot_check: CorpusSpotCheckStatus = typer.Option(
+        CorpusSpotCheckStatus.PENDING,
+        "--corpus-spot-check",
+    ),
+    proposed_overrides_file: Path | None = typer.Option(None, "--proposed-overrides-file", exists=True),
+) -> None:
+    """Append one annotation record to annotations.jsonl."""
+    resolve_draft_bundle(draft)
+    overrides: ProposedOverrides | None = None
+    if proposed_overrides_file:
+        overrides = ProposedOverrides.model_validate(
+            json.loads(proposed_overrides_file.read_text(encoding="utf-8"))
+        )
+    record = append_annotation(
+        draft,
+        item_id=item_id,
+        reviewer_id=reviewer_id,
+        failure_class=failure_class,
+        notes=notes,
+        corpus_spot_check=corpus_spot_check,
+        proposed_overrides=overrides,
+    )
+    typer.echo(f"Annotation appended: {record.annotation_id} for {item_id}")
+
+
+@review_app.command("apply-overrides")
+def review_apply_overrides(
+    draft: Path = typer.Option(..., "--draft", exists=True, file_okay=False, dir_okay=True),
+    annotation_ids: str | None = typer.Option(None, "--annotation-ids"),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+    skip_failed: bool = typer.Option(False, "--skip-failed"),
+    force: bool = typer.Option(False, "--force", help="Allow agent_failure overrides"),
+) -> None:
+    """Merge approved annotations into items/dev.jsonl."""
+    ids = None
+    if annotation_ids:
+        ids = {part.strip() for part in annotation_ids.split(",") if part.strip()}
+    changelog = apply_overrides(
+        draft,
+        annotation_ids=ids,
+        dry_run=dry_run,
+        skip_failed=skip_failed,
+        force_agent_failure=force,
+    )
+    accepted = sum(1 for entry in changelog if entry.validation_outcome == "accepted")
+    rejected = sum(1 for entry in changelog if entry.validation_outcome == "rejected")
+    typer.echo(f"Apply overrides: accepted={accepted} rejected={rejected} dry_run={dry_run}")
+    if rejected and not skip_failed and not dry_run:
+        raise typer.Exit(code=1)
+
+
+@review_app.command("summary")
+def review_summary(
+    draft: Path = typer.Option(..., "--draft", exists=True, file_okay=False, dir_okay=True),
+    repro_input: Path | None = typer.Option(None, "--repro-input", exists=True, file_okay=False, dir_okay=True),
+    baseline_repro_input: Path | None = typer.Option(
+        None,
+        "--baseline-repro-input",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+    ),
+    variant: str = typer.Option("graph-full", "--variant"),
+) -> None:
+    """Emit quality_pass_summary.json from annotations and optional re-judge stats."""
+    summary = build_quality_pass_summary(
+        draft,
+        repro_input=repro_input,
+        baseline_repro_input=baseline_repro_input,
+        variant=variant,
+    )
+    path = write_quality_pass_summary(draft, summary)
+    typer.echo(f"Quality pass summary -> {path}")
+
+
+@app.command("regenerate-item")
+def regenerate_item_cmd(
+    draft: Path = typer.Option(..., "--draft", exists=True, file_okay=False, dir_okay=True),
+    item_id: str = typer.Option(..., "--item-id"),
+    feedback_file: Path | None = typer.Option(None, "--feedback-file", exists=True),
+    dry_run: bool = typer.Option(False, "--dry-run"),
+) -> None:
+    """Regenerate a single dev item via Gemini while preserving item_id."""
+    feedback = feedback_file.read_text(encoding="utf-8") if feedback_file else ""
+    item = regenerate_item(
+        draft,
+        item_id=item_id,
+        feedback=feedback,
+        repo_root=REPO_ROOT,
+        dry_run=dry_run,
+    )
+    typer.echo(f"Regenerated {item.item_id} status={item.validation_status} dry_run={dry_run}")
+
+
+@app.command("extend-quality")
+def extend_quality(
+    parent_version: str = typer.Option("2.0.0", "--parent-version"),
+    config: Path = typer.Option(
+        Path("configs/benchmarks/custom_judge_v2_quality.yaml"),
+        "--config",
+        "-c",
+        exists=True,
+        readable=True,
+    ),
+    run_id: str | None = typer.Option("quality-v2.0.1", "--run-id"),
+) -> None:
+    """Extend v2.0.0 into a quality draft with review sidecar files initialized."""
+    extend(parent_version=parent_version, config=config, run_id=run_id)
+    cfg = load_generation_config(config, base=REPO_ROOT)
+    draft = Path(cfg.output.drafts_root) / (run_id or "quality-v2.0.1")
+    for name in ("annotations.jsonl", "override_changelog.jsonl", "duplicate_feedback.jsonl"):
+        path = draft / name
+        if not path.exists():
+            path.touch()
+    typer.echo(f"Quality draft sidecars initialized at {draft}")
