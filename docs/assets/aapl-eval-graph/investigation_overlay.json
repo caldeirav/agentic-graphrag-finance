@@ -1,7 +1,19 @@
 [
   {
     "scenario_id": "0.0.0-financebench-001",
-    "label": "FinanceBench \u2014 numeric lookup",
+    "question_type_tag": "metrics-generated",
+    "expected_answer": "391035",
+    "expected_rubric": null,
+    "expected_bindings": {
+      "accessions": [
+        "0000320193-24-000123"
+      ],
+      "fiscal_periods": [
+        "FY2024"
+      ]
+    },
+    "multi_filing_required": false,
+    "validation_status": "accepted",
     "inspiration_profile": "financebench",
     "question": "What was total net sales in the most recent fiscal year?",
     "expected_section_paths": [
@@ -44,7 +56,19 @@
   },
   {
     "scenario_id": "0.0.0-finder-001",
-    "label": "FinDER \u2014 risk narrative",
+    "question_type_tag": "retrieval-qa",
+    "expected_answer": null,
+    "expected_rubric": "Answer cites Item 1A risk factors with supply chain language.",
+    "expected_bindings": {
+      "accessions": [
+        "0000320193-24-000123"
+      ],
+      "fiscal_periods": [
+        "FY2024"
+      ]
+    },
+    "multi_filing_required": false,
+    "validation_status": "accepted",
     "inspiration_profile": "finder",
     "question": "What risk factors does the company highlight for supply chain?",
     "expected_section_paths": [
@@ -83,7 +107,21 @@
   },
   {
     "scenario_id": "0.0.0-finagentbench-001",
-    "label": "FinAgentBench \u2014 comparison (success)",
+    "question_type_tag": "agentic-multi-hop",
+    "expected_answer": "See both Item 7 MD&A sections.",
+    "expected_rubric": null,
+    "expected_bindings": {
+      "accessions": [
+        "0000320193-24-000123",
+        "0000320193-24-000076"
+      ],
+      "fiscal_periods": [
+        "FY2024",
+        "FY2023"
+      ]
+    },
+    "multi_filing_required": true,
+    "validation_status": "accepted",
     "inspiration_profile": "finagentbench",
     "question": "Compare net sales discussion across the two most recent 10-K filings.",
     "expected_section_paths": [
@@ -137,8 +175,22 @@
   },
   {
     "scenario_id": "demo-binding-miss-019",
-    "label": "019 \u2014 binding miss (comparison)",
     "inspiration_profile": "investigation",
+    "question_type_tag": "agentic-multi-hop",
+    "expected_answer": "See both Item 7 MD&A sections.",
+    "expected_rubric": null,
+    "expected_bindings": {
+      "accessions": [
+        "0000320193-24-000123",
+        "0000320193-24-000076"
+      ],
+      "fiscal_periods": [
+        "FY2024",
+        "FY2023"
+      ]
+    },
+    "multi_filing_required": true,
+    "validation_status": "demo",
     "question": "Compare net sales discussion across the two most recent 10-K filings.",
     "expected_section_paths": [
       "0000320193-24-000123/Item7",

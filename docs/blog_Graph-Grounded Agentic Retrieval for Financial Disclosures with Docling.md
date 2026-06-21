@@ -91,9 +91,9 @@ Even though we build graphs deterministically from XBRL—not via docling-graph�
 
 **Note on filing dates:** The demo uses a **frozen benchmark corpus** (FY2024 and FY2023 Apple 10-K accessions) so evaluation runs stay reproducible—it is not a live “as of today” EDGAR snapshot. In mid-2026, Apple’s most recent annual filing is the **FY2025 10-K** (period ended September 27, 2025, filed October 31, 2025). A live `ask` run would macro-bind that filing; the graph here shows structure and routing on the pinned corpus used in our paper baseline.
 
-The interactive view includes an **investigation overlay (019)**: select a scenario to highlight expected section paths, agent-visited nodes, cited chunks, synthesis path, EDGAR links, and a binding-miss example (`binding_error`). **Click chunk nodes** to open the full materialized payload in a side panel; **click document nodes** to open the filing on EDGAR in a new tab.
+The interactive view includes an **investigation overlay (019)**: select an evaluation item by **item id** to see the benchmark question, expected answer, and graph-path highlights. **Click document or chunk nodes** to open materialized node details in the right panel (documents include a clickable EDGAR URL).
 
-**[Open the interactive graph →](https://caldeirav.github.io/agentic-graphrag-finance/assets/aapl-eval-graph/visualization.html?v=4)**
+**[Open the interactive graph →](https://caldeirav.github.io/agentic-graphrag-finance/assets/aapl-eval-graph/visualization.html?v=5)**
 
 For a full materialize → ask walkthrough with traces and judge output, see the [end-to-end guide on GitHub](https://github.com/caldeirav/agentic-graphrag-finance/blob/main/docs/end-to-end-walkthrough.md).
 

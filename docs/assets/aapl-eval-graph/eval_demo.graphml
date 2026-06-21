@@ -3,14 +3,14 @@
 <key id="d18" for="edge" attr.name="label" attr.type="string"/>
 <key id="d17" for="edge" attr.name="edge_type" attr.type="string"/>
 <key id="d16" for="node" attr.name="prop_sec_source" attr.type="string"/>
-<key id="d15" for="node" attr.name="materialized_json" attr.type="string"/>
-<key id="d14" for="node" attr.name="prop_numeric_value" attr.type="string"/>
-<key id="d13" for="node" attr.name="prop_unit" attr.type="string"/>
-<key id="d12" for="node" attr.name="prop_currency" attr.type="string"/>
-<key id="d11" for="node" attr.name="prop_period" attr.type="string"/>
-<key id="d10" for="node" attr.name="prop_xbrl_concept" attr.type="string"/>
-<key id="d9" for="node" attr.name="prop_text" attr.type="string"/>
-<key id="d8" for="node" attr.name="section_path" attr.type="string"/>
+<key id="d15" for="node" attr.name="prop_numeric_value" attr.type="string"/>
+<key id="d14" for="node" attr.name="prop_unit" attr.type="string"/>
+<key id="d13" for="node" attr.name="prop_currency" attr.type="string"/>
+<key id="d12" for="node" attr.name="prop_period" attr.type="string"/>
+<key id="d11" for="node" attr.name="prop_xbrl_concept" attr.type="string"/>
+<key id="d10" for="node" attr.name="prop_text" attr.type="string"/>
+<key id="d9" for="node" attr.name="section_path" attr.type="string"/>
+<key id="d8" for="node" attr.name="materialized_json" attr.type="string"/>
 <key id="d7" for="node" attr.name="eval_profiles" attr.type="string"/>
 <key id="d6" for="node" attr.name="edgar_url" attr.type="string"/>
 <key id="d5" for="node" attr.name="period_end" attr.type="string"/>
@@ -29,6 +29,18 @@
   <data key="d5">2024-09-28</data>
   <data key="d6">https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.htm</data>
   <data key="d7">financebench,finder,finagentbench</data>
+  <data key="d8">{
+  "node_id": "doc-0000320193-24-000123",
+  "node_type": "DOCUMENT",
+  "label": "Apple 10-K FY2024",
+  "properties": {
+    "accession": "0000320193-24-000123",
+    "form_type": "10-K",
+    "period_end": "2024-09-28",
+    "cik": "320193"
+  },
+  "edgar_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.htm"
+}</data>
 </node>
 <node id="doc-0000320193-24-000076">
   <data key="d0">DOCUMENT</data>
@@ -40,13 +52,25 @@
   <data key="d5">2023-09-30</data>
   <data key="d6">https://www.sec.gov/Archives/edgar/data/320193/000032019324000076/0000320193-24-000076-index.htm</data>
   <data key="d7">finagentbench</data>
+  <data key="d8">{
+  "node_id": "doc-0000320193-24-000076",
+  "node_type": "DOCUMENT",
+  "label": "Apple 10-K FY2023",
+  "properties": {
+    "accession": "0000320193-24-000076",
+    "form_type": "10-K",
+    "period_end": "2023-09-30",
+    "cik": "320193"
+  },
+  "edgar_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000076/0000320193-24-000076-index.htm"
+}</data>
 </node>
 <node id="0000320193-24-000123/Item7">
   <data key="d0">SECTION</data>
   <data key="d1">Item 7 MD&amp;A</data>
   <data key="d2">Item 7
 MD&amp;A</data>
-  <data key="d8">0000320193-24-000123/Item7</data>
+  <data key="d9">0000320193-24-000123/Item7</data>
   <data key="d7">financebench,finagentbench</data>
 </node>
 <node id="0000320193-24-000123/Item1A">
@@ -54,7 +78,7 @@ MD&amp;A</data>
   <data key="d1">Item 1A Risk Factors</data>
   <data key="d2">Item 1A
 Risk Factors</data>
-  <data key="d8">0000320193-24-000123/Item1A</data>
+  <data key="d9">0000320193-24-000123/Item1A</data>
   <data key="d7">finder</data>
 </node>
 <node id="0000320193-24-000076/Item7">
@@ -62,7 +86,7 @@ Risk Factors</data>
   <data key="d1">Item 7 MD&amp;A (prior year)</data>
   <data key="d2">Item 7
 MD&amp;A (prior)</data>
-  <data key="d8">0000320193-24-000076/Item7</data>
+  <data key="d9">0000320193-24-000076/Item7</data>
   <data key="d7">finagentbench</data>
 </node>
 <node id="chunk-xbrl-net-sales-fy2024">
@@ -70,14 +94,14 @@ MD&amp;A (prior)</data>
   <data key="d1">Net sales (XBRL fact)</data>
   <data key="d2">Net sales
 (XBRL)</data>
-  <data key="d9">391,035 (USD millions, FY2024)</data>
-  <data key="d10">RevenueFromContractWithCustomerExcludingAssessedTax</data>
-  <data key="d11">FY2024</data>
-  <data key="d12">USD</data>
-  <data key="d13">millions</data>
-  <data key="d14">391035</data>
+  <data key="d10">391,035 (USD millions, FY2024)</data>
+  <data key="d11">RevenueFromContractWithCustomerExcludingAssessedTax</data>
+  <data key="d12">FY2024</data>
+  <data key="d13">USD</data>
+  <data key="d14">millions</data>
+  <data key="d15">391035</data>
   <data key="d7">financebench</data>
-  <data key="d15">{
+  <data key="d8">{
   "node_id": "chunk-xbrl-net-sales-fy2024",
   "node_type": "CHUNK_XBRL_FACT",
   "label": "Net sales (XBRL fact)",
@@ -103,10 +127,10 @@ MD&amp;A (prior)</data>
   <data key="d1">Net sales narrative</data>
   <data key="d2">Net sales
 narrative</data>
-  <data key="d9">Net sales were $391.0 billion in fiscal 2024, an increase of 2% compared to fiscal 2023. The increase was driven primarily by higher net sales of iPhone and Services.</data>
+  <data key="d10">Net sales were $391.0 billion in fiscal 2024, an increase of 2% compared to fiscal 2023. The increase was driven primarily by higher net sales of iPhone and Services.</data>
   <data key="d16">XBRL</data>
   <data key="d7">financebench,finagentbench</data>
-  <data key="d15">{
+  <data key="d8">{
   "node_id": "chunk-item7-p1",
   "node_type": "CHUNK_PARAGRAPH",
   "label": "Net sales narrative",
@@ -129,10 +153,10 @@ narrative</data>
   <data key="d1">Supply chain risks</data>
   <data key="d2">Supply chain
 risks</data>
-  <data key="d9">The Company depends on single or limited sources for many components. Supply chain disruptions, including those arising from geopolitical events, could materially adversely affect the Company's business.</data>
+  <data key="d10">The Company depends on single or limited sources for many components. Supply chain disruptions, including those arising from geopolitical events, could materially adversely affect the Company's business.</data>
   <data key="d16">HTML</data>
   <data key="d7">finder</data>
-  <data key="d15">{
+  <data key="d8">{
   "node_id": "chunk-item1a-p1",
   "node_type": "CHUNK_PARAGRAPH",
   "label": "Supply chain risks",
@@ -155,10 +179,10 @@ risks</data>
   <data key="d1">Prior-year net sales</data>
   <data key="d2">Prior-year
 net sales</data>
-  <data key="d9">Net sales were $383.3 billion in fiscal 2023, a decrease of 3% compared to fiscal 2022, reflecting lower net sales of Products.</data>
+  <data key="d10">Net sales were $383.3 billion in fiscal 2023, a decrease of 3% compared to fiscal 2022, reflecting lower net sales of Products.</data>
   <data key="d16">XBRL</data>
   <data key="d7">finagentbench</data>
-  <data key="d15">{
+  <data key="d8">{
   "node_id": "chunk-item7-old-p1",
   "node_type": "CHUNK_PARAGRAPH",
   "label": "Prior-year net sales",

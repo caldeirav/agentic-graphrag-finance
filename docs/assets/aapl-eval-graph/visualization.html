@@ -182,13 +182,13 @@
   <div id="layout">
     <aside id="sidebar">
       <h1>Investigation overlay (019)</h1>
-      <p>Select a scenario to highlight paths. Click <strong>documents</strong> for EDGAR or <strong>chunk nodes</strong> for materialized payload.</p>
+      <p>Select an evaluation item by id to highlight graph paths. Click <strong>document</strong> or <strong>chunk</strong> nodes for details in the right panel.</p>
       <div id="scenario-buttons"></div>
       <div id="investigation-panel"></div>
     </aside>
     <div id="main">
       <header>
-        <p>Apple (AAPL) disclosure graph — hover for preview · click chunks for detail · click documents for EDGAR</p>
+        <p>Apple (AAPL) disclosure graph — hover for preview · click documents or chunks for the detail panel</p>
       </header>
       <div id="cy-wrap">
         <div id="legend">
@@ -236,7 +236,8 @@
         "form_type": "10-K",
         "period_end": "2024-09-28",
         "edgar_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.htm",
-        "eval_profiles": "financebench,finder,finagentbench"
+        "eval_profiles": "financebench,finder,finagentbench",
+        "materialized_json": "{\n  \"node_id\": \"doc-0000320193-24-000123\",\n  \"node_type\": \"DOCUMENT\",\n  \"label\": \"Apple 10-K FY2024\",\n  \"properties\": {\n    \"accession\": \"0000320193-24-000123\",\n    \"form_type\": \"10-K\",\n    \"period_end\": \"2024-09-28\",\n    \"cik\": \"320193\"\n  },\n  \"edgar_url\": \"https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.htm\"\n}"
       }
     },
     {
@@ -249,7 +250,8 @@
         "form_type": "10-K",
         "period_end": "2023-09-30",
         "edgar_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000076/0000320193-24-000076-index.htm",
-        "eval_profiles": "finagentbench"
+        "eval_profiles": "finagentbench",
+        "materialized_json": "{\n  \"node_id\": \"doc-0000320193-24-000076\",\n  \"node_type\": \"DOCUMENT\",\n  \"label\": \"Apple 10-K FY2023\",\n  \"properties\": {\n    \"accession\": \"0000320193-24-000076\",\n    \"form_type\": \"10-K\",\n    \"period_end\": \"2023-09-30\",\n    \"cik\": \"320193\"\n  },\n  \"edgar_url\": \"https://www.sec.gov/Archives/edgar/data/320193/000032019324000076/0000320193-24-000076-index.htm\"\n}"
       }
     },
     {
@@ -441,7 +443,19 @@
     const investigationScenarios = [
   {
     "scenario_id": "0.0.0-financebench-001",
-    "label": "FinanceBench — numeric lookup",
+    "question_type_tag": "metrics-generated",
+    "expected_answer": "391035",
+    "expected_rubric": null,
+    "expected_bindings": {
+      "accessions": [
+        "0000320193-24-000123"
+      ],
+      "fiscal_periods": [
+        "FY2024"
+      ]
+    },
+    "multi_filing_required": false,
+    "validation_status": "accepted",
     "inspiration_profile": "financebench",
     "question": "What was total net sales in the most recent fiscal year?",
     "expected_section_paths": [
@@ -484,7 +498,19 @@
   },
   {
     "scenario_id": "0.0.0-finder-001",
-    "label": "FinDER — risk narrative",
+    "question_type_tag": "retrieval-qa",
+    "expected_answer": null,
+    "expected_rubric": "Answer cites Item 1A risk factors with supply chain language.",
+    "expected_bindings": {
+      "accessions": [
+        "0000320193-24-000123"
+      ],
+      "fiscal_periods": [
+        "FY2024"
+      ]
+    },
+    "multi_filing_required": false,
+    "validation_status": "accepted",
     "inspiration_profile": "finder",
     "question": "What risk factors does the company highlight for supply chain?",
     "expected_section_paths": [
@@ -523,7 +549,21 @@
   },
   {
     "scenario_id": "0.0.0-finagentbench-001",
-    "label": "FinAgentBench — comparison (success)",
+    "question_type_tag": "agentic-multi-hop",
+    "expected_answer": "See both Item 7 MD&A sections.",
+    "expected_rubric": null,
+    "expected_bindings": {
+      "accessions": [
+        "0000320193-24-000123",
+        "0000320193-24-000076"
+      ],
+      "fiscal_periods": [
+        "FY2024",
+        "FY2023"
+      ]
+    },
+    "multi_filing_required": true,
+    "validation_status": "accepted",
     "inspiration_profile": "finagentbench",
     "question": "Compare net sales discussion across the two most recent 10-K filings.",
     "expected_section_paths": [
@@ -577,8 +617,22 @@
   },
   {
     "scenario_id": "demo-binding-miss-019",
-    "label": "019 — binding miss (comparison)",
     "inspiration_profile": "investigation",
+    "question_type_tag": "agentic-multi-hop",
+    "expected_answer": "See both Item 7 MD&A sections.",
+    "expected_rubric": null,
+    "expected_bindings": {
+      "accessions": [
+        "0000320193-24-000123",
+        "0000320193-24-000076"
+      ],
+      "fiscal_periods": [
+        "FY2024",
+        "FY2023"
+      ]
+    },
+    "multi_filing_required": true,
+    "validation_status": "demo",
     "question": "Compare net sales discussion across the two most recent 10-K filings.",
     "expected_section_paths": [
       "0000320193-24-000123/Item7",
@@ -753,6 +807,25 @@
         .replace(/"/g, '&quot;');
     }
 
+    function renderDocumentView(payload) {
+      const props = payload.properties || {};
+      const url = payload.edgar_url || '';
+      const propRows = Object.entries(props).map(
+        ([key, value]) => `<dt>${escapeHtml(key)}</dt><dd>${escapeHtml(value)}</dd>`
+      ).join('');
+      const edgarRow = url
+        ? `<dt>EDGAR filing</dt><dd><a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a></dd>`
+        : '';
+      return `
+        <dl>
+          <dt>node_id</dt><dd><code>${escapeHtml(payload.node_id || '')}</code></dd>
+          <dt>node_type</dt><dd><code>${escapeHtml(payload.node_type || '')}</code></dd>
+          <dt>label</dt><dd>${escapeHtml(payload.label || '')}</dd>
+        </dl>
+        <h3 style="font-size:0.78rem;margin:0.75rem 0 0.25rem">properties</h3>
+        <dl>${propRows || '<dd><em>none</em></dd>'}${edgarRow}</dl>`;
+    }
+
     function renderMaterializedView(payload) {
       const props = payload.properties || {};
       const bindings = payload.bindings || {};
@@ -776,18 +849,45 @@
         <dl>${bindingRows || '<dd><em>none</em></dd>'}</dl>`;
     }
 
-    function showDetailPanel(nodeData) {
-      const raw = nodeData.materialized_json || '{}';
-      let payload;
-      try {
-        payload = JSON.parse(raw);
-      } catch (err) {
-        payload = { node_id: nodeData.id, parse_error: String(err), raw };
+    function parseNodePayload(nodeData) {
+      const raw = nodeData.materialized_json;
+      if (raw) {
+        try {
+          return { payload: JSON.parse(raw), raw };
+        } catch (err) {
+          return {
+            payload: { node_id: nodeData.id, parse_error: String(err), raw },
+            raw,
+          };
+        }
       }
+      if (nodeData.node_type === 'DOCUMENT') {
+        const payload = {
+          node_id: nodeData.id,
+          node_type: 'DOCUMENT',
+          label: nodeData.label,
+          properties: {
+            accession: nodeData.accession,
+            form_type: nodeData.form_type,
+            period_end: nodeData.period_end,
+          },
+          edgar_url: nodeData.edgar_url,
+        };
+        return { payload, raw: JSON.stringify(payload, null, 2) };
+      }
+      return { payload: { node_id: nodeData.id }, raw: '{}' };
+    }
+
+    function showDetailPanel(nodeData) {
+      const { payload, raw } = parseNodePayload(nodeData);
       detailTitle.textContent = nodeData.label || nodeData.id;
       detailSubtitle.textContent = nodeData.node_type || '';
-      detailMaterialized.innerHTML = renderMaterializedView(payload);
-      detailJsonPre.textContent = typeof raw === 'string' ? raw : JSON.stringify(payload, null, 2);
+      if (payload.node_type === 'DOCUMENT') {
+        detailMaterialized.innerHTML = renderDocumentView(payload);
+      } else {
+        detailMaterialized.innerHTML = renderMaterializedView(payload);
+      }
+      detailJsonPre.textContent = raw;
       detailPanel.classList.add('open');
       document.querySelectorAll('.detail-tab').forEach(tab => {
         tab.classList.toggle('active', tab.dataset.tab === 'materialized');
@@ -815,26 +915,51 @@
       };
     });
 
+    function renderExpectedAnswer(scenario) {
+      if (scenario.expected_answer != null && scenario.expected_answer !== '') {
+        return `<dt>Expected answer</dt><dd><code>${escapeHtml(scenario.expected_answer)}</code></dd>`;
+      }
+      if (scenario.expected_rubric) {
+        return `<dt>Expected answer (rubric)</dt><dd>${escapeHtml(scenario.expected_rubric)}</dd>`;
+      }
+      return `<dt>Expected answer</dt><dd><em>not specified</em></dd>`;
+    }
+
+    function renderBindings(bindings) {
+      if (!bindings || !Object.keys(bindings).length) {
+        return '<dd><em>none</em></dd>';
+      }
+      return Object.entries(bindings).map(
+        ([key, value]) => `<dt>${escapeHtml(key)}</dt><dd><code>${escapeHtml(
+          Array.isArray(value) ? value.join(', ') : value
+        )}</code></dd>`
+      ).join('');
+    }
+
     function renderPanel(scenario) {
       const panel = document.getElementById('investigation-panel');
       const failure = scenario.suggested_failure_class
         ? `<dt>Failure class</dt><dd><code>${scenario.suggested_failure_class}</code></dd>`
-        : `<dt>Failure class</dt><dd><em>none (happy path)</em></dd>`;
+        : '';
       const detail = scenario.suggested_failure_detail
         ? `<dt>Detail</dt><dd>${scenario.suggested_failure_detail}</dd>` : '';
-      const edgar = (scenario.edgar_links || []).map(l =>
-        `<li><a href="${l.url}" target="_blank" rel="noopener">${l.form_type} ${l.accession}</a></li>`
-      ).join('');
       panel.innerHTML = `
-        <h2>${scenario.label}</h2>
+        <h2><code>${escapeHtml(scenario.scenario_id)}</code></h2>
         <dl>
-          <dt>Question</dt><dd>${scenario.question}</dd>
-          <dt>Synthesis path</dt><dd><code>${scenario.synthesis_path || 'unknown'}</code></dd>
+          <dt>Profile</dt><dd>${escapeHtml(scenario.inspiration_profile || '')}</dd>
+          <dt>Question type</dt><dd><code>${escapeHtml(scenario.question_type_tag || '')}</code></dd>
+          <dt>Question</dt><dd>${escapeHtml(scenario.question || '')}</dd>
+          ${renderExpectedAnswer(scenario)}
+          <dt>Expected sections</dt><dd>${(scenario.expected_section_paths || []).map(p => `<code>${escapeHtml(p)}</code>`).join('<br>') || '<em>none</em>'}</dd>
+          <dt>Expected bindings</dt>
+          ${renderBindings(scenario.expected_bindings)}
+        </dl>
+        <h3 style="font-size:0.78rem;margin:0.85rem 0 0.35rem">Demo trace</h3>
+        <dl>
+          <dt>Synthesis path</dt><dd><code>${escapeHtml(scenario.synthesis_path || 'unknown')}</code></dd>
           <dt>Binding miss</dt><dd>${scenario.binding_miss ? 'yes' : 'no'}</dd>
           ${failure}${detail}
-          <dt>Expected sections</dt><dd>${(scenario.expected_section_paths || []).map(p => `<code>${p}</code>`).join('<br>')}</dd>
-          <dt>Visited sections</dt><dd>${(scenario.visited_section_paths || []).map(p => `<code>${p}</code>`).join('<br>')}</dd>
-          <dt>EDGAR</dt><dd><ul style="margin:0;padding-left:1rem">${edgar}</ul></dd>
+          <dt>Visited sections</dt><dd>${(scenario.visited_section_paths || []).map(p => `<code>${escapeHtml(p)}</code>`).join('<br>') || '<em>none</em>'}</dd>
         </dl>`;
     }
 
@@ -858,7 +983,7 @@
     investigationScenarios.forEach((scenario, idx) => {
       const btn = document.createElement('button');
       btn.className = 'scenario-btn' + (idx === 0 ? ' active' : '');
-      btn.textContent = scenario.label;
+      btn.textContent = scenario.scenario_id;
       btn.onclick = () => {
         document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
@@ -871,11 +996,9 @@
     const tooltip = document.getElementById('tooltip');
     cy.on('mouseover', 'node', (evt) => {
       const d = evt.target.data();
-      const clickHint = d.node_type === 'DOCUMENT'
-        ? 'Click to open EDGAR filing'
-        : (d.node_type === 'CHUNK_PARAGRAPH' || d.node_type === 'CHUNK_XBRL_FACT')
-          ? 'Click for materialized payload'
-          : null;
+      const clickHint = (d.node_type === 'DOCUMENT' || d.node_type === 'CHUNK_PARAGRAPH' || d.node_type === 'CHUNK_XBRL_FACT')
+        ? 'Click for node detail'
+        : null;
       const lines = [
         `<strong>${d.label || d.id}</strong>`,
         d.node_type ? `Type: ${d.node_type}` : null,
@@ -897,11 +1020,11 @@
       const node = evt.target;
       const d = node.data();
       if (focusedNode) focusedNode.removeClass('node-focused');
-      if (d.node_type === 'DOCUMENT' && d.edgar_url) {
-        window.open(d.edgar_url, '_blank', 'noopener,noreferrer');
-        return;
-      }
-      if (d.node_type === 'CHUNK_PARAGRAPH' || d.node_type === 'CHUNK_XBRL_FACT') {
+      if (
+        d.node_type === 'DOCUMENT'
+        || d.node_type === 'CHUNK_PARAGRAPH'
+        || d.node_type === 'CHUNK_XBRL_FACT'
+      ) {
         focusedNode = node;
         node.addClass('node-focused');
         showDetailPanel(d);

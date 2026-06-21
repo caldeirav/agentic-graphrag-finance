@@ -21,7 +21,7 @@ from docling_graph.core.visualizers import ReportGenerator
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = REPO_ROOT / "docs" / "assets" / "aapl-eval-graph"
 EVAL_ITEMS = REPO_ROOT / "tests" / "fixtures" / "custom_judge" / "items" / "dev.jsonl"
-VISUALIZATION_VERSION = "4"
+VISUALIZATION_VERSION = "5"
 AAPL_CIK = "320193"
 
 # Stable node-type palette (legend, cytoscape base styles, and overlays share these).
@@ -67,6 +67,45 @@ def chunk_materialized(
     return json.dumps(payload, indent=2)
 
 
+def document_materialized(
+    *,
+    node_id: str,
+    label: str,
+    accession: str,
+    form_type: str,
+    period_end: str,
+    cik: str,
+    edgar_url: str,
+) -> str:
+    """Serialize document node payload for the detail panel."""
+    payload = {
+        "node_id": node_id,
+        "node_type": "DOCUMENT",
+        "label": label,
+        "properties": {
+            "accession": accession,
+            "form_type": form_type,
+            "period_end": period_end,
+            "cik": cik,
+        },
+        "edgar_url": edgar_url,
+    }
+    return json.dumps(payload, indent=2)
+
+
+def eval_item_fields(item: dict) -> dict[str, object]:
+    """Benchmark item metadata for the investigation overlay."""
+    ground_truth = item.get("ground_truth") or {}
+    return {
+        "question_type_tag": item.get("question_type_tag"),
+        "expected_answer": ground_truth.get("answer"),
+        "expected_rubric": ground_truth.get("rubric"),
+        "expected_bindings": item.get("expected_bindings") or {},
+        "multi_filing_required": item.get("multi_filing_required"),
+        "validation_status": item.get("validation_status"),
+    }
+
+
 def build_edgar_url(cik: str, accession: str) -> str:
     cik_int = str(cik).lstrip("0") or "0"
     acc_nodash = accession.replace("-", "")
@@ -86,7 +125,7 @@ def build_investigation_scenarios(questions: list[dict]) -> list[dict]:
     scenarios: list[dict] = [
         {
             "scenario_id": "0.0.0-financebench-001",
-            "label": "FinanceBench — numeric lookup",
+            **eval_item_fields(finance),
             "inspiration_profile": finance.get("inspiration_profile", "financebench"),
             "question": finance.get(
                 "question",
@@ -125,7 +164,7 @@ def build_investigation_scenarios(questions: list[dict]) -> list[dict]:
         },
         {
             "scenario_id": "0.0.0-finder-001",
-            "label": "FinDER — risk narrative",
+            **eval_item_fields(finder),
             "inspiration_profile": finder.get("inspiration_profile", "finder"),
             "question": finder.get(
                 "question",
@@ -158,7 +197,7 @@ def build_investigation_scenarios(questions: list[dict]) -> list[dict]:
         },
         {
             "scenario_id": "0.0.0-finagentbench-001",
-            "label": "FinAgentBench — comparison (success)",
+            **eval_item_fields(compare),
             "inspiration_profile": compare.get("inspiration_profile", "finagentbench"),
             "question": compare.get(
                 "question",
@@ -212,8 +251,13 @@ def build_investigation_scenarios(questions: list[dict]) -> list[dict]:
         },
         {
             "scenario_id": "demo-binding-miss-019",
-            "label": "019 — binding miss (comparison)",
             "inspiration_profile": "investigation",
+            "question_type_tag": compare.get("question_type_tag"),
+            "expected_answer": (compare.get("ground_truth") or {}).get("answer"),
+            "expected_rubric": (compare.get("ground_truth") or {}).get("rubric"),
+            "expected_bindings": compare.get("expected_bindings") or {},
+            "multi_filing_required": compare.get("multi_filing_required"),
+            "validation_status": "demo",
             "question": compare.get(
                 "question",
                 "Compare net sales discussion across the two most recent 10-K filings.",
@@ -280,6 +324,15 @@ def build_eval_demo_graph() -> nx.DiGraph:
                 "period_end": "2024-09-28",
                 "edgar_url": build_edgar_url(AAPL_CIK, "0000320193-24-000123"),
                 "eval_profiles": "financebench,finder,finagentbench",
+                "materialized_json": document_materialized(
+                    node_id=N["doc_fy2024"],
+                    label="Apple 10-K FY2024",
+                    accession="0000320193-24-000123",
+                    form_type="10-K",
+                    period_end="2024-09-28",
+                    cik=AAPL_CIK,
+                    edgar_url=build_edgar_url(AAPL_CIK, "0000320193-24-000123"),
+                ),
             },
         ),
         (
@@ -293,6 +346,15 @@ def build_eval_demo_graph() -> nx.DiGraph:
                 "period_end": "2023-09-30",
                 "edgar_url": build_edgar_url(AAPL_CIK, "0000320193-24-000076"),
                 "eval_profiles": "finagentbench",
+                "materialized_json": document_materialized(
+                    node_id=N["doc_fy2023"],
+                    label="Apple 10-K FY2023",
+                    accession="0000320193-24-000076",
+                    form_type="10-K",
+                    period_end="2023-09-30",
+                    cik=AAPL_CIK,
+                    edgar_url=build_edgar_url(AAPL_CIK, "0000320193-24-000076"),
+                ),
             },
         ),
         (
@@ -799,13 +861,13 @@ def render_styled_visualization(
   <div id="layout">
     <aside id="sidebar">
       <h1>Investigation overlay (019)</h1>
-      <p>Select a scenario to highlight paths. Click <strong>documents</strong> for EDGAR or <strong>chunk nodes</strong> for materialized payload.</p>
+      <p>Select an evaluation item by id to highlight graph paths. Click <strong>document</strong> or <strong>chunk</strong> nodes for details in the right panel.</p>
       <div id="scenario-buttons"></div>
       <div id="investigation-panel"></div>
     </aside>
     <div id="main">
       <header>
-        <p>Apple (AAPL) disclosure graph — hover for preview · click chunks for detail · click documents for EDGAR</p>
+        <p>Apple (AAPL) disclosure graph — hover for preview · click documents or chunks for the detail panel</p>
       </header>
       <div id="cy-wrap">
         <div id="legend">
@@ -966,6 +1028,25 @@ def render_styled_visualization(
         .replace(/"/g, '&quot;');
     }}
 
+    function renderDocumentView(payload) {{
+      const props = payload.properties || {{}};
+      const url = payload.edgar_url || '';
+      const propRows = Object.entries(props).map(
+        ([key, value]) => `<dt>${{escapeHtml(key)}}</dt><dd>${{escapeHtml(value)}}</dd>`
+      ).join('');
+      const edgarRow = url
+        ? `<dt>EDGAR filing</dt><dd><a href="${{escapeHtml(url)}}" target="_blank" rel="noopener">${{escapeHtml(url)}}</a></dd>`
+        : '';
+      return `
+        <dl>
+          <dt>node_id</dt><dd><code>${{escapeHtml(payload.node_id || '')}}</code></dd>
+          <dt>node_type</dt><dd><code>${{escapeHtml(payload.node_type || '')}}</code></dd>
+          <dt>label</dt><dd>${{escapeHtml(payload.label || '')}}</dd>
+        </dl>
+        <h3 style="font-size:0.78rem;margin:0.75rem 0 0.25rem">properties</h3>
+        <dl>${{propRows || '<dd><em>none</em></dd>'}}${{edgarRow}}</dl>`;
+    }}
+
     function renderMaterializedView(payload) {{
       const props = payload.properties || {{}};
       const bindings = payload.bindings || {{}};
@@ -989,18 +1070,45 @@ def render_styled_visualization(
         <dl>${{bindingRows || '<dd><em>none</em></dd>'}}</dl>`;
     }}
 
-    function showDetailPanel(nodeData) {{
-      const raw = nodeData.materialized_json || '{{}}';
-      let payload;
-      try {{
-        payload = JSON.parse(raw);
-      }} catch (err) {{
-        payload = {{ node_id: nodeData.id, parse_error: String(err), raw }};
+    function parseNodePayload(nodeData) {{
+      const raw = nodeData.materialized_json;
+      if (raw) {{
+        try {{
+          return {{ payload: JSON.parse(raw), raw }};
+        }} catch (err) {{
+          return {{
+            payload: {{ node_id: nodeData.id, parse_error: String(err), raw }},
+            raw,
+          }};
+        }}
       }}
+      if (nodeData.node_type === 'DOCUMENT') {{
+        const payload = {{
+          node_id: nodeData.id,
+          node_type: 'DOCUMENT',
+          label: nodeData.label,
+          properties: {{
+            accession: nodeData.accession,
+            form_type: nodeData.form_type,
+            period_end: nodeData.period_end,
+          }},
+          edgar_url: nodeData.edgar_url,
+        }};
+        return {{ payload, raw: JSON.stringify(payload, null, 2) }};
+      }}
+      return {{ payload: {{ node_id: nodeData.id }}, raw: '{{}}' }};
+    }}
+
+    function showDetailPanel(nodeData) {{
+      const {{ payload, raw }} = parseNodePayload(nodeData);
       detailTitle.textContent = nodeData.label || nodeData.id;
       detailSubtitle.textContent = nodeData.node_type || '';
-      detailMaterialized.innerHTML = renderMaterializedView(payload);
-      detailJsonPre.textContent = typeof raw === 'string' ? raw : JSON.stringify(payload, null, 2);
+      if (payload.node_type === 'DOCUMENT') {{
+        detailMaterialized.innerHTML = renderDocumentView(payload);
+      }} else {{
+        detailMaterialized.innerHTML = renderMaterializedView(payload);
+      }}
+      detailJsonPre.textContent = raw;
       detailPanel.classList.add('open');
       document.querySelectorAll('.detail-tab').forEach(tab => {{
         tab.classList.toggle('active', tab.dataset.tab === 'materialized');
@@ -1028,26 +1136,51 @@ def render_styled_visualization(
       }};
     }});
 
+    function renderExpectedAnswer(scenario) {{
+      if (scenario.expected_answer != null && scenario.expected_answer !== '') {{
+        return `<dt>Expected answer</dt><dd><code>${{escapeHtml(scenario.expected_answer)}}</code></dd>`;
+      }}
+      if (scenario.expected_rubric) {{
+        return `<dt>Expected answer (rubric)</dt><dd>${{escapeHtml(scenario.expected_rubric)}}</dd>`;
+      }}
+      return `<dt>Expected answer</dt><dd><em>not specified</em></dd>`;
+    }}
+
+    function renderBindings(bindings) {{
+      if (!bindings || !Object.keys(bindings).length) {{
+        return '<dd><em>none</em></dd>';
+      }}
+      return Object.entries(bindings).map(
+        ([key, value]) => `<dt>${{escapeHtml(key)}}</dt><dd><code>${{escapeHtml(
+          Array.isArray(value) ? value.join(', ') : value
+        )}}</code></dd>`
+      ).join('');
+    }}
+
     function renderPanel(scenario) {{
       const panel = document.getElementById('investigation-panel');
       const failure = scenario.suggested_failure_class
         ? `<dt>Failure class</dt><dd><code>${{scenario.suggested_failure_class}}</code></dd>`
-        : `<dt>Failure class</dt><dd><em>none (happy path)</em></dd>`;
+        : '';
       const detail = scenario.suggested_failure_detail
         ? `<dt>Detail</dt><dd>${{scenario.suggested_failure_detail}}</dd>` : '';
-      const edgar = (scenario.edgar_links || []).map(l =>
-        `<li><a href="${{l.url}}" target="_blank" rel="noopener">${{l.form_type}} ${{l.accession}}</a></li>`
-      ).join('');
       panel.innerHTML = `
-        <h2>${{scenario.label}}</h2>
+        <h2><code>${{escapeHtml(scenario.scenario_id)}}</code></h2>
         <dl>
-          <dt>Question</dt><dd>${{scenario.question}}</dd>
-          <dt>Synthesis path</dt><dd><code>${{scenario.synthesis_path || 'unknown'}}</code></dd>
+          <dt>Profile</dt><dd>${{escapeHtml(scenario.inspiration_profile || '')}}</dd>
+          <dt>Question type</dt><dd><code>${{escapeHtml(scenario.question_type_tag || '')}}</code></dd>
+          <dt>Question</dt><dd>${{escapeHtml(scenario.question || '')}}</dd>
+          ${{renderExpectedAnswer(scenario)}}
+          <dt>Expected sections</dt><dd>${{(scenario.expected_section_paths || []).map(p => `<code>${{escapeHtml(p)}}</code>`).join('<br>') || '<em>none</em>'}}</dd>
+          <dt>Expected bindings</dt>
+          ${{renderBindings(scenario.expected_bindings)}}
+        </dl>
+        <h3 style="font-size:0.78rem;margin:0.85rem 0 0.35rem">Demo trace</h3>
+        <dl>
+          <dt>Synthesis path</dt><dd><code>${{escapeHtml(scenario.synthesis_path || 'unknown')}}</code></dd>
           <dt>Binding miss</dt><dd>${{scenario.binding_miss ? 'yes' : 'no'}}</dd>
           ${{failure}}${{detail}}
-          <dt>Expected sections</dt><dd>${{(scenario.expected_section_paths || []).map(p => `<code>${{p}}</code>`).join('<br>')}}</dd>
-          <dt>Visited sections</dt><dd>${{(scenario.visited_section_paths || []).map(p => `<code>${{p}}</code>`).join('<br>')}}</dd>
-          <dt>EDGAR</dt><dd><ul style="margin:0;padding-left:1rem">${{edgar}}</ul></dd>
+          <dt>Visited sections</dt><dd>${{(scenario.visited_section_paths || []).map(p => `<code>${{escapeHtml(p)}}</code>`).join('<br>') || '<em>none</em>'}}</dd>
         </dl>`;
     }}
 
@@ -1071,7 +1204,7 @@ def render_styled_visualization(
     investigationScenarios.forEach((scenario, idx) => {{
       const btn = document.createElement('button');
       btn.className = 'scenario-btn' + (idx === 0 ? ' active' : '');
-      btn.textContent = scenario.label;
+      btn.textContent = scenario.scenario_id;
       btn.onclick = () => {{
         document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
@@ -1084,11 +1217,9 @@ def render_styled_visualization(
     const tooltip = document.getElementById('tooltip');
     cy.on('mouseover', 'node', (evt) => {{
       const d = evt.target.data();
-      const clickHint = d.node_type === 'DOCUMENT'
-        ? 'Click to open EDGAR filing'
-        : (d.node_type === 'CHUNK_PARAGRAPH' || d.node_type === 'CHUNK_XBRL_FACT')
-          ? 'Click for materialized payload'
-          : null;
+      const clickHint = (d.node_type === 'DOCUMENT' || d.node_type === 'CHUNK_PARAGRAPH' || d.node_type === 'CHUNK_XBRL_FACT')
+        ? 'Click for node detail'
+        : null;
       const lines = [
         `<strong>${{d.label || d.id}}</strong>`,
         d.node_type ? `Type: ${{d.node_type}}` : null,
@@ -1110,11 +1241,11 @@ def render_styled_visualization(
       const node = evt.target;
       const d = node.data();
       if (focusedNode) focusedNode.removeClass('node-focused');
-      if (d.node_type === 'DOCUMENT' && d.edgar_url) {{
-        window.open(d.edgar_url, '_blank', 'noopener,noreferrer');
-        return;
-      }}
-      if (d.node_type === 'CHUNK_PARAGRAPH' || d.node_type === 'CHUNK_XBRL_FACT') {{
+      if (
+        d.node_type === 'DOCUMENT'
+        || d.node_type === 'CHUNK_PARAGRAPH'
+        || d.node_type === 'CHUNK_XBRL_FACT'
+      ) {{
         focusedNode = node;
         node.addClass('node-focused');
         showDetailPanel(d);
