@@ -213,6 +213,7 @@ def append_cohort_gate_override(
         rationale=rationale,
     )
     path = output_dir / "cohort_gate_overrides.jsonl"
+    output_dir.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as handle:
         handle.write(record.model_dump_json() + "\n")
     return path

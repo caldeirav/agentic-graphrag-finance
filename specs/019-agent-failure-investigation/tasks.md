@@ -162,9 +162,9 @@ description: "Task list for agent failure investigation and remediation (019)"
 
 ### Implementation for User Story 4
 
-- [ ] T038 [US4] Implement macro binding fixes (10-K vs 10-Q, fiscal period, entity disambiguation) in `src/retrieval/macro/` for M1 patterns
+- [X] T038 [US4] Implement macro binding fixes (10-K vs 10-Q, fiscal period, entity disambiguation) in `src/retrieval/macro/` for M1 patterns
 - [X] T039 [US4] Extend `_try_synthesize_numeric_xbrl` and block template fallback when ranked XBRL evidence exists in `src/retrieval/synthesis.py` for M2/M3
-- [ ] T040 [US4] Improve comparison narrative synthesis in `src/retrieval/synthesis.py` for M4 cross-filing contrast patterns
+- [X] T040 [US4] Improve comparison narrative synthesis in `src/retrieval/synthesis.py` for M4 cross-filing contrast patterns
 - [X] T041 [US4] Wire `require_regression_suite_pass` check in `src/evaluation/reproduction/investigation/cohort_gate.py` invoking `tests/regression/failure_modes/`
 
 **Checkpoint**: `uv run pytest tests/regression/failure_modes -q` passes; cohort gate fails when regression suite fails
@@ -192,9 +192,9 @@ description: "Task list for agent failure investigation and remediation (019)"
 
 **Purpose**: Documentation, quickstart validation, and operator runbook alignment
 
-- [ ] T046 [P] Update `docs/research-reproduction.md` with investigation pack, cohort debug, and cohort gate workflow
-- [ ] T047 [P] Update `docs/eval-dataset-quality.md` with engineering taxonomy mapping and dual-layer annotation guidance
-- [ ] T048 Run full validation checklist from `specs/019-agent-failure-investigation/quickstart.md` (pack export, cohort freeze, debug smoke, regression suite, cohort validate, run-all gate behavior)
+- [X] T046 [P] Update `docs/research-reproduction.md` with investigation pack, cohort debug, and cohort gate workflow
+- [X] T047 [P] Update `docs/eval-dataset-quality.md` with engineering taxonomy mapping and dual-layer annotation guidance
+- [X] T048 Run full validation checklist from `specs/019-agent-failure-investigation/quickstart.md` (pack export, cohort freeze, debug smoke, regression suite, cohort validate, run-all gate behavior)
 - [X] T049 [P] Verify paper-v1.0 and v2.0.0 artifacts remain immutable; confirm no retroactive baseline checksum changes in `releases/paper-v1.0/expected_checksums.json`
 
 ---

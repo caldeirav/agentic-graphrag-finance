@@ -12,7 +12,7 @@ from models.enums import ComparisonMode
 from models.graph import GraphSnapshot
 from retrieval.macro.llm_json import extract_json_from_llm, parse_comparison_mode
 from retrieval.macro.models import MacroBindingProposal, ProposalSource
-from retrieval.macro.pairing import detect_quarterly_metric_cue
+from retrieval.macro.pairing import detect_quarterly_metric_cue, infer_anchor_from_query
 from retrieval.orchestration.llm import create_chat_llm
 from tracing.console_trace.llm import traced_llm_invoke
 
@@ -73,11 +73,17 @@ def plan_macro_binding(
             return _apply_metric_cue(mock, query), {}
         refs = list(snapshot.manifest.filing_refs or [])
         forms = {r.form_type.upper() for r in refs}
-        anchor = "latest_quarter"
-        if forms == {"10-K"} or (forms and "10-Q" not in forms):
+        inferred = infer_anchor_from_query(query)
+        if inferred:
+            anchor = inferred
+        elif forms == {"10-K"} or (forms and "10-Q" not in forms):
             anchor = "latest_annual"
+        elif detect_quarterly_metric_cue(query) and "10-Q" in forms:
+            anchor = "latest_quarter"
         elif len(refs) == 1:
             anchor = None
+        else:
+            anchor = "latest_quarter"
         mock = MacroBindingProposal(
             intent_summary=query[:200],
             anchor=anchor,

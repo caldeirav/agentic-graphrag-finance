@@ -124,6 +124,7 @@ def synthesize(state: AgentState) -> dict:
     for handler, path in (
         (_try_synthesize_comparison_business, "comparison_business_deterministic"),
         (_try_synthesize_comparison_risk, "comparison_risk_deterministic"),
+        (_try_synthesize_comparison_narrative, "comparison_narrative_deterministic"),
         (_try_synthesize_divestiture, "divestiture_deterministic"),
         (_try_synthesize_business_segments, "business_segments_deterministic"),
         (_try_synthesize_numeric_xbrl, "numeric_xbrl_deterministic"),
@@ -838,7 +839,8 @@ def _try_synthesize_comparison_business(
         body_lines.append(f"- {filing.form_type} ({filing.accession}): {lead}...")
         citations.extend(pool[:2])
     text = (
-        "Both bound filings discuss business segments in Item 1. Business.\n\n"
+        "Both bound filings discuss business segments in Item 1. Business, "
+        "whereas the emphasis differs across filings.\n\n"
         + "\n".join(body_lines)
     )
     return {
@@ -1019,6 +1021,47 @@ def _chunks_for_filing(evidence: list[EvidenceChunk], filing: FilingRef) -> list
         for c in evidence
         if c.accession == acc or (c.chunk_node_id or "").startswith(doc_prefix)
     ]
+
+
+def _try_synthesize_comparison_narrative(
+    evidence: list[EvidenceChunk],
+    query: str,
+    filing_set: list[FilingRef],
+) -> dict | None:
+    """Generic cross-filing contrast when specialized comparison handlers do not match."""
+    if not _is_comparison_query(query) or len(filing_set) < 2:
+        return None
+    if _is_risk_comparison_query(query) or _is_business_comparison_query(query):
+        return None
+    labels = [f"{f.form_type} ({f.period_end})" for f in filing_set[:2]]
+    body_lines: list[str] = []
+    citations: list[EvidenceChunk] = []
+    for filing in filing_set[:2]:
+        pool = rank_evidence_by_topic(
+            _chunks_for_filing(evidence, filing),
+            query,
+            max_chunks=4,
+        )
+        pool = [c for c in pool if not _is_boilerplate_excerpt(c.excerpt)]
+        if not pool:
+            return None
+        lead = pool[0].excerpt[:500].strip()
+        body_lines.append(f"{filing.form_type} ({filing.accession}) emphasizes: {lead}")
+        citations.append(pool[0])
+    if len(body_lines) < 2:
+        return None
+    text = (
+        f"Both {labels[0]} and {labels[1]} address the comparison differently: "
+        f"whereas {body_lines[0]}, by contrast {body_lines[1]}"
+    )
+    return {
+        "answer": AnswerPackage(
+            text=text,
+            citations=citations[:6],
+            sufficiency=Sufficiency.COMPLETE,
+        ),
+        "status": QueryStatus.SUCCESS,
+    }
 
 
 def _try_synthesize_comparison_risk(

@@ -14,6 +14,7 @@ import mlflow
 
 from contracts.query import QueryRequest
 from evaluation.datasets.custom_judge import CustomJudgeDataset
+from evaluation.generation.review._paths import resolve_release_bundle
 from evaluation.judges.gemini_panel import GeminiJudgePanel
 from evaluation.judges.outcome_scoring import compute_outcome_scores
 from evaluation.metrics.ranking import compute_ranking_metrics
@@ -145,7 +146,11 @@ class ReproRunner:
         return self._manifest
 
     def _bundle_root(self) -> Path:
-        return self._repo_root / self._manifest.custom_judge_bundle_path
+        return resolve_release_bundle(
+            self._repo_root,
+            bundle_rel_path=self._manifest.custom_judge_bundle_path,
+            version=self._manifest.custom_judge_version,
+        )
 
     def _accession_index_for_bundle(self) -> AccessionIndex:
         if self._accession_index is None:

@@ -10,6 +10,7 @@ from typing import Annotated
 import typer
 import yaml
 
+from evaluation.generation.review._paths import resolve_release_bundle
 from evaluation.reproduction.defer_config import resolve_defer_config
 from evaluation.reproduction.export import export_tables_from_disk, write_paper_tables
 from evaluation.reproduction.investigation.cohort import freeze_tier1_cohort, load_tier1_cohort
@@ -65,6 +66,15 @@ def _manifest_path(manifest: Path | None, release: str | None) -> Path:
 def _require_offline() -> None:
     if os.environ.get("OFFLINE_BENCHMARK", "").strip() not in {"1", "true", "yes"}:
         raise typer.BadParameter("Set OFFLINE_BENCHMARK=1 for reproduction commands")
+
+
+def _resolve_bundle(rel, draft: Path | None = None) -> Path:
+    return resolve_release_bundle(
+        REPO_ROOT,
+        bundle_rel_path=rel.custom_judge_bundle_path,
+        version=rel.custom_judge_version,
+        draft=draft,
+    )
 
 
 def _runner(manifest: Path, *, defer_judge: bool | None = None) -> ReproRunner:
@@ -573,7 +583,7 @@ def cohort_validate_cmd(
     rel = load_release_manifest(manifest)
     raw_manifest = yaml.safe_load(manifest.read_text(encoding="utf-8"))
     cohort_file = load_tier1_cohort(cohort)
-    bundle = draft or (REPO_ROOT / rel.custom_judge_bundle_path)
+    bundle = _resolve_bundle(rel, draft)
     repro_input = output
     if not (repro_input / "graph-full" / "results.json").is_file():
         typer.echo(
@@ -610,7 +620,7 @@ def cohort_debug_cmd(
 ) -> None:
     """Debug cohort items (replay checkpoints by default when --replay-input set)."""
     rel = load_release_manifest(manifest)
-    bundle = draft or (REPO_ROOT / rel.custom_judge_bundle_path)
+    bundle = _resolve_bundle(rel, draft)
     cohort_file = load_tier1_cohort(cohort)
     replay_source = replay_input
     if replay_source is None:

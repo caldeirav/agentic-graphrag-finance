@@ -33,12 +33,38 @@ def infer_anchor_from_query(query: str) -> str | None:
     q = query.lower()
     if any(k in q for k in ("quarter over quarter", "qoq", "sequential quarter")):
         return None
-    if "prior quarter" in q or "previous quarter" in q:
-        return "prior_quarter"
-    if "latest quarter" in q or "this quarter" in q or "most recent quarter" in q:
+    quarterly_cues = (
+        "prior quarter",
+        "previous quarter",
+        "latest quarter",
+        "this quarter",
+        "most recent quarter",
+        "most recent quarterly",
+        "quarterly filing",
+        "recent 10-q",
+        "recent 10 q",
+        "10-q",
+        "10 q",
+    )
+    if any(k in q for k in quarterly_cues):
+        if "prior quarter" in q or "previous quarter" in q:
+            return "prior_quarter"
         return "latest_quarter"
-    if any(k in q for k in ("annual report", "latest 10-k", "10-k", "risk factor")):
+    if any(k in q for k in ("annual report", "latest 10-k", "10-k", "10k", "fiscal year")):
+        if not any(k in q for k in ("quarter", "10-q", "10 q")):
+            return "latest_annual"
+    if "risk factor" in q and "quarter" not in q:
         return "latest_annual"
+    return None
+
+
+def infer_form_type_preference(query: str) -> str | None:
+    """Prefer 10-Q vs 10-K when the question names a form type explicitly."""
+    q = query.lower()
+    if any(k in q for k in ("10-q", "10 q", "quarterly filing", "quarterly report")):
+        return "10-Q"
+    if any(k in q for k in ("10-k", "10 k", "annual report")) and "quarter" not in q:
+        return "10-K"
     return None
 
 
@@ -135,10 +161,39 @@ def materialize_proposal_filings(
     if proposal.proposed_accessions:
         acc_set = set(proposal.proposed_accessions)
         refs = [r for r in snapshot.manifest.filing_refs if r.accession in acc_set]
-        return refs if len(refs) == len(acc_set) else None
+        if len(refs) != len(acc_set):
+            return None
+        form_pref = infer_form_type_preference(query)
+        if form_pref and len(refs) == 1 and refs[0].form_type != form_pref:
+            by_form = _filings_by_form(snapshot).get(form_pref, [])
+            anchor = proposal.anchor or infer_anchor_from_query(query)
+            if anchor and by_form:
+                anchored = pair_single_anchor(snapshot, anchor)
+                anchored = [r for r in anchored if r.form_type == form_pref]
+                if anchored:
+                    return anchored
+            if by_form:
+                return [by_form[0]]
+        return refs
 
     mode = proposal.comparison_mode
     quarterly = proposal.quarterly_metric_cue or detect_quarterly_metric_cue(query)
+
+    inferred_anchor = infer_anchor_from_query(query)
+    if (
+        not proposal.is_comparison
+        and mode in (None, ComparisonMode.YOY)
+        and inferred_anchor
+        and not proposal.period_labels
+    ):
+        refs = pair_single_anchor(snapshot, inferred_anchor)
+        if refs:
+            form_pref = infer_form_type_preference(query)
+            if form_pref:
+                filtered = [r for r in refs if r.form_type == form_pref]
+                if filtered:
+                    return filtered
+            return refs
 
     if mode == ComparisonMode.YOY or (
         proposal.is_comparison and mode in (None, ComparisonMode.YOY)
@@ -170,6 +225,10 @@ def materialize_proposal_filings(
         return refs or None
 
     if "latest quarter" in q or "this quarter" in q:
+        refs = pair_single_anchor(snapshot, "latest_quarter")
+        return refs or None
+
+    if quarterly and not proposal.is_comparison:
         refs = pair_single_anchor(snapshot, "latest_quarter")
         return refs or None
 
