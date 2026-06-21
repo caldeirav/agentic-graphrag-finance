@@ -1,8 +1,12 @@
 <?xml version='1.0' encoding='utf-8'?>
-<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd"><key id="d15" for="edge" attr.name="edge_id" attr.type="string"/>
-<key id="d14" for="edge" attr.name="label" attr.type="string"/>
-<key id="d13" for="edge" attr.name="edge_type" attr.type="string"/>
-<key id="d12" for="node" attr.name="prop_sec_source" attr.type="string"/>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd"><key id="d19" for="edge" attr.name="edge_id" attr.type="string"/>
+<key id="d18" for="edge" attr.name="label" attr.type="string"/>
+<key id="d17" for="edge" attr.name="edge_type" attr.type="string"/>
+<key id="d16" for="node" attr.name="prop_sec_source" attr.type="string"/>
+<key id="d15" for="node" attr.name="materialized_json" attr.type="string"/>
+<key id="d14" for="node" attr.name="prop_numeric_value" attr.type="string"/>
+<key id="d13" for="node" attr.name="prop_unit" attr.type="string"/>
+<key id="d12" for="node" attr.name="prop_currency" attr.type="string"/>
 <key id="d11" for="node" attr.name="prop_period" attr.type="string"/>
 <key id="d10" for="node" attr.name="prop_xbrl_concept" attr.type="string"/>
 <key id="d9" for="node" attr.name="prop_text" attr.type="string"/>
@@ -69,83 +73,157 @@ MD&amp;A (prior)</data>
   <data key="d9">391,035 (USD millions, FY2024)</data>
   <data key="d10">RevenueFromContractWithCustomerExcludingAssessedTax</data>
   <data key="d11">FY2024</data>
+  <data key="d12">USD</data>
+  <data key="d13">millions</data>
+  <data key="d14">391035</data>
   <data key="d7">financebench</data>
+  <data key="d15">{
+  "node_id": "chunk-xbrl-net-sales-fy2024",
+  "node_type": "CHUNK_XBRL_FACT",
+  "label": "Net sales (XBRL fact)",
+  "source_ref": "RevenueFromContractWithCustomerExcludingAssessedTax | period=FY2024 | value=391,035 USD millions",
+  "properties": {
+    "xbrl_concept": "RevenueFromContractWithCustomerExcludingAssessedTax",
+    "period": "FY2024",
+    "currency": "USD",
+    "unit": "millions",
+    "numeric_value": "391035",
+    "display_value": "391,035 (USD millions, FY2024)"
+  },
+  "bindings": {
+    "accession": "0000320193-24-000123",
+    "form_type": "10-K",
+    "section_path": "0000320193-24-000123/Item7",
+    "cik": "320193"
+  }
+}</data>
 </node>
 <node id="chunk-item7-p1">
   <data key="d0">CHUNK_PARAGRAPH</data>
   <data key="d1">Net sales narrative</data>
   <data key="d2">Net sales
 narrative</data>
-  <data key="d9">Net sales were $391.0 billion in fiscal 2024.</data>
-  <data key="d12">XBRL</data>
+  <data key="d9">Net sales were $391.0 billion in fiscal 2024, an increase of 2% compared to fiscal 2023. The increase was driven primarily by higher net sales of iPhone and Services.</data>
+  <data key="d16">XBRL</data>
   <data key="d7">financebench,finagentbench</data>
+  <data key="d15">{
+  "node_id": "chunk-item7-p1",
+  "node_type": "CHUNK_PARAGRAPH",
+  "label": "Net sales narrative",
+  "source_ref": "Net sales were $391.0 billion in fiscal 2024, an increase of 2% compared to fiscal 2023. The increase was driven primarily by higher net sales of iPhone and Services.",
+  "properties": {
+    "sec_source": "XBRL",
+    "section_id": "Item7",
+    "paragraph_index": "1"
+  },
+  "bindings": {
+    "accession": "0000320193-24-000123",
+    "form_type": "10-K",
+    "section_path": "0000320193-24-000123/Item7",
+    "cik": "320193"
+  }
+}</data>
 </node>
 <node id="chunk-item1a-p1">
   <data key="d0">CHUNK_PARAGRAPH</data>
   <data key="d1">Supply chain risks</data>
   <data key="d2">Supply chain
 risks</data>
-  <data key="d9">The Company depends on single or limited sources for many components.</data>
-  <data key="d12">HTML</data>
+  <data key="d9">The Company depends on single or limited sources for many components. Supply chain disruptions, including those arising from geopolitical events, could materially adversely affect the Company's business.</data>
+  <data key="d16">HTML</data>
   <data key="d7">finder</data>
+  <data key="d15">{
+  "node_id": "chunk-item1a-p1",
+  "node_type": "CHUNK_PARAGRAPH",
+  "label": "Supply chain risks",
+  "source_ref": "The Company depends on single or limited sources for many components. Supply chain disruptions, including those arising from geopolitical events, could materially adversely affect the Company's business.",
+  "properties": {
+    "sec_source": "HTML",
+    "section_id": "Item1A",
+    "paragraph_index": "1"
+  },
+  "bindings": {
+    "accession": "0000320193-24-000123",
+    "form_type": "10-K",
+    "section_path": "0000320193-24-000123/Item1A",
+    "cik": "320193"
+  }
+}</data>
 </node>
 <node id="chunk-item7-old-p1">
   <data key="d0">CHUNK_PARAGRAPH</data>
   <data key="d1">Prior-year net sales</data>
   <data key="d2">Prior-year
 net sales</data>
-  <data key="d9">Net sales were $383.3 billion in fiscal 2023.</data>
-  <data key="d12">XBRL</data>
+  <data key="d9">Net sales were $383.3 billion in fiscal 2023, a decrease of 3% compared to fiscal 2022, reflecting lower net sales of Products.</data>
+  <data key="d16">XBRL</data>
   <data key="d7">finagentbench</data>
+  <data key="d15">{
+  "node_id": "chunk-item7-old-p1",
+  "node_type": "CHUNK_PARAGRAPH",
+  "label": "Prior-year net sales",
+  "source_ref": "Net sales were $383.3 billion in fiscal 2023, a decrease of 3% compared to fiscal 2022, reflecting lower net sales of Products.",
+  "properties": {
+    "sec_source": "XBRL",
+    "section_id": "Item7",
+    "paragraph_index": "1"
+  },
+  "bindings": {
+    "accession": "0000320193-24-000076",
+    "form_type": "10-K",
+    "section_path": "0000320193-24-000076/Item7",
+    "cik": "320193"
+  }
+}</data>
 </node>
 <edge source="doc-0000320193-24-000123" target="0000320193-24-000123/Item7">
-  <data key="d13">CONTAINS</data>
-  <data key="d14">CONTAINS</data>
-  <data key="d15">e1</data>
+  <data key="d17">CONTAINS</data>
+  <data key="d18">CONTAINS</data>
+  <data key="d19">e1</data>
 </edge>
 <edge source="doc-0000320193-24-000123" target="0000320193-24-000123/Item1A">
-  <data key="d13">CONTAINS</data>
-  <data key="d14">CONTAINS</data>
-  <data key="d15">e2</data>
+  <data key="d17">CONTAINS</data>
+  <data key="d18">CONTAINS</data>
+  <data key="d19">e2</data>
 </edge>
 <edge source="doc-0000320193-24-000123" target="doc-0000320193-24-000076">
-  <data key="d13">TEMPORAL_TRANSITION</data>
-  <data key="d14">TEMPORAL_TRANSITION</data>
-  <data key="d15">e10</data>
+  <data key="d17">TEMPORAL_TRANSITION</data>
+  <data key="d18">TEMPORAL_TRANSITION</data>
+  <data key="d19">e10</data>
 </edge>
 <edge source="doc-0000320193-24-000076" target="0000320193-24-000076/Item7">
-  <data key="d13">CONTAINS</data>
-  <data key="d14">CONTAINS</data>
-  <data key="d15">e3</data>
+  <data key="d17">CONTAINS</data>
+  <data key="d18">CONTAINS</data>
+  <data key="d19">e3</data>
 </edge>
 <edge source="0000320193-24-000123/Item7" target="chunk-xbrl-net-sales-fy2024">
-  <data key="d13">CONTAINS</data>
-  <data key="d14">CONTAINS</data>
-  <data key="d15">e4</data>
+  <data key="d17">CONTAINS</data>
+  <data key="d18">CONTAINS</data>
+  <data key="d19">e4</data>
 </edge>
 <edge source="0000320193-24-000123/Item7" target="chunk-item7-p1">
-  <data key="d13">CONTAINS</data>
-  <data key="d14">CONTAINS</data>
-  <data key="d15">e5</data>
+  <data key="d17">CONTAINS</data>
+  <data key="d18">CONTAINS</data>
+  <data key="d19">e5</data>
 </edge>
 <edge source="0000320193-24-000123/Item1A" target="chunk-item1a-p1">
-  <data key="d13">CONTAINS</data>
-  <data key="d14">CONTAINS</data>
-  <data key="d15">e6</data>
+  <data key="d17">CONTAINS</data>
+  <data key="d18">CONTAINS</data>
+  <data key="d19">e6</data>
 </edge>
 <edge source="0000320193-24-000076/Item7" target="chunk-item7-old-p1">
-  <data key="d13">CONTAINS</data>
-  <data key="d14">CONTAINS</data>
-  <data key="d15">e7</data>
+  <data key="d17">CONTAINS</data>
+  <data key="d18">CONTAINS</data>
+  <data key="d19">e7</data>
 </edge>
 <edge source="chunk-xbrl-net-sales-fy2024" target="chunk-item7-p1">
-  <data key="d13">NEXT</data>
-  <data key="d14">NEXT</data>
-  <data key="d15">e8</data>
+  <data key="d17">NEXT</data>
+  <data key="d18">NEXT</data>
+  <data key="d19">e8</data>
 </edge>
 <edge source="chunk-item7-old-p1" target="chunk-item7-p1">
-  <data key="d13">REFERENCES</data>
-  <data key="d14">REFERENCES</data>
-  <data key="d15">e9</data>
+  <data key="d17">REFERENCES</data>
+  <data key="d18">REFERENCES</data>
+  <data key="d19">e9</data>
 </edge>
 </graph></graphml>

@@ -21,8 +21,16 @@ from docling_graph.core.visualizers import ReportGenerator
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = REPO_ROOT / "docs" / "assets" / "aapl-eval-graph"
 EVAL_ITEMS = REPO_ROOT / "tests" / "fixtures" / "custom_judge" / "items" / "dev.jsonl"
-VISUALIZATION_VERSION = "3"
+VISUALIZATION_VERSION = "4"
 AAPL_CIK = "320193"
+
+# Stable node-type palette (legend, cytoscape base styles, and overlays share these).
+NODE_TYPE_COLORS: dict[str, tuple[str, str]] = {
+    "DOCUMENT": ("#bfdbfe", "#2563eb"),
+    "SECTION": ("#a5f3fc", "#0891b2"),
+    "CHUNK_XBRL_FACT": ("#bbf7d0", "#16a34a"),
+    "CHUNK_PARAGRAPH": ("#fde68a", "#ca8a04"),
+}
 
 # Graph node ids used across scenarios (compact AAPL subgraph).
 N = {
@@ -36,6 +44,27 @@ N = {
     "chunk_item1a": "chunk-item1a-p1",
     "chunk_item7_old": "chunk-item7-old-p1",
 }
+
+
+def chunk_materialized(
+    *,
+    node_id: str,
+    node_type: str,
+    label: str,
+    source_ref: str,
+    properties: dict[str, str],
+    bindings: dict[str, str],
+) -> str:
+    """Serialize full materialized chunk payload for the detail panel."""
+    payload = {
+        "node_id": node_id,
+        "node_type": node_type,
+        "label": label,
+        "source_ref": source_ref,
+        "properties": properties,
+        "bindings": bindings,
+    }
+    return json.dumps(payload, indent=2)
 
 
 def build_edgar_url(cik: str, accession: str) -> str:
@@ -305,7 +334,33 @@ def build_eval_demo_graph() -> nx.DiGraph:
                 "prop_text": "391,035 (USD millions, FY2024)",
                 "prop_xbrl_concept": "RevenueFromContractWithCustomerExcludingAssessedTax",
                 "prop_period": "FY2024",
+                "prop_currency": "USD",
+                "prop_unit": "millions",
+                "prop_numeric_value": "391035",
                 "eval_profiles": "financebench",
+                "materialized_json": chunk_materialized(
+                    node_id=N["chunk_xbrl"],
+                    node_type="CHUNK_XBRL_FACT",
+                    label="Net sales (XBRL fact)",
+                    source_ref=(
+                        "RevenueFromContractWithCustomerExcludingAssessedTax | "
+                        "period=FY2024 | value=391,035 USD millions"
+                    ),
+                    properties={
+                        "xbrl_concept": "RevenueFromContractWithCustomerExcludingAssessedTax",
+                        "period": "FY2024",
+                        "currency": "USD",
+                        "unit": "millions",
+                        "numeric_value": "391035",
+                        "display_value": "391,035 (USD millions, FY2024)",
+                    },
+                    bindings={
+                        "accession": "0000320193-24-000123",
+                        "form_type": "10-K",
+                        "section_path": "0000320193-24-000123/Item7",
+                        "cik": AAPL_CIK,
+                    },
+                ),
             },
         ),
         (
@@ -314,9 +369,34 @@ def build_eval_demo_graph() -> nx.DiGraph:
                 "node_type": "CHUNK_PARAGRAPH",
                 "label": "Net sales narrative",
                 "display_label": "Net sales\nnarrative",
-                "prop_text": "Net sales were $391.0 billion in fiscal 2024.",
+                "prop_text": (
+                    "Net sales were $391.0 billion in fiscal 2024, an increase of 2% "
+                    "compared to fiscal 2023. The increase was driven primarily by higher "
+                    "net sales of iPhone and Services."
+                ),
                 "prop_sec_source": "XBRL",
                 "eval_profiles": "financebench,finagentbench",
+                "materialized_json": chunk_materialized(
+                    node_id=N["chunk_item7"],
+                    node_type="CHUNK_PARAGRAPH",
+                    label="Net sales narrative",
+                    source_ref=(
+                        "Net sales were $391.0 billion in fiscal 2024, an increase of 2% "
+                        "compared to fiscal 2023. The increase was driven primarily by higher "
+                        "net sales of iPhone and Services."
+                    ),
+                    properties={
+                        "sec_source": "XBRL",
+                        "section_id": "Item7",
+                        "paragraph_index": "1",
+                    },
+                    bindings={
+                        "accession": "0000320193-24-000123",
+                        "form_type": "10-K",
+                        "section_path": "0000320193-24-000123/Item7",
+                        "cik": AAPL_CIK,
+                    },
+                ),
             },
         ),
         (
@@ -325,9 +405,34 @@ def build_eval_demo_graph() -> nx.DiGraph:
                 "node_type": "CHUNK_PARAGRAPH",
                 "label": "Supply chain risks",
                 "display_label": "Supply chain\nrisks",
-                "prop_text": "The Company depends on single or limited sources for many components.",
+                "prop_text": (
+                    "The Company depends on single or limited sources for many components. "
+                    "Supply chain disruptions, including those arising from geopolitical "
+                    "events, could materially adversely affect the Company's business."
+                ),
                 "prop_sec_source": "HTML",
                 "eval_profiles": "finder",
+                "materialized_json": chunk_materialized(
+                    node_id=N["chunk_item1a"],
+                    node_type="CHUNK_PARAGRAPH",
+                    label="Supply chain risks",
+                    source_ref=(
+                        "The Company depends on single or limited sources for many components. "
+                        "Supply chain disruptions, including those arising from geopolitical "
+                        "events, could materially adversely affect the Company's business."
+                    ),
+                    properties={
+                        "sec_source": "HTML",
+                        "section_id": "Item1A",
+                        "paragraph_index": "1",
+                    },
+                    bindings={
+                        "accession": "0000320193-24-000123",
+                        "form_type": "10-K",
+                        "section_path": "0000320193-24-000123/Item1A",
+                        "cik": AAPL_CIK,
+                    },
+                ),
             },
         ),
         (
@@ -336,9 +441,32 @@ def build_eval_demo_graph() -> nx.DiGraph:
                 "node_type": "CHUNK_PARAGRAPH",
                 "label": "Prior-year net sales",
                 "display_label": "Prior-year\nnet sales",
-                "prop_text": "Net sales were $383.3 billion in fiscal 2023.",
+                "prop_text": (
+                    "Net sales were $383.3 billion in fiscal 2023, a decrease of 3% "
+                    "compared to fiscal 2022, reflecting lower net sales of Products."
+                ),
                 "prop_sec_source": "XBRL",
                 "eval_profiles": "finagentbench",
+                "materialized_json": chunk_materialized(
+                    node_id=N["chunk_item7_old"],
+                    node_type="CHUNK_PARAGRAPH",
+                    label="Prior-year net sales",
+                    source_ref=(
+                        "Net sales were $383.3 billion in fiscal 2023, a decrease of 3% "
+                        "compared to fiscal 2022, reflecting lower net sales of Products."
+                    ),
+                    properties={
+                        "sec_source": "XBRL",
+                        "section_id": "Item7",
+                        "paragraph_index": "1",
+                    },
+                    bindings={
+                        "accession": "0000320193-24-000076",
+                        "form_type": "10-K",
+                        "section_path": "0000320193-24-000076/Item7",
+                        "cik": AAPL_CIK,
+                    },
+                ),
             },
         ),
     ]
@@ -457,6 +585,23 @@ def _graph_to_cytoscape_elements(graph: nx.DiGraph) -> dict:
     return {"nodes": nodes, "edges": edges}
 
 
+def _legend_type_rows() -> str:
+    labels = {
+        "DOCUMENT": "Document",
+        "SECTION": "Section",
+        "CHUNK_XBRL_FACT": "XBRL fact",
+        "CHUNK_PARAGRAPH": "Paragraph chunk",
+    }
+    rows = []
+    for node_type, (bg, border) in NODE_TYPE_COLORS.items():
+        label = labels.get(node_type, node_type)
+        rows.append(
+            f'<div><span class="swatch" style="background:{bg};border-color:{border}"></span>'
+            f"{label}</div>"
+        )
+    return "\n          ".join(rows)
+
+
 def render_styled_visualization(
     graph: nx.DiGraph,
     output_path: Path,
@@ -467,6 +612,8 @@ def render_styled_visualization(
     elements = _graph_to_cytoscape_elements(graph)
     elements_json = json.dumps(elements, indent=2, ensure_ascii=False)
     scenarios_json = json.dumps(scenarios, indent=2, ensure_ascii=False)
+    legend_types = _legend_type_rows()
+    type_colors_json = json.dumps(NODE_TYPE_COLORS)
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -487,7 +634,7 @@ def render_styled_visualization(
     }}
     #layout {{ display: flex; min-height: 100vh; }}
     #sidebar {{
-      width: 300px;
+      width: 280px;
       flex-shrink: 0;
       background: #fff;
       border-right: 1px solid #cbd5e1;
@@ -533,6 +680,83 @@ def render_styled_visualization(
     header p {{ margin: 0; color: #475569; }}
     #cy-wrap {{ position: relative; flex: 1; }}
     #cy {{ width: 100%; height: calc(100vh - 44px); background: #f8fafc; }}
+    #detail-panel {{
+      width: 360px;
+      flex-shrink: 0;
+      background: #fff;
+      border-left: 1px solid #cbd5e1;
+      display: none;
+      flex-direction: column;
+      max-height: 100vh;
+    }}
+    #detail-panel.open {{ display: flex; }}
+    .detail-header {{
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.65rem 0.75rem;
+      border-bottom: 1px solid #e2e8f0;
+    }}
+    .detail-header h2 {{ margin: 0; font-size: 0.875rem; line-height: 1.35; }}
+    .detail-header p {{ margin: 0.2rem 0 0; font-size: 0.7rem; color: #64748b; }}
+    #detail-close {{
+      border: none;
+      background: #f1f5f9;
+      border-radius: 4px;
+      width: 1.75rem;
+      height: 1.75rem;
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+    }}
+    .detail-tabs {{
+      display: flex;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }}
+    .detail-tab {{
+      flex: 1;
+      border: none;
+      background: transparent;
+      padding: 0.45rem 0.5rem;
+      font-size: 0.72rem;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }}
+    .detail-tab.active {{
+      background: #fff;
+      border-bottom-color: #2563eb;
+      font-weight: 600;
+    }}
+    .detail-body {{
+      flex: 1;
+      overflow: auto;
+      padding: 0.65rem 0.75rem;
+      font-size: 0.75rem;
+      line-height: 1.45;
+    }}
+    .detail-body.hidden {{ display: none; }}
+    .detail-body dl {{ margin: 0; }}
+    .detail-body dt {{ font-weight: 600; margin-top: 0.45rem; color: #334155; }}
+    .detail-body dd {{ margin: 0.1rem 0 0 0; word-break: break-word; }}
+    .detail-body pre {{
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.68rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 0.55rem;
+    }}
+    .detail-excerpt {{
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 6px;
+      padding: 0.55rem;
+      margin-top: 0.35rem;
+    }}
     #legend {{
       position: absolute;
       top: 8px;
@@ -575,35 +799,57 @@ def render_styled_visualization(
   <div id="layout">
     <aside id="sidebar">
       <h1>Investigation overlay (019)</h1>
-      <p>Select a scenario to highlight expected paths, agent visits, citations, and failure taxonomy signals on the graph.</p>
+      <p>Select a scenario to highlight paths. Click <strong>documents</strong> for EDGAR or <strong>chunk nodes</strong> for materialized payload.</p>
       <div id="scenario-buttons"></div>
       <div id="investigation-panel"></div>
     </aside>
     <div id="main">
       <header>
-        <p>Apple (AAPL) disclosure graph — hover nodes · drag to pan · scroll to zoom</p>
+        <p>Apple (AAPL) disclosure graph — hover for preview · click chunks for detail · click documents for EDGAR</p>
       </header>
       <div id="cy-wrap">
         <div id="legend">
           <strong>Overlay</strong>
-          <div><span class="swatch" style="background:#dcfce7;border-color:#16a34a"></span>Expected path</div>
-          <div><span class="swatch" style="background:#dbeafe;border-color:#2563eb"></span>Visited</div>
-          <div><span class="swatch" style="background:#fef3c7;border-color:#ca8a04"></span>Cited</div>
-          <div><span class="swatch" style="background:#fee2e2;border-color:#dc2626"></span>Expected but missing</div>
+          <div><span class="swatch" style="background:transparent;border-color:#16a34a;border-width:2px"></span>Expected ring</div>
+          <div><span class="swatch" style="background:transparent;border-color:#2563eb;border-width:2px"></span>Visited ring</div>
+          <div><span class="swatch" style="background:transparent;border-color:#ca8a04;border-width:2px"></span>Cited ring</div>
+          <div><span class="swatch" style="background:transparent;border-color:#dc2626;border-width:2px"></span>Missing ring</div>
           <strong style="margin-top:0.35rem">Node types</strong>
-          <div><span class="swatch" style="background:#bfdbfe;border-color:#2563eb"></span>Document</div>
-          <div><span class="swatch" style="background:#a5f3fc;border-color:#0891b2"></span>Section</div>
-          <div><span class="swatch" style="background:#bbf7d0;border-color:#16a34a"></span>XBRL fact</div>
+          {legend_types}
         </div>
         <div id="tooltip"></div>
         <div id="cy"></div>
       </div>
     </div>
+    <aside id="detail-panel">
+      <div class="detail-header">
+        <div>
+          <h2 id="detail-title">Node detail</h2>
+          <p id="detail-subtitle"></p>
+        </div>
+        <button id="detail-close" type="button" aria-label="Close detail panel">×</button>
+      </div>
+      <div class="detail-tabs">
+        <button type="button" class="detail-tab active" data-tab="materialized">Materialized</button>
+        <button type="button" class="detail-tab" data-tab="json">JSON</button>
+      </div>
+      <div id="detail-materialized" class="detail-body"></div>
+      <div id="detail-json" class="detail-body hidden"><pre id="detail-json-pre"></pre></div>
+    </aside>
   </div>
   <script>
     const graphElements = {elements_json};
     const investigationScenarios = {scenarios_json};
+    const nodeTypeColors = {type_colors_json};
     cytoscape.use(cytoscapeDagre);
+
+    const baseNodeStyles = Object.entries(nodeTypeColors).map(([nodeType, colors]) => ({{
+      selector: `node[node_type = "${{nodeType}}"]`,
+      style: {{
+        'background-color': colors[0],
+        'border-color': colors[1],
+      }},
+    }}));
 
     const cy = cytoscape({{
       container: document.getElementById('cy'),
@@ -633,41 +879,39 @@ def render_styled_visualization(
             'opacity': 0.45,
           }},
         }},
+        ...baseNodeStyles,
         {{
           selector: 'node[node_type = "DOCUMENT"]',
-          style: {{ 'background-color': '#bfdbfe', 'border-color': '#2563eb' }},
+          style: {{ 'cursor': 'pointer' }},
         }},
         {{
-          selector: 'node[node_type = "SECTION"]',
-          style: {{ 'background-color': '#a5f3fc', 'border-color': '#0891b2' }},
-        }},
-        {{
-          selector: 'node[node_type = "CHUNK_XBRL_FACT"]',
-          style: {{ 'background-color': '#bbf7d0', 'border-color': '#16a34a' }},
-        }},
-        {{
-          selector: 'node[node_type = "CHUNK_PARAGRAPH"][prop_sec_source = "HTML"]',
-          style: {{ 'background-color': '#e9d5ff', 'border-color': '#9333ea' }},
-        }},
-        {{
-          selector: 'node[node_type = "CHUNK_PARAGRAPH"][prop_sec_source = "XBRL"]',
-          style: {{ 'background-color': '#fde68a', 'border-color': '#ca8a04' }},
+          selector: 'node[node_type = "CHUNK_PARAGRAPH"], node[node_type = "CHUNK_XBRL_FACT"]',
+          style: {{ 'cursor': 'pointer' }},
         }},
         {{
           selector: 'node.overlay-expected',
-          style: {{ 'opacity': 1, 'border-width': 2.5, 'border-color': '#16a34a', 'background-color': '#dcfce7' }},
+          style: {{ 'opacity': 1, 'border-width': 3, 'border-color': '#16a34a' }},
         }},
         {{
           selector: 'node.overlay-visited',
-          style: {{ 'opacity': 1, 'border-color': '#2563eb' }},
+          style: {{ 'opacity': 1, 'border-width': 2.5, 'border-color': '#2563eb' }},
         }},
         {{
           selector: 'node.overlay-cited',
-          style: {{ 'border-width': 3, 'border-color': '#ca8a04', 'background-color': '#fef3c7' }},
+          style: {{ 'opacity': 1, 'border-width': 3.5, 'border-color': '#ca8a04' }},
         }},
         {{
           selector: 'node.overlay-missing',
-          style: {{ 'opacity': 1, 'border-width': 2.5, 'border-color': '#dc2626', 'background-color': '#fee2e2', 'line-style': 'dashed' }},
+          style: {{
+            'opacity': 1,
+            'border-width': 3,
+            'border-color': '#dc2626',
+            'border-style': 'dashed',
+          }},
+        }},
+        {{
+          selector: 'node.node-focused',
+          style: {{ 'border-width': 4, 'border-color': '#0f172a' }},
         }},
         {{
           selector: 'edge',
@@ -705,6 +949,83 @@ def render_styled_visualization(
         animate: true,
         animationDuration: 400,
       }},
+    }});
+
+    const detailPanel = document.getElementById('detail-panel');
+    const detailTitle = document.getElementById('detail-title');
+    const detailSubtitle = document.getElementById('detail-subtitle');
+    const detailMaterialized = document.getElementById('detail-materialized');
+    const detailJsonPre = document.getElementById('detail-json-pre');
+    let focusedNode = null;
+
+    function escapeHtml(value) {{
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }}
+
+    function renderMaterializedView(payload) {{
+      const props = payload.properties || {{}};
+      const bindings = payload.bindings || {{}};
+      const propRows = Object.entries(props).map(
+        ([key, value]) => `<dt>${{escapeHtml(key)}}</dt><dd>${{escapeHtml(value)}}</dd>`
+      ).join('');
+      const bindingRows = Object.entries(bindings).map(
+        ([key, value]) => `<dt>${{escapeHtml(key)}}</dt><dd><code>${{escapeHtml(value)}}</code></dd>`
+      ).join('');
+      return `
+        <dl>
+          <dt>node_id</dt><dd><code>${{escapeHtml(payload.node_id || '')}}</code></dd>
+          <dt>node_type</dt><dd><code>${{escapeHtml(payload.node_type || '')}}</code></dd>
+          <dt>label</dt><dd>${{escapeHtml(payload.label || '')}}</dd>
+          <dt>source_ref (full excerpt)</dt>
+          <dd><div class="detail-excerpt">${{escapeHtml(payload.source_ref || '')}}</div></dd>
+        </dl>
+        <h3 style="font-size:0.78rem;margin:0.75rem 0 0.25rem">properties</h3>
+        <dl>${{propRows || '<dd><em>none</em></dd>'}}</dl>
+        <h3 style="font-size:0.78rem;margin:0.75rem 0 0.25rem">bindings</h3>
+        <dl>${{bindingRows || '<dd><em>none</em></dd>'}}</dl>`;
+    }}
+
+    function showDetailPanel(nodeData) {{
+      const raw = nodeData.materialized_json || '{{}}';
+      let payload;
+      try {{
+        payload = JSON.parse(raw);
+      }} catch (err) {{
+        payload = {{ node_id: nodeData.id, parse_error: String(err), raw }};
+      }}
+      detailTitle.textContent = nodeData.label || nodeData.id;
+      detailSubtitle.textContent = nodeData.node_type || '';
+      detailMaterialized.innerHTML = renderMaterializedView(payload);
+      detailJsonPre.textContent = typeof raw === 'string' ? raw : JSON.stringify(payload, null, 2);
+      detailPanel.classList.add('open');
+      document.querySelectorAll('.detail-tab').forEach(tab => {{
+        tab.classList.toggle('active', tab.dataset.tab === 'materialized');
+      }});
+      document.getElementById('detail-materialized').classList.remove('hidden');
+      document.getElementById('detail-json').classList.add('hidden');
+    }}
+
+    function closeDetailPanel() {{
+      detailPanel.classList.remove('open');
+      if (focusedNode) {{
+        focusedNode.removeClass('node-focused');
+        focusedNode = null;
+      }}
+    }}
+
+    document.getElementById('detail-close').onclick = closeDetailPanel;
+    document.querySelectorAll('.detail-tab').forEach(tab => {{
+      tab.onclick = () => {{
+        document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const name = tab.dataset.tab;
+        document.getElementById('detail-materialized').classList.toggle('hidden', name !== 'materialized');
+        document.getElementById('detail-json').classList.toggle('hidden', name !== 'json');
+      }};
     }});
 
     function renderPanel(scenario) {{
@@ -763,14 +1084,18 @@ def render_styled_visualization(
     const tooltip = document.getElementById('tooltip');
     cy.on('mouseover', 'node', (evt) => {{
       const d = evt.target.data();
+      const clickHint = d.node_type === 'DOCUMENT'
+        ? 'Click to open EDGAR filing'
+        : (d.node_type === 'CHUNK_PARAGRAPH' || d.node_type === 'CHUNK_XBRL_FACT')
+          ? 'Click for materialized payload'
+          : null;
       const lines = [
         `<strong>${{d.label || d.id}}</strong>`,
         d.node_type ? `Type: ${{d.node_type}}` : null,
         d.section_path ? `Path: ${{d.section_path}}` : null,
-        d.prop_text ? d.prop_text : null,
+        d.prop_text ? (d.prop_text.length > 120 ? d.prop_text.slice(0, 120) + '…' : d.prop_text) : null,
         d.prop_xbrl_concept ? `Concept: ${{d.prop_xbrl_concept}}` : null,
-        d.edgar_url ? `<a href="${{d.edgar_url}}" style="color:#93c5fd">EDGAR filing</a>` : null,
-        d.eval_profiles ? `Eval: ${{d.eval_profiles}}` : null,
+        clickHint,
       ].filter(Boolean);
       tooltip.innerHTML = lines.join('<br>');
       tooltip.style.display = 'block';
@@ -779,6 +1104,27 @@ def render_styled_visualization(
     cy.on('mousemove', (evt) => {{
       tooltip.style.left = (evt.originalEvent.pageX + 12) + 'px';
       tooltip.style.top = (evt.originalEvent.pageY + 12) + 'px';
+    }});
+
+    cy.on('tap', 'node', (evt) => {{
+      const node = evt.target;
+      const d = node.data();
+      if (focusedNode) focusedNode.removeClass('node-focused');
+      if (d.node_type === 'DOCUMENT' && d.edgar_url) {{
+        window.open(d.edgar_url, '_blank', 'noopener,noreferrer');
+        return;
+      }}
+      if (d.node_type === 'CHUNK_PARAGRAPH' || d.node_type === 'CHUNK_XBRL_FACT') {{
+        focusedNode = node;
+        node.addClass('node-focused');
+        showDetailPanel(d);
+        return;
+      }}
+      closeDetailPanel();
+    }});
+
+    cy.on('tap', (evt) => {{
+      if (evt.target === cy) closeDetailPanel();
     }});
   </script>
 </body>
