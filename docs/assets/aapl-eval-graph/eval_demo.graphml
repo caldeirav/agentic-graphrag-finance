@@ -1,13 +1,14 @@
 <?xml version='1.0' encoding='utf-8'?>
-<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd"><key id="d14" for="edge" attr.name="edge_id" attr.type="string"/>
-<key id="d13" for="edge" attr.name="label" attr.type="string"/>
-<key id="d12" for="edge" attr.name="edge_type" attr.type="string"/>
-<key id="d11" for="node" attr.name="prop_sec_source" attr.type="string"/>
-<key id="d10" for="node" attr.name="eval_profiles" attr.type="string"/>
-<key id="d9" for="node" attr.name="prop_period" attr.type="string"/>
-<key id="d8" for="node" attr.name="prop_xbrl_concept" attr.type="string"/>
-<key id="d7" for="node" attr.name="prop_text" attr.type="string"/>
-<key id="d6" for="node" attr.name="section_path" attr.type="string"/>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd"><key id="d15" for="edge" attr.name="edge_id" attr.type="string"/>
+<key id="d14" for="edge" attr.name="label" attr.type="string"/>
+<key id="d13" for="edge" attr.name="edge_type" attr.type="string"/>
+<key id="d12" for="node" attr.name="prop_sec_source" attr.type="string"/>
+<key id="d11" for="node" attr.name="prop_period" attr.type="string"/>
+<key id="d10" for="node" attr.name="prop_xbrl_concept" attr.type="string"/>
+<key id="d9" for="node" attr.name="prop_text" attr.type="string"/>
+<key id="d8" for="node" attr.name="section_path" attr.type="string"/>
+<key id="d7" for="node" attr.name="eval_profiles" attr.type="string"/>
+<key id="d6" for="node" attr.name="edgar_url" attr.type="string"/>
 <key id="d5" for="node" attr.name="period_end" attr.type="string"/>
 <key id="d4" for="node" attr.name="form_type" attr.type="string"/>
 <key id="d3" for="node" attr.name="accession" attr.type="string"/>
@@ -22,6 +23,8 @@
   <data key="d3">0000320193-24-000123</data>
   <data key="d4">10-K</data>
   <data key="d5">2024-09-28</data>
+  <data key="d6">https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.htm</data>
+  <data key="d7">financebench,finder,finagentbench</data>
 </node>
 <node id="doc-0000320193-24-000076">
   <data key="d0">DOCUMENT</data>
@@ -31,113 +34,118 @@
   <data key="d3">0000320193-24-000076</data>
   <data key="d4">10-K</data>
   <data key="d5">2023-09-30</data>
+  <data key="d6">https://www.sec.gov/Archives/edgar/data/320193/000032019324000076/0000320193-24-000076-index.htm</data>
+  <data key="d7">finagentbench</data>
 </node>
 <node id="0000320193-24-000123/Item7">
   <data key="d0">SECTION</data>
   <data key="d1">Item 7 MD&amp;A</data>
   <data key="d2">Item 7
 MD&amp;A</data>
-  <data key="d6">0000320193-24-000123/Item7</data>
+  <data key="d8">0000320193-24-000123/Item7</data>
+  <data key="d7">financebench,finagentbench</data>
 </node>
 <node id="0000320193-24-000123/Item1A">
   <data key="d0">SECTION</data>
   <data key="d1">Item 1A Risk Factors</data>
   <data key="d2">Item 1A
 Risk Factors</data>
-  <data key="d6">0000320193-24-000123/Item1A</data>
+  <data key="d8">0000320193-24-000123/Item1A</data>
+  <data key="d7">finder</data>
 </node>
 <node id="0000320193-24-000076/Item7">
   <data key="d0">SECTION</data>
   <data key="d1">Item 7 MD&amp;A (prior year)</data>
   <data key="d2">Item 7
 MD&amp;A (prior)</data>
-  <data key="d6">0000320193-24-000076/Item7</data>
+  <data key="d8">0000320193-24-000076/Item7</data>
+  <data key="d7">finagentbench</data>
 </node>
 <node id="chunk-xbrl-net-sales-fy2024">
   <data key="d0">CHUNK_XBRL_FACT</data>
   <data key="d1">Net sales (XBRL fact)</data>
   <data key="d2">Net sales
 (XBRL)</data>
-  <data key="d7">391,035 (USD millions, FY2024)</data>
-  <data key="d8">RevenueFromContractWithCustomerExcludingAssessedTax</data>
-  <data key="d9">FY2024</data>
-  <data key="d10">financebench</data>
+  <data key="d9">391,035 (USD millions, FY2024)</data>
+  <data key="d10">RevenueFromContractWithCustomerExcludingAssessedTax</data>
+  <data key="d11">FY2024</data>
+  <data key="d7">financebench</data>
 </node>
 <node id="chunk-item7-p1">
   <data key="d0">CHUNK_PARAGRAPH</data>
   <data key="d1">Net sales narrative</data>
   <data key="d2">Net sales
 narrative</data>
-  <data key="d7">Net sales were $391.0 billion in fiscal 2024.</data>
-  <data key="d11">XBRL</data>
-  <data key="d10">financebench,finagentbench</data>
+  <data key="d9">Net sales were $391.0 billion in fiscal 2024.</data>
+  <data key="d12">XBRL</data>
+  <data key="d7">financebench,finagentbench</data>
 </node>
 <node id="chunk-item1a-p1">
   <data key="d0">CHUNK_PARAGRAPH</data>
   <data key="d1">Supply chain risks</data>
   <data key="d2">Supply chain
 risks</data>
-  <data key="d7">The Company depends on single or limited sources for many components.</data>
-  <data key="d11">HTML</data>
-  <data key="d10">finder</data>
+  <data key="d9">The Company depends on single or limited sources for many components.</data>
+  <data key="d12">HTML</data>
+  <data key="d7">finder</data>
 </node>
 <node id="chunk-item7-old-p1">
   <data key="d0">CHUNK_PARAGRAPH</data>
   <data key="d1">Prior-year net sales</data>
   <data key="d2">Prior-year
 net sales</data>
-  <data key="d7">Net sales were $383.3 billion in fiscal 2023.</data>
-  <data key="d11">XBRL</data>
-  <data key="d10">finagentbench</data>
+  <data key="d9">Net sales were $383.3 billion in fiscal 2023.</data>
+  <data key="d12">XBRL</data>
+  <data key="d7">finagentbench</data>
 </node>
 <edge source="doc-0000320193-24-000123" target="0000320193-24-000123/Item7">
-  <data key="d12">CONTAINS</data>
   <data key="d13">CONTAINS</data>
-  <data key="d14">e1</data>
+  <data key="d14">CONTAINS</data>
+  <data key="d15">e1</data>
 </edge>
 <edge source="doc-0000320193-24-000123" target="0000320193-24-000123/Item1A">
-  <data key="d12">CONTAINS</data>
   <data key="d13">CONTAINS</data>
-  <data key="d14">e2</data>
+  <data key="d14">CONTAINS</data>
+  <data key="d15">e2</data>
 </edge>
 <edge source="doc-0000320193-24-000123" target="doc-0000320193-24-000076">
-  <data key="d12">TEMPORAL_TRANSITION</data>
   <data key="d13">TEMPORAL_TRANSITION</data>
-  <data key="d14">e10</data>
+  <data key="d14">TEMPORAL_TRANSITION</data>
+  <data key="d15">e10</data>
 </edge>
 <edge source="doc-0000320193-24-000076" target="0000320193-24-000076/Item7">
-  <data key="d12">CONTAINS</data>
   <data key="d13">CONTAINS</data>
-  <data key="d14">e3</data>
+  <data key="d14">CONTAINS</data>
+  <data key="d15">e3</data>
 </edge>
 <edge source="0000320193-24-000123/Item7" target="chunk-xbrl-net-sales-fy2024">
-  <data key="d12">CONTAINS</data>
   <data key="d13">CONTAINS</data>
-  <data key="d14">e4</data>
+  <data key="d14">CONTAINS</data>
+  <data key="d15">e4</data>
 </edge>
 <edge source="0000320193-24-000123/Item7" target="chunk-item7-p1">
-  <data key="d12">CONTAINS</data>
   <data key="d13">CONTAINS</data>
-  <data key="d14">e5</data>
+  <data key="d14">CONTAINS</data>
+  <data key="d15">e5</data>
 </edge>
 <edge source="0000320193-24-000123/Item1A" target="chunk-item1a-p1">
-  <data key="d12">CONTAINS</data>
   <data key="d13">CONTAINS</data>
-  <data key="d14">e6</data>
+  <data key="d14">CONTAINS</data>
+  <data key="d15">e6</data>
 </edge>
 <edge source="0000320193-24-000076/Item7" target="chunk-item7-old-p1">
-  <data key="d12">CONTAINS</data>
   <data key="d13">CONTAINS</data>
-  <data key="d14">e7</data>
+  <data key="d14">CONTAINS</data>
+  <data key="d15">e7</data>
 </edge>
 <edge source="chunk-xbrl-net-sales-fy2024" target="chunk-item7-p1">
-  <data key="d12">NEXT</data>
   <data key="d13">NEXT</data>
-  <data key="d14">e8</data>
+  <data key="d14">NEXT</data>
+  <data key="d15">e8</data>
 </edge>
 <edge source="chunk-item7-old-p1" target="chunk-item7-p1">
-  <data key="d12">REFERENCES</data>
   <data key="d13">REFERENCES</data>
-  <data key="d14">e9</data>
+  <data key="d14">REFERENCES</data>
+  <data key="d15">e9</data>
 </edge>
 </graph></graphml>

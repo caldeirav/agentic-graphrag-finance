@@ -1,0 +1,189 @@
+[
+  {
+    "scenario_id": "0.0.0-financebench-001",
+    "label": "FinanceBench \u2014 numeric lookup",
+    "inspiration_profile": "financebench",
+    "question": "What was total net sales in the most recent fiscal year?",
+    "expected_section_paths": [
+      "0000320193-24-000123/Item7"
+    ],
+    "visited_section_paths": [
+      "0000320193-24-000123/Item7"
+    ],
+    "cited_chunk_node_ids": [
+      "chunk-xbrl-net-sales-fy2024",
+      "chunk-item7-p1"
+    ],
+    "synthesis_path": "numeric_xbrl_deterministic",
+    "suggested_failure_class": null,
+    "binding_miss": false,
+    "highlight_nodes": [
+      "doc-0000320193-24-000123",
+      "0000320193-24-000123/Item7",
+      "chunk-xbrl-net-sales-fy2024",
+      "chunk-item7-p1"
+    ],
+    "visited_nodes": [
+      "doc-0000320193-24-000123",
+      "0000320193-24-000123/Item7",
+      "chunk-xbrl-net-sales-fy2024",
+      "chunk-item7-p1"
+    ],
+    "cited_nodes": [
+      "chunk-xbrl-net-sales-fy2024",
+      "chunk-item7-p1"
+    ],
+    "missing_nodes": [],
+    "edgar_links": [
+      {
+        "accession": "0000320193-24-000123",
+        "form_type": "10-K",
+        "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.htm"
+      }
+    ]
+  },
+  {
+    "scenario_id": "0.0.0-finder-001",
+    "label": "FinDER \u2014 risk narrative",
+    "inspiration_profile": "finder",
+    "question": "What risk factors does the company highlight for supply chain?",
+    "expected_section_paths": [
+      "0000320193-24-000123/Item1A"
+    ],
+    "visited_section_paths": [
+      "0000320193-24-000123/Item1A"
+    ],
+    "cited_chunk_node_ids": [
+      "chunk-item1a-p1"
+    ],
+    "synthesis_path": "live_llm",
+    "suggested_failure_class": null,
+    "binding_miss": false,
+    "highlight_nodes": [
+      "doc-0000320193-24-000123",
+      "0000320193-24-000123/Item1A",
+      "chunk-item1a-p1"
+    ],
+    "visited_nodes": [
+      "doc-0000320193-24-000123",
+      "0000320193-24-000123/Item1A",
+      "chunk-item1a-p1"
+    ],
+    "cited_nodes": [
+      "chunk-item1a-p1"
+    ],
+    "missing_nodes": [],
+    "edgar_links": [
+      {
+        "accession": "0000320193-24-000123",
+        "form_type": "10-K",
+        "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.htm"
+      }
+    ]
+  },
+  {
+    "scenario_id": "0.0.0-finagentbench-001",
+    "label": "FinAgentBench \u2014 comparison (success)",
+    "inspiration_profile": "finagentbench",
+    "question": "Compare net sales discussion across the two most recent 10-K filings.",
+    "expected_section_paths": [
+      "0000320193-24-000123/Item7",
+      "0000320193-24-000076/Item7"
+    ],
+    "visited_section_paths": [
+      "0000320193-24-000123/Item7",
+      "0000320193-24-000076/Item7"
+    ],
+    "cited_chunk_node_ids": [
+      "chunk-item7-p1",
+      "chunk-item7-old-p1"
+    ],
+    "synthesis_path": "comparison_narrative_deterministic",
+    "suggested_failure_class": null,
+    "binding_miss": false,
+    "highlight_nodes": [
+      "doc-0000320193-24-000123",
+      "doc-0000320193-24-000076",
+      "0000320193-24-000123/Item7",
+      "0000320193-24-000076/Item7",
+      "chunk-item7-p1",
+      "chunk-item7-old-p1"
+    ],
+    "visited_nodes": [
+      "doc-0000320193-24-000123",
+      "doc-0000320193-24-000076",
+      "0000320193-24-000123/Item7",
+      "0000320193-24-000076/Item7",
+      "chunk-item7-p1",
+      "chunk-item7-old-p1"
+    ],
+    "cited_nodes": [
+      "chunk-item7-p1",
+      "chunk-item7-old-p1"
+    ],
+    "missing_nodes": [],
+    "edgar_links": [
+      {
+        "accession": "0000320193-24-000123",
+        "form_type": "10-K",
+        "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.htm"
+      },
+      {
+        "accession": "0000320193-24-000076",
+        "form_type": "10-K",
+        "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000076/0000320193-24-000076-index.htm"
+      }
+    ]
+  },
+  {
+    "scenario_id": "demo-binding-miss-019",
+    "label": "019 \u2014 binding miss (comparison)",
+    "inspiration_profile": "investigation",
+    "question": "Compare net sales discussion across the two most recent 10-K filings.",
+    "expected_section_paths": [
+      "0000320193-24-000123/Item7",
+      "0000320193-24-000076/Item7"
+    ],
+    "visited_section_paths": [
+      "0000320193-24-000123/Item7"
+    ],
+    "cited_chunk_node_ids": [
+      "chunk-item7-p1"
+    ],
+    "synthesis_path": "template",
+    "suggested_failure_class": "binding_error",
+    "suggested_failure_detail": "Macro route bound FY2024 10-K only; FY2023 Item 7 never visited",
+    "binding_miss": true,
+    "highlight_nodes": [
+      "doc-0000320193-24-000123",
+      "doc-0000320193-24-000076",
+      "0000320193-24-000123/Item7",
+      "0000320193-24-000076/Item7"
+    ],
+    "visited_nodes": [
+      "doc-0000320193-24-000123",
+      "0000320193-24-000123/Item7",
+      "chunk-item7-p1"
+    ],
+    "cited_nodes": [
+      "chunk-item7-p1"
+    ],
+    "missing_nodes": [
+      "doc-0000320193-24-000076",
+      "0000320193-24-000076/Item7",
+      "chunk-item7-old-p1"
+    ],
+    "edgar_links": [
+      {
+        "accession": "0000320193-24-000123",
+        "form_type": "10-K",
+        "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.htm"
+      },
+      {
+        "accession": "0000320193-24-000076",
+        "form_type": "10-K",
+        "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000076/0000320193-24-000076-index.htm"
+      }
+    ]
+  }
+]

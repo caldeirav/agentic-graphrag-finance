@@ -15,32 +15,67 @@
       background: #f1f5f9;
       color: #0f172a;
     }
+    #layout { display: flex; min-height: 100vh; }
+    #sidebar {
+      width: 300px;
+      flex-shrink: 0;
+      background: #fff;
+      border-right: 1px solid #cbd5e1;
+      padding: 0.75rem;
+      overflow-y: auto;
+      font-size: 0.8125rem;
+    }
+    #sidebar h1 { margin: 0 0 0.35rem; font-size: 0.95rem; }
+    #sidebar p { margin: 0 0 0.75rem; color: #475569; line-height: 1.4; }
+    .scenario-btn {
+      display: block;
+      width: 100%;
+      text-align: left;
+      margin-bottom: 0.4rem;
+      padding: 0.45rem 0.55rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #f8fafc;
+      cursor: pointer;
+      font-size: 0.75rem;
+    }
+    .scenario-btn.active { border-color: #2563eb; background: #eff6ff; }
+    #investigation-panel {
+      margin-top: 0.75rem;
+      padding: 0.55rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      line-height: 1.45;
+    }
+    #investigation-panel h2 { margin: 0 0 0.35rem; font-size: 0.8rem; }
+    #investigation-panel dl { margin: 0; }
+    #investigation-panel dt { font-weight: 600; margin-top: 0.35rem; }
+    #investigation-panel dd { margin: 0.1rem 0 0 0; color: #334155; }
+    #investigation-panel code { font-size: 0.68rem; word-break: break-all; }
+    #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     header {
-      padding: 0.75rem 1rem;
+      padding: 0.55rem 0.75rem;
       background: #fff;
       border-bottom: 1px solid #cbd5e1;
-      font-size: 0.875rem;
+      font-size: 0.8125rem;
     }
-    header h1 {
-      margin: 0 0 0.25rem;
-      font-size: 1rem;
-      font-weight: 600;
-    }
-    header p { margin: 0; color: #475569; font-size: 0.8125rem; }
-    #cy { width: 100%; height: calc(100vh - 56px); background: #f8fafc; }
+    header p { margin: 0; color: #475569; }
+    #cy-wrap { position: relative; flex: 1; }
+    #cy { width: 100%; height: calc(100vh - 44px); background: #f8fafc; }
     #legend {
       position: absolute;
-      top: 64px;
-      right: 12px;
+      top: 8px;
+      right: 8px;
       background: rgba(255, 255, 255, 0.95);
       border: 1px solid #cbd5e1;
       border-radius: 6px;
-      padding: 0.5rem 0.65rem;
-      font-size: 0.6875rem;
-      line-height: 1.5;
+      padding: 0.45rem 0.55rem;
+      font-size: 0.65rem;
+      line-height: 1.45;
       box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
     }
-    #legend strong { display: block; margin-bottom: 0.25rem; font-size: 0.75rem; }
+    #legend strong { display: block; margin-bottom: 0.2rem; font-size: 0.7rem; }
     .swatch {
       display: inline-block;
       width: 10px;
@@ -53,7 +88,7 @@
     #tooltip {
       display: none;
       position: absolute;
-      max-width: 280px;
+      max-width: 300px;
       padding: 0.5rem 0.65rem;
       background: #1e293b;
       color: #f8fafc;
@@ -67,20 +102,34 @@
   </style>
 </head>
 <body>
-  <header>
-    <h1>Apple (AAPL) disclosure graph — evaluation paths</h1>
-    <p>Hover nodes for details · drag to pan · scroll to zoom</p>
-  </header>
-  <div id="legend">
-    <strong>Node types</strong>
-    <div><span class="swatch" style="background:#bfdbfe;border-color:#2563eb"></span>Document</div>
-    <div><span class="swatch" style="background:#a5f3fc;border-color:#0891b2"></span>Section</div>
-    <div><span class="swatch" style="background:#bbf7d0;border-color:#16a34a"></span>XBRL fact</div>
-    <div><span class="swatch" style="background:#e9d5ff;border-color:#9333ea"></span>HTML chunk</div>
-    <div><span class="swatch" style="background:#fde68a;border-color:#ca8a04"></span>XBRL narrative</div>
+  <div id="layout">
+    <aside id="sidebar">
+      <h1>Investigation overlay (019)</h1>
+      <p>Select a scenario to highlight expected paths, agent visits, citations, and failure taxonomy signals on the graph.</p>
+      <div id="scenario-buttons"></div>
+      <div id="investigation-panel"></div>
+    </aside>
+    <div id="main">
+      <header>
+        <p>Apple (AAPL) disclosure graph — hover nodes · drag to pan · scroll to zoom</p>
+      </header>
+      <div id="cy-wrap">
+        <div id="legend">
+          <strong>Overlay</strong>
+          <div><span class="swatch" style="background:#dcfce7;border-color:#16a34a"></span>Expected path</div>
+          <div><span class="swatch" style="background:#dbeafe;border-color:#2563eb"></span>Visited</div>
+          <div><span class="swatch" style="background:#fef3c7;border-color:#ca8a04"></span>Cited</div>
+          <div><span class="swatch" style="background:#fee2e2;border-color:#dc2626"></span>Expected but missing</div>
+          <strong style="margin-top:0.35rem">Node types</strong>
+          <div><span class="swatch" style="background:#bfdbfe;border-color:#2563eb"></span>Document</div>
+          <div><span class="swatch" style="background:#a5f3fc;border-color:#0891b2"></span>Section</div>
+          <div><span class="swatch" style="background:#bbf7d0;border-color:#16a34a"></span>XBRL fact</div>
+        </div>
+        <div id="tooltip"></div>
+        <div id="cy"></div>
+      </div>
+    </div>
   </div>
-  <div id="tooltip"></div>
-  <div id="cy"></div>
   <script>
     const graphElements = {
   "nodes": [
@@ -92,7 +141,9 @@
         "display_label": "FY2024\n10-K",
         "accession": "0000320193-24-000123",
         "form_type": "10-K",
-        "period_end": "2024-09-28"
+        "period_end": "2024-09-28",
+        "edgar_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.htm",
+        "eval_profiles": "financebench,finder,finagentbench"
       }
     },
     {
@@ -103,7 +154,9 @@
         "display_label": "FY2023\n10-K",
         "accession": "0000320193-24-000076",
         "form_type": "10-K",
-        "period_end": "2023-09-30"
+        "period_end": "2023-09-30",
+        "edgar_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000076/0000320193-24-000076-index.htm",
+        "eval_profiles": "finagentbench"
       }
     },
     {
@@ -112,7 +165,8 @@
         "node_type": "SECTION",
         "label": "Item 7 MD&A",
         "display_label": "Item 7\nMD&A",
-        "section_path": "0000320193-24-000123/Item7"
+        "section_path": "0000320193-24-000123/Item7",
+        "eval_profiles": "financebench,finagentbench"
       }
     },
     {
@@ -121,7 +175,8 @@
         "node_type": "SECTION",
         "label": "Item 1A Risk Factors",
         "display_label": "Item 1A\nRisk Factors",
-        "section_path": "0000320193-24-000123/Item1A"
+        "section_path": "0000320193-24-000123/Item1A",
+        "eval_profiles": "finder"
       }
     },
     {
@@ -130,7 +185,8 @@
         "node_type": "SECTION",
         "label": "Item 7 MD&A (prior year)",
         "display_label": "Item 7\nMD&A (prior)",
-        "section_path": "0000320193-24-000076/Item7"
+        "section_path": "0000320193-24-000076/Item7",
+        "eval_profiles": "finagentbench"
       }
     },
     {
@@ -282,12 +338,201 @@
     }
   ]
 };
+    const investigationScenarios = [
+  {
+    "scenario_id": "0.0.0-financebench-001",
+    "label": "FinanceBench — numeric lookup",
+    "inspiration_profile": "financebench",
+    "question": "What was total net sales in the most recent fiscal year?",
+    "expected_section_paths": [
+      "0000320193-24-000123/Item7"
+    ],
+    "visited_section_paths": [
+      "0000320193-24-000123/Item7"
+    ],
+    "cited_chunk_node_ids": [
+      "chunk-xbrl-net-sales-fy2024",
+      "chunk-item7-p1"
+    ],
+    "synthesis_path": "numeric_xbrl_deterministic",
+    "suggested_failure_class": null,
+    "binding_miss": false,
+    "highlight_nodes": [
+      "doc-0000320193-24-000123",
+      "0000320193-24-000123/Item7",
+      "chunk-xbrl-net-sales-fy2024",
+      "chunk-item7-p1"
+    ],
+    "visited_nodes": [
+      "doc-0000320193-24-000123",
+      "0000320193-24-000123/Item7",
+      "chunk-xbrl-net-sales-fy2024",
+      "chunk-item7-p1"
+    ],
+    "cited_nodes": [
+      "chunk-xbrl-net-sales-fy2024",
+      "chunk-item7-p1"
+    ],
+    "missing_nodes": [],
+    "edgar_links": [
+      {
+        "accession": "0000320193-24-000123",
+        "form_type": "10-K",
+        "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.htm"
+      }
+    ]
+  },
+  {
+    "scenario_id": "0.0.0-finder-001",
+    "label": "FinDER — risk narrative",
+    "inspiration_profile": "finder",
+    "question": "What risk factors does the company highlight for supply chain?",
+    "expected_section_paths": [
+      "0000320193-24-000123/Item1A"
+    ],
+    "visited_section_paths": [
+      "0000320193-24-000123/Item1A"
+    ],
+    "cited_chunk_node_ids": [
+      "chunk-item1a-p1"
+    ],
+    "synthesis_path": "live_llm",
+    "suggested_failure_class": null,
+    "binding_miss": false,
+    "highlight_nodes": [
+      "doc-0000320193-24-000123",
+      "0000320193-24-000123/Item1A",
+      "chunk-item1a-p1"
+    ],
+    "visited_nodes": [
+      "doc-0000320193-24-000123",
+      "0000320193-24-000123/Item1A",
+      "chunk-item1a-p1"
+    ],
+    "cited_nodes": [
+      "chunk-item1a-p1"
+    ],
+    "missing_nodes": [],
+    "edgar_links": [
+      {
+        "accession": "0000320193-24-000123",
+        "form_type": "10-K",
+        "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.htm"
+      }
+    ]
+  },
+  {
+    "scenario_id": "0.0.0-finagentbench-001",
+    "label": "FinAgentBench — comparison (success)",
+    "inspiration_profile": "finagentbench",
+    "question": "Compare net sales discussion across the two most recent 10-K filings.",
+    "expected_section_paths": [
+      "0000320193-24-000123/Item7",
+      "0000320193-24-000076/Item7"
+    ],
+    "visited_section_paths": [
+      "0000320193-24-000123/Item7",
+      "0000320193-24-000076/Item7"
+    ],
+    "cited_chunk_node_ids": [
+      "chunk-item7-p1",
+      "chunk-item7-old-p1"
+    ],
+    "synthesis_path": "comparison_narrative_deterministic",
+    "suggested_failure_class": null,
+    "binding_miss": false,
+    "highlight_nodes": [
+      "doc-0000320193-24-000123",
+      "doc-0000320193-24-000076",
+      "0000320193-24-000123/Item7",
+      "0000320193-24-000076/Item7",
+      "chunk-item7-p1",
+      "chunk-item7-old-p1"
+    ],
+    "visited_nodes": [
+      "doc-0000320193-24-000123",
+      "doc-0000320193-24-000076",
+      "0000320193-24-000123/Item7",
+      "0000320193-24-000076/Item7",
+      "chunk-item7-p1",
+      "chunk-item7-old-p1"
+    ],
+    "cited_nodes": [
+      "chunk-item7-p1",
+      "chunk-item7-old-p1"
+    ],
+    "missing_nodes": [],
+    "edgar_links": [
+      {
+        "accession": "0000320193-24-000123",
+        "form_type": "10-K",
+        "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.htm"
+      },
+      {
+        "accession": "0000320193-24-000076",
+        "form_type": "10-K",
+        "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000076/0000320193-24-000076-index.htm"
+      }
+    ]
+  },
+  {
+    "scenario_id": "demo-binding-miss-019",
+    "label": "019 — binding miss (comparison)",
+    "inspiration_profile": "investigation",
+    "question": "Compare net sales discussion across the two most recent 10-K filings.",
+    "expected_section_paths": [
+      "0000320193-24-000123/Item7",
+      "0000320193-24-000076/Item7"
+    ],
+    "visited_section_paths": [
+      "0000320193-24-000123/Item7"
+    ],
+    "cited_chunk_node_ids": [
+      "chunk-item7-p1"
+    ],
+    "synthesis_path": "template",
+    "suggested_failure_class": "binding_error",
+    "suggested_failure_detail": "Macro route bound FY2024 10-K only; FY2023 Item 7 never visited",
+    "binding_miss": true,
+    "highlight_nodes": [
+      "doc-0000320193-24-000123",
+      "doc-0000320193-24-000076",
+      "0000320193-24-000123/Item7",
+      "0000320193-24-000076/Item7"
+    ],
+    "visited_nodes": [
+      "doc-0000320193-24-000123",
+      "0000320193-24-000123/Item7",
+      "chunk-item7-p1"
+    ],
+    "cited_nodes": [
+      "chunk-item7-p1"
+    ],
+    "missing_nodes": [
+      "doc-0000320193-24-000076",
+      "0000320193-24-000076/Item7",
+      "chunk-item7-old-p1"
+    ],
+    "edgar_links": [
+      {
+        "accession": "0000320193-24-000123",
+        "form_type": "10-K",
+        "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/0000320193-24-000123-index.htm"
+      },
+      {
+        "accession": "0000320193-24-000076",
+        "form_type": "10-K",
+        "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000076/0000320193-24-000076-index.htm"
+      }
+    ]
+  }
+];
     cytoscape.use(cytoscapeDagre);
 
     const cy = cytoscape({
       container: document.getElementById('cy'),
       elements: [...graphElements.nodes, ...graphElements.edges],
-      minZoom: 0.4,
+      minZoom: 0.35,
       maxZoom: 2.5,
       wheelSensitivity: 0.2,
       style: [
@@ -309,6 +554,7 @@
             'background-color': '#e2e8f0',
             'border-width': 1.5,
             'border-color': '#64748b',
+            'opacity': 0.45,
           },
         },
         {
@@ -332,11 +578,27 @@
           style: { 'background-color': '#fde68a', 'border-color': '#ca8a04' },
         },
         {
+          selector: 'node.overlay-expected',
+          style: { 'opacity': 1, 'border-width': 2.5, 'border-color': '#16a34a', 'background-color': '#dcfce7' },
+        },
+        {
+          selector: 'node.overlay-visited',
+          style: { 'opacity': 1, 'border-color': '#2563eb' },
+        },
+        {
+          selector: 'node.overlay-cited',
+          style: { 'border-width': 3, 'border-color': '#ca8a04', 'background-color': '#fef3c7' },
+        },
+        {
+          selector: 'node.overlay-missing',
+          style: { 'opacity': 1, 'border-width': 2.5, 'border-color': '#dc2626', 'background-color': '#fee2e2', 'line-style': 'dashed' },
+        },
+        {
           selector: 'edge',
           style: {
             'width': 1.5,
-            'line-color': '#64748b',
-            'target-arrow-color': '#64748b',
+            'line-color': '#94a3b8',
+            'target-arrow-color': '#94a3b8',
             'target-arrow-shape': 'triangle',
             'curve-style': 'bezier',
             'label': 'data(label)',
@@ -346,19 +608,16 @@
             'text-background-opacity': 0.85,
             'text-background-padding': '2px',
             'text-rotation': 'autorotate',
+            'opacity': 0.35,
           },
+        },
+        {
+          selector: 'edge.overlay-active',
+          style: { 'opacity': 1, 'line-color': '#64748b', 'target-arrow-color': '#64748b' },
         },
         {
           selector: 'edge[edge_type = "TEMPORAL_TRANSITION"]',
-          style: {
-            'line-color': '#dc2626',
-            'target-arrow-color': '#dc2626',
-            'line-style': 'dashed',
-          },
-        },
-        {
-          selector: 'node:selected',
-          style: { 'border-width': 3, 'border-color': '#0f172a' },
+          style: { 'line-color': '#dc2626', 'target-arrow-color': '#dc2626', 'line-style': 'dashed' },
         },
       ],
       layout: {
@@ -372,14 +631,69 @@
       },
     });
 
+    function renderPanel(scenario) {
+      const panel = document.getElementById('investigation-panel');
+      const failure = scenario.suggested_failure_class
+        ? `<dt>Failure class</dt><dd><code>${scenario.suggested_failure_class}</code></dd>`
+        : `<dt>Failure class</dt><dd><em>none (happy path)</em></dd>`;
+      const detail = scenario.suggested_failure_detail
+        ? `<dt>Detail</dt><dd>${scenario.suggested_failure_detail}</dd>` : '';
+      const edgar = (scenario.edgar_links || []).map(l =>
+        `<li><a href="${l.url}" target="_blank" rel="noopener">${l.form_type} ${l.accession}</a></li>`
+      ).join('');
+      panel.innerHTML = `
+        <h2>${scenario.label}</h2>
+        <dl>
+          <dt>Question</dt><dd>${scenario.question}</dd>
+          <dt>Synthesis path</dt><dd><code>${scenario.synthesis_path || 'unknown'}</code></dd>
+          <dt>Binding miss</dt><dd>${scenario.binding_miss ? 'yes' : 'no'}</dd>
+          ${failure}${detail}
+          <dt>Expected sections</dt><dd>${(scenario.expected_section_paths || []).map(p => `<code>${p}</code>`).join('<br>')}</dd>
+          <dt>Visited sections</dt><dd>${(scenario.visited_section_paths || []).map(p => `<code>${p}</code>`).join('<br>')}</dd>
+          <dt>EDGAR</dt><dd><ul style="margin:0;padding-left:1rem">${edgar}</ul></dd>
+        </dl>`;
+    }
+
+    function applyScenario(scenario) {
+      cy.nodes().removeClass('overlay-expected overlay-visited overlay-cited overlay-missing');
+      cy.edges().removeClass('overlay-active');
+      (scenario.highlight_nodes || []).forEach(id => cy.getElementById(id).addClass('overlay-expected'));
+      (scenario.visited_nodes || []).forEach(id => cy.getElementById(id).addClass('overlay-visited'));
+      (scenario.cited_nodes || []).forEach(id => cy.getElementById(id).addClass('overlay-cited'));
+      (scenario.missing_nodes || []).forEach(id => cy.getElementById(id).addClass('overlay-missing'));
+      cy.edges().forEach(edge => {
+        const src = edge.source().id();
+        const tgt = edge.target().id();
+        const active = (scenario.visited_nodes || []).includes(src) && (scenario.visited_nodes || []).includes(tgt);
+        if (active) edge.addClass('overlay-active');
+      });
+      renderPanel(scenario);
+    }
+
+    const btnWrap = document.getElementById('scenario-buttons');
+    investigationScenarios.forEach((scenario, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'scenario-btn' + (idx === 0 ? ' active' : '');
+      btn.textContent = scenario.label;
+      btn.onclick = () => {
+        document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        applyScenario(scenario);
+      };
+      btnWrap.appendChild(btn);
+    });
+    applyScenario(investigationScenarios[0]);
+
     const tooltip = document.getElementById('tooltip');
     cy.on('mouseover', 'node', (evt) => {
       const d = evt.target.data();
       const lines = [
         `<strong>${d.label || d.id}</strong>`,
         d.node_type ? `Type: ${d.node_type}` : null,
+        d.section_path ? `Path: ${d.section_path}` : null,
         d.prop_text ? d.prop_text : null,
         d.prop_xbrl_concept ? `Concept: ${d.prop_xbrl_concept}` : null,
+        d.edgar_url ? `<a href="${d.edgar_url}" style="color:#93c5fd">EDGAR filing</a>` : null,
         d.eval_profiles ? `Eval: ${d.eval_profiles}` : null,
       ].filter(Boolean);
       tooltip.innerHTML = lines.join('<br>');
