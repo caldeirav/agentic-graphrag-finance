@@ -76,6 +76,17 @@ def _tag_synthesis_path(result: dict, path: str) -> dict:
     return out
 
 
+def _has_ranked_xbrl_evidence(evidence: list[EvidenceChunk]) -> bool:
+    for chunk in evidence:
+        src = getattr(chunk.source_type, "value", str(chunk.source_type))
+        if "XBRL" in src.upper():
+            return True
+        section = (chunk.section_id or "").upper()
+        if "XBRL" in section:
+            return True
+    return False
+
+
 def synthesize(state: AgentState) -> dict:
     if state.get("macro_binding_failed") and state.get("answer") is not None:
         return {
@@ -122,6 +133,10 @@ def synthesize(state: AgentState) -> dict:
             return _tag_synthesis_path(result, path)
 
     if os.environ.get("USE_MOCK_LLM", "0") == "1":
+        if _has_ranked_xbrl_evidence(evidence):
+            numeric = _try_synthesize_numeric_xbrl(evidence, query, filing_set)
+            if numeric is not None:
+                return _tag_synthesis_path(numeric, "numeric_xbrl_deterministic")
         return _tag_synthesis_path(
             _synthesize_template(
                 evidence,

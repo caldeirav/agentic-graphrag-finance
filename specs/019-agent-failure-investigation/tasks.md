@@ -34,9 +34,9 @@ description: "Task list for agent failure investigation and remediation (019)"
 
 **Purpose**: Scaffold investigation package and paper-v1.1 manifest hooks
 
-- [ ] T001 Create `src/evaluation/reproduction/investigation/` package with `__init__.py` per `specs/019-agent-failure-investigation/plan.md` structure
-- [ ] T002 [P] Add all Pydantic models from `specs/019-agent-failure-investigation/data-model.md` in `src/models/investigation.py` (`EngineeringFailureClass`, `FailureInvestigationRow`, `Tier1CohortFile`, `CohortDebugSummary`, `CohortValidationReport`, etc.)
-- [ ] T003 [P] Add `cohort_gate_thresholds` section stub to `releases/paper-v1.1/manifest.yaml` per `specs/019-agent-failure-investigation/research.md` R9 defaults
+- [X] T001 Create `src/evaluation/reproduction/investigation/` package with `__init__.py` per `specs/019-agent-failure-investigation/plan.md` structure
+- [X] T002 [P] Add all Pydantic models from `specs/019-agent-failure-investigation/data-model.md` in `src/models/investigation.py` (`EngineeringFailureClass`, `FailureInvestigationRow`, `Tier1CohortFile`, `CohortDebugSummary`, `CohortValidationReport`, etc.)
+- [X] T003 [P] Add `cohort_gate_thresholds` section stub to `releases/paper-v1.1/manifest.yaml` per `specs/019-agent-failure-investigation/research.md` R9 defaults
 
 **Checkpoint**: `uv run python -c "from models.investigation import FailureInvestigationRow"` succeeds
 
@@ -48,8 +48,8 @@ description: "Task list for agent failure investigation and remediation (019)"
 
 **⚠️ CRITICAL**: Blocks all user stories
 
-- [ ] T004 Implement shared investigation input loader in `src/evaluation/reproduction/investigation/_loaders.py` merging review queue, repro `results.json`, draft bundle items/annotations, and bundle corpus paths
-- [ ] T005 [P] Extend `src/evaluation/reproduction/report_models.py` with `FailureInvestigationFields` container for drill-down reuse per `specs/019-agent-failure-investigation/contracts/failure-investigation-pack.md`
+- [X] T004 Implement shared investigation input loader in `src/evaluation/reproduction/investigation/_loaders.py` merging review queue, repro `results.json`, draft bundle items/annotations, and bundle corpus paths
+- [X] T005 [P] Extend `src/evaluation/reproduction/report_models.py` with `FailureInvestigationFields` container for drill-down reuse per `specs/019-agent-failure-investigation/contracts/failure-investigation-pack.md`
 
 **Checkpoint**: Loader unit smoke against `reports/repro-paper-v1.0/` + quality-v2.0.1 draft returns typed rows without export
 
@@ -63,12 +63,12 @@ description: "Task list for agent failure investigation and remediation (019)"
 
 ### Tests for User Story 2
 
-- [ ] T006 [P] [US2] Create unit tests in `tests/unit/test_failure_taxonomy.py` covering all seven `EngineeringFailureClass` rules and mapping rollups per `specs/019-agent-failure-investigation/contracts/taxonomy-suggestion.md`
+- [X] T006 [P] [US2] Create unit tests in `tests/unit/test_failure_taxonomy.py` covering all seven `EngineeringFailureClass` rules and mapping rollups per `specs/019-agent-failure-investigation/contracts/taxonomy-suggestion.md`
 
 ### Implementation for User Story 2
 
-- [ ] T007 [P] [US2] Implement rule-ordered classifier in `src/evaluation/reproduction/investigation/taxonomy.py` (abstention → binding → template_dump → numeric_xbrl → comparison → retrieval_mismatch → gt_suspected)
-- [ ] T008 [US2] Add `ENGINEERING_TO_HUMAN_CLASS` default mapping constant and rollup helper in `src/evaluation/reproduction/investigation/taxonomy.py` preserving separate `human_failure_class` from annotations
+- [X] T007 [P] [US2] Implement rule-ordered classifier in `src/evaluation/reproduction/investigation/taxonomy.py` (abstention → binding → template_dump → numeric_xbrl → comparison → retrieval_mismatch → gt_suspected)
+- [X] T008 [US2] Add `ENGINEERING_TO_HUMAN_CLASS` default mapping constant and rollup helper in `src/evaluation/reproduction/investigation/taxonomy.py` preserving separate `human_failure_class` from annotations
 
 **Checkpoint**: `uv run pytest tests/unit/test_failure_taxonomy.py -q` passes
 
@@ -82,19 +82,19 @@ description: "Task list for agent failure investigation and remediation (019)"
 
 ### Tests for User Story 1
 
-- [ ] T009 [P] [US1] Create unit tests in `tests/unit/test_edgar_links.py` for CIK resolution, URL format, and `link_omitted_reason` fallbacks per `specs/019-agent-failure-investigation/contracts/edgar-filing-links.md`
-- [ ] T010 [P] [US1] Create unit tests in `tests/unit/test_materialization_audit.py` for expected vs visited section paths and `binding_miss` detection
-- [ ] T011 [US1] Create integration test in `tests/integration/test_failure_investigation_pack.py` exporting 10-item fixture cohort to HTML+CSV with required columns
+- [X] T009 [P] [US1] Create unit tests in `tests/unit/test_edgar_links.py` for CIK resolution, URL format, and `link_omitted_reason` fallbacks per `specs/019-agent-failure-investigation/contracts/edgar-filing-links.md`
+- [X] T010 [P] [US1] Create unit tests in `tests/unit/test_materialization_audit.py` for expected vs visited section paths and `binding_miss` detection
+- [X] T011 [US1] Create integration test in `tests/integration/test_failure_investigation_pack.py` exporting 10-item fixture cohort to HTML+CSV with required columns
 
 ### Implementation for User Story 1
 
-- [ ] T012 [P] [US1] Implement EDGAR link builder in `src/evaluation/reproduction/investigation/edgar_links.py` using bundle manifest `filing_refs` CIK + accession
-- [ ] T013 [P] [US1] Implement materialization audit builder in `src/evaluation/reproduction/investigation/materialization_audit.py` from benchmark bindings, trajectory snapshot, and citations
-- [ ] T014 [P] [US1] Implement link-first graph context panel in `src/evaluation/reproduction/investigation/graph_context.py` writing `graph_context/{item_id}.html` with optional inline embed when pre-rendered bundle data exists
-- [ ] T015 [US1] Implement `build_failure_investigation_rows()` and HTML+CSV export in `src/evaluation/reproduction/investigation/pack.py` calling taxonomy, edgar_links, materialization_audit, and graph_context
-- [ ] T016 [US1] Wire `benchmark-dataset review export-investigation` command in `src/cli/commands/benchmark_dataset.py` per `specs/019-agent-failure-investigation/contracts/failure-investigation-pack.md`
-- [ ] T017 [US1] Extend `src/evaluation/reproduction/report_render.py` item drill-down to call shared row builder from `pack.py` (no field drift)
-- [ ] T018 [US1] Add `--with-investigation` flag to `repro report` in `src/cli/commands/repro.py`
+- [X] T012 [P] [US1] Implement EDGAR link builder in `src/evaluation/reproduction/investigation/edgar_links.py` using bundle manifest `filing_refs` CIK + accession
+- [X] T013 [P] [US1] Implement materialization audit builder in `src/evaluation/reproduction/investigation/materialization_audit.py` from benchmark bindings, trajectory snapshot, and citations
+- [X] T014 [P] [US1] Implement link-first graph context panel in `src/evaluation/reproduction/investigation/graph_context.py` writing `graph_context/{item_id}.html` with optional inline embed when pre-rendered bundle data exists
+- [X] T015 [US1] Implement `build_failure_investigation_rows()` and HTML+CSV export in `src/evaluation/reproduction/investigation/pack.py` calling taxonomy, edgar_links, materialization_audit, and graph_context
+- [X] T016 [US1] Wire `benchmark-dataset review export-investigation` command in `src/cli/commands/benchmark_dataset.py` per `specs/019-agent-failure-investigation/contracts/failure-investigation-pack.md`
+- [X] T017 [US1] Extend `src/evaluation/reproduction/report_render.py` item drill-down to call shared row builder from `pack.py` (no field drift)
+- [X] T018 [US1] Add `--with-investigation` flag to `repro report` in `src/cli/commands/repro.py`
 
 **Checkpoint**: `uv run agent-query benchmark-dataset review export-investigation --draft data/benchmarks/custom-judge/drafts/quality-v2.0.1 --queue-file data/benchmarks/custom-judge/drafts/quality-v2.0.1/review_queue.json --repro-input reports/repro-paper-v1.0 --output reports/repro-paper-v1.0/investigation` produces HTML+CSV; repro report drill-down shows same fields
 
@@ -108,17 +108,17 @@ description: "Task list for agent failure investigation and remediation (019)"
 
 ### Tests for User Story 5
 
-- [ ] T019 [P] [US5] Create unit tests in `tests/unit/test_cohort_gate.py` for threshold evaluation, baseline comparison deltas, and override audit record schema
+- [X] T019 [P] [US5] Create unit tests in `tests/unit/test_cohort_gate.py` for threshold evaluation, baseline comparison deltas, and override audit record schema
 
 ### Implementation for User Story 5
 
-- [ ] T020 [US5] Implement tier-1 cohort freeze from `review_queue.json` in `src/evaluation/reproduction/investigation/cohort.py` writing `Tier1CohortFile` with provenance hash (~84 ids)
-- [ ] T021 [US5] Wire `repro cohort-freeze` command in `src/cli/commands/repro.py` per `specs/019-agent-failure-investigation/quickstart.md`
-- [ ] T022 [US5] Implement cohort validation report builder in `src/evaluation/reproduction/investigation/cohort_gate.py` with tier-1 zero count, strong-retrieval zero count, synthesis_path histogram, and engineering failure distribution
-- [ ] T023 [US5] Reuse `max_mrr_ok_va_zero` logic from `src/evaluation/reproduction/smoke_gate.py` in cohort validation metrics
-- [ ] T024 [US5] Wire `repro cohort-validate` command in `src/cli/commands/repro.py` per `specs/019-agent-failure-investigation/contracts/cohort-gate.md`
-- [ ] T025 [US5] Integrate hard block in `repro run-all` for `releases/paper-v1.1/manifest.yaml` with `--force-cohort-gate` append to `cohort_gate_overrides.jsonl` in `src/cli/commands/repro.py`
-- [ ] T026 [US5] Finalize `cohort_gate_thresholds` values and `baseline_snapshot_path` in `releases/paper-v1.1/manifest.yaml`
+- [X] T020 [US5] Implement tier-1 cohort freeze from `review_queue.json` in `src/evaluation/reproduction/investigation/cohort.py` writing `Tier1CohortFile` with provenance hash (~84 ids)
+- [X] T021 [US5] Wire `repro cohort-freeze` command in `src/cli/commands/repro.py` per `specs/019-agent-failure-investigation/quickstart.md`
+- [X] T022 [US5] Implement cohort validation report builder in `src/evaluation/reproduction/investigation/cohort_gate.py` with tier-1 zero count, strong-retrieval zero count, synthesis_path histogram, and engineering failure distribution
+- [X] T023 [US5] Reuse `max_mrr_ok_va_zero` logic from `src/evaluation/reproduction/smoke_gate.py` in cohort validation metrics
+- [X] T024 [US5] Wire `repro cohort-validate` command in `src/cli/commands/repro.py` per `specs/019-agent-failure-investigation/contracts/cohort-gate.md`
+- [X] T025 [US5] Integrate hard block in `repro run-all` for `releases/paper-v1.1/manifest.yaml` with `--force-cohort-gate` append to `cohort_gate_overrides.jsonl` in `src/cli/commands/repro.py`
+- [X] T026 [US5] Finalize `cohort_gate_thresholds` values and `baseline_snapshot_path` in `releases/paper-v1.1/manifest.yaml`
 
 **Checkpoint**: `repro cohort-validate` writes `cohort_validation_report.json`; failed thresholds cause `repro run-all` exit 1 unless force override recorded
 
@@ -132,14 +132,14 @@ description: "Task list for agent failure investigation and remediation (019)"
 
 ### Tests for User Story 3
 
-- [ ] T027 [P] [US3] Add `tests/fixtures/cohort_debug_smoke_ids.json` five-item fixture for smoke runs
-- [ ] T028 [US3] Create integration test in `tests/integration/test_cohort_debug_smoke.py` for re-run and `--replay` modes
+- [X] T027 [P] [US3] Add `tests/fixtures/cohort_debug_smoke_ids.json` five-item fixture for smoke runs
+- [X] T028 [US3] Create integration test in `tests/integration/test_cohort_debug_smoke.py` for re-run and `--replay` modes
 
 ### Implementation for User Story 3
 
-- [ ] T029 [US3] Implement cohort debug re-run and replay modes in `src/evaluation/reproduction/investigation/cohort_debug.py` writing `cohort_debug/{item_id}.summary.json` per `specs/019-agent-failure-investigation/contracts/cohort-debug-cli.md`
-- [ ] T030 [US3] Extend stdout progress lines in `src/evaluation/reproduction/runner.py` with item id, variant, synthesis path, citation count, outcome score, and weakest judge criterion
-- [ ] T031 [US3] Wire `repro cohort-debug` command in `src/cli/commands/repro.py` with `--trace normal --trace-json` defaults for re-run mode
+- [X] T029 [US3] Implement cohort debug re-run and replay modes in `src/evaluation/reproduction/investigation/cohort_debug.py` writing `cohort_debug/{item_id}.summary.json` per `specs/019-agent-failure-investigation/contracts/cohort-debug-cli.md`
+- [X] T030 [US3] Extend stdout progress lines in `src/evaluation/reproduction/runner.py` with item id, variant, synthesis path, citation count, outcome score, and weakest judge criterion
+- [X] T031 [US3] Wire `repro cohort-debug` command in `src/cli/commands/repro.py` with `--trace normal --trace-json` defaults for re-run mode
 
 **Checkpoint**: `uv run pytest tests/integration/test_cohort_debug_smoke.py -q` passes; replay mode completes without agent invocation
 
@@ -153,19 +153,19 @@ description: "Task list for agent failure investigation and remediation (019)"
 
 ### Tests for User Story 4
 
-- [ ] T032 [P] [US4] Scaffold `tests/regression/failure_modes/` with `conftest.py` and shared fixture loader per `specs/019-agent-failure-investigation/contracts/failure-mode-regression.md`
-- [ ] T033 [P] [US4] Add M1 macro binding regression fixture and test in `tests/regression/failure_modes/test_macro_binding.py`
-- [ ] T034 [P] [US4] Add M2 numeric XBRL regression fixture and test in `tests/regression/failure_modes/test_numeric_xbrl_synthesis.py`
-- [ ] T035 [P] [US4] Add M3 template-dump guard regression fixture and test in `tests/regression/failure_modes/test_template_dump_guard.py`
-- [ ] T036 [P] [US4] Add M4 comparison narrative regression fixture and test in `tests/regression/failure_modes/test_comparison_narrative.py`
-- [ ] T037 [US4] Create integration test in `tests/integration/test_failure_mode_regression.py` running full regression directory
+- [X] T032 [P] [US4] Scaffold `tests/regression/failure_modes/` with `conftest.py` and shared fixture loader per `specs/019-agent-failure-investigation/contracts/failure-mode-regression.md`
+- [X] T033 [P] [US4] Add M1 macro binding regression fixture and test in `tests/regression/failure_modes/test_macro_binding.py`
+- [X] T034 [P] [US4] Add M2 numeric XBRL regression fixture and test in `tests/regression/failure_modes/test_numeric_xbrl_synthesis.py`
+- [X] T035 [P] [US4] Add M3 template-dump guard regression fixture and test in `tests/regression/failure_modes/test_template_dump_guard.py`
+- [X] T036 [P] [US4] Add M4 comparison narrative regression fixture and test in `tests/regression/failure_modes/test_comparison_narrative.py`
+- [X] T037 [US4] Create integration test in `tests/integration/test_failure_mode_regression.py` running full regression directory
 
 ### Implementation for User Story 4
 
 - [ ] T038 [US4] Implement macro binding fixes (10-K vs 10-Q, fiscal period, entity disambiguation) in `src/retrieval/macro/` for M1 patterns
-- [ ] T039 [US4] Extend `_try_synthesize_numeric_xbrl` and block template fallback when ranked XBRL evidence exists in `src/retrieval/synthesis.py` for M2/M3
+- [X] T039 [US4] Extend `_try_synthesize_numeric_xbrl` and block template fallback when ranked XBRL evidence exists in `src/retrieval/synthesis.py` for M2/M3
 - [ ] T040 [US4] Improve comparison narrative synthesis in `src/retrieval/synthesis.py` for M4 cross-filing contrast patterns
-- [ ] T041 [US4] Wire `require_regression_suite_pass` check in `src/evaluation/reproduction/investigation/cohort_gate.py` invoking `tests/regression/failure_modes/`
+- [X] T041 [US4] Wire `require_regression_suite_pass` check in `src/evaluation/reproduction/investigation/cohort_gate.py` invoking `tests/regression/failure_modes/`
 
 **Checkpoint**: `uv run pytest tests/regression/failure_modes -q` passes; cohort gate fails when regression suite fails
 
@@ -179,10 +179,10 @@ description: "Task list for agent failure investigation and remediation (019)"
 
 ### Implementation for User Story 6
 
-- [ ] T042 [P] [US6] Extend `src/evaluation/generation/review/quality_summary.py` with `engineering_failure_counts` rollup using taxonomy default mapping
-- [ ] T043 [US6] Add `cohort_validation_status` field to quality pass summary in `src/evaluation/generation/review/quality_summary.py` from latest `cohort_validation_report.json`
-- [ ] T044 [US6] Align `export-investigation` CLI flags with `export-sheet` (`--queue-file`, `--repro-input`, `--draft`, `--item-ids-file`) in `src/cli/commands/benchmark_dataset.py`
-- [ ] T045 [US6] Ensure investigation pack regeneration picks up selective re-judge outcome updates without full agent re-run when only GT/judge scores change
+- [X] T042 [P] [US6] Extend `src/evaluation/generation/review/quality_summary.py` with `engineering_failure_counts` rollup using taxonomy default mapping
+- [X] T043 [US6] Add `cohort_validation_status` field to quality pass summary in `src/evaluation/generation/review/quality_summary.py` from latest `cohort_validation_report.json`
+- [X] T044 [US6] Align `export-investigation` CLI flags with `export-sheet` (`--queue-file`, `--repro-input`, `--draft`, `--item-ids-file`) in `src/cli/commands/benchmark_dataset.py`
+- [X] T045 [US6] Ensure investigation pack regeneration picks up selective re-judge outcome updates without full agent re-run when only GT/judge scores change
 
 **Checkpoint**: `benchmark-dataset review summary` shows engineering taxonomy counts; `agent_failure` annotations excluded from dataset-caused zero tallies
 
@@ -195,7 +195,7 @@ description: "Task list for agent failure investigation and remediation (019)"
 - [ ] T046 [P] Update `docs/research-reproduction.md` with investigation pack, cohort debug, and cohort gate workflow
 - [ ] T047 [P] Update `docs/eval-dataset-quality.md` with engineering taxonomy mapping and dual-layer annotation guidance
 - [ ] T048 Run full validation checklist from `specs/019-agent-failure-investigation/quickstart.md` (pack export, cohort freeze, debug smoke, regression suite, cohort validate, run-all gate behavior)
-- [ ] T049 [P] Verify paper-v1.0 and v2.0.0 artifacts remain immutable; confirm no retroactive baseline checksum changes in `releases/paper-v1.0/expected_checksums.json`
+- [X] T049 [P] Verify paper-v1.0 and v2.0.0 artifacts remain immutable; confirm no retroactive baseline checksum changes in `releases/paper-v1.0/expected_checksums.json`
 
 ---
 

@@ -286,6 +286,17 @@ class VariantComparisonView(BaseModel):
     baseline_variant: str = "graph-full"
 
 
+class FailureInvestigationFields(BaseModel):
+    suggested_failure_class: str = ""
+    suggested_failure_detail: str = ""
+    human_failure_class: str = ""
+    synthesis_path: str = ""
+    edgar_links_html: str = ""
+    corpus_excerpts_html: str = ""
+    materialization_audit_html: str = ""
+    graph_context_href: str = ""
+
+
 class ItemResultRecord(BaseModel):
     variant_id: str
     item_id: str
@@ -309,6 +320,8 @@ class ItemResultRecord(BaseModel):
     trajectory_ref: str = ""
     source_path: str = ""
     flags: list[str] = Field(default_factory=list)
+    synthesis_path: str = ""
+    investigation: FailureInvestigationFields | None = None
 
 
 class ReportArtifact(BaseModel):

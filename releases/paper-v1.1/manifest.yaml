@@ -44,6 +44,12 @@ smoke_gate_thresholds:
   max_mrr_ok_va_zero: 12
   max_abstention_like_share: 0.10
   min_items_with_va: 25
+cohort_gate_thresholds:
+  baseline_snapshot_path: reports/repro-paper-v1.0/cohort_validation_report.json
+  max_strong_retrieval_zero_outcome: 63
+  max_mrr_ok_va_zero: 10
+  min_synthesis_template_dump_share_reduction: 0.15
+  require_regression_suite_pass: true
 ablation_guidance:
   html:
     valid_comparisons:

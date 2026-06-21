@@ -388,6 +388,20 @@ class ReproRunner:
                     if repro is not None:
                         repro.items_completed[variant.variant_id] = len(results)
                         self._save_repro_run(output_dir, repro)
+                    from evaluation.reproduction.investigation.taxonomy import (
+                        _synthesis_path,
+                        extract_weakest_judge_criterion,
+                    )
+
+                    syn_path = _synthesis_path(scored)
+                    cite_n = len(scored.answer.citations) if scored.answer else 0
+                    weakest = extract_weakest_judge_criterion(scored)
+                    outcome_val = float(scored.outcome_score or 0.0)
+                    _progress(
+                        f"[item={item.item_id} variant={variant.variant_id} "
+                        f"synthesis_path={syn_path} citations={cite_n} "
+                        f"outcome={outcome_val:.3f} weakest={weakest}]"
+                    )
                     _progress(f"    done in {time.perf_counter() - item_started:.0f}s")
 
         if self.defer_config.enabled and self.defer_config.judge_after == "each_variant":

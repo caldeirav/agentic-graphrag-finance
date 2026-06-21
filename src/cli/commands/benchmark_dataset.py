@@ -55,6 +55,7 @@ from evaluation.generation.sampler import (
     run_sampling,
     sampling_manifest_hash,
 )
+from evaluation.reproduction.investigation.pack import export_failure_investigation_pack
 from models.benchmark_generation import (
     CorpusSpotCheckStatus,
     DatasetManifest,
@@ -764,6 +765,43 @@ def review_export_pack(
         variant=variant,
     )
     typer.echo(f"Review pack -> {html_path}, {csv_path}")
+
+
+@review_app.command("export-investigation")
+def review_export_investigation(
+    draft: Path = typer.Option(..., "--draft", exists=True, file_okay=False, dir_okay=True),
+    item_ids_file: Path | None = typer.Option(None, "--item-ids-file", exists=True),
+    queue_file: Path | None = typer.Option(
+        None,
+        "--queue-file",
+        exists=True,
+        help="review_queue.json from export-queue",
+    ),
+    repro_input: Path | None = typer.Option(None, "--repro-input", exists=True, file_okay=False, dir_okay=True),
+    variant: str = typer.Option("graph-full", "--variant"),
+    output: Path = typer.Option(Path("investigation"), "--output"),
+    max_items: int | None = typer.Option(None, "--max-items"),
+) -> None:
+    """Export unified failure-investigation HTML + CSV pack for tier-1 triage."""
+    if item_ids_file is None and queue_file is None:
+        raise typer.BadParameter("Provide --item-ids-file or --queue-file")
+    item_ids = None
+    if item_ids_file is not None:
+        item_ids = _load_item_ids_file(item_ids_file)
+    elif queue_file is not None:
+        item_ids = _load_item_ids_file(queue_file)
+    if max_items and item_ids:
+        item_ids = item_ids[:max_items]
+    out_dir = output if output.is_absolute() else draft / output
+    html_path, csv_path = export_failure_investigation_pack(
+        draft,
+        out_dir,
+        repro_input=repro_input,
+        variant=variant,
+        item_ids=item_ids,
+        queue_file=queue_file if item_ids_file is None else None,
+    )
+    typer.echo(f"Failure investigation pack -> {html_path}, {csv_path}")
 
 
 @review_app.command("annotate")
