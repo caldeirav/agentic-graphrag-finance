@@ -1,24 +1,26 @@
 {
-  "node_count": 9,
-  "edge_count": 10,
+  "node_count": 14,
+  "edge_count": 12,
   "node_types": {
-    "Apple 10-K FY2024": 1,
-    "Apple 10-K FY2023": 1,
-    "Item 7 MD&A": 1,
-    "Item 1A Risk Factors": 1,
-    "Item 7 MD&A (prior year)": 1,
-    "Net sales (XBRL fact)": 1,
-    "Net sales narrative": 1,
-    "Supply chain risks": 1,
-    "Prior-year net sales": 1
+    "CATERPILLAR INC 10-K FY2026": 1,
+    "Item 7. ": 1,
+    "Item 1A. Risk Factors": 2,
+    "0000034088-26-000045 10-K FY2025": 1,
+    "Exxon Mobil Corporation 10-K FY2026": 1,
+    "$ 1.1 billion from its divestment activities. This included the sale of the Singapore retail fuels business, Mobil Argentina S.A.,": 1,
+    "$ 1.1 billion from its divestment activities. This included the sale of the Sing": 1,
+    "from its divestment activities. This included the sale of the Singapore retail fuels business, Mobil Argentina S.A.,": 1,
+    "from its divestment activities. This included the sale of the Singapore retail f": 1,
+    "Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations": 1,
+    "ability to bring new technologies to commercial scale on a cost-competitive basis; and other factors discussed under \"Item 1A.": 1,
+    "ability to bring new technologies to commercial scale on a cost-competitive basi": 1,
+    "XBRL Financial Facts": 1
   },
   "edge_types": {
-    "CONTAINS": 7,
-    "TEMPORAL_TRANSITION": 1,
-    "NEXT": 1,
-    "REFERENCES": 1
+    "CONTAINS": 11,
+    "TEMPORAL_TRANSITION": 1
   },
-  "created_at": "2026-06-21T09:07:50.695874Z",
+  "created_at": "2026-06-21T16:42:58.447301Z",
   "source_models": 2,
-  "average_degree": 2.2222222222222223
+  "average_degree": 1.7142857142857142
 }

@@ -81,19 +81,19 @@ Snapshots are exported as **GraphML** plus a manifest (not a generic opaque data
 
 ### Example graph (docling-graph visualization)
 
-Even though we build graphs deterministically from XBRL—not via docling-graph’s LLM extraction pipeline—we still use **[docling-graph’s visualization tooling](https://github.com/docling-project/docling-graph/blob/main/docs/fundamentals/graph-management/visualization.md)** to explore structure. The demo below is a **compact Apple (AAPL) subgraph** aligned with three accepted custom-judge evaluation items—FinanceBench-style numeric lookup, FinDER-style risk-factor retrieval, and FinAgentBench-style multi-filing comparison:
+Even though we build graphs deterministically from XBRL—not via docling-graph’s LLM extraction pipeline—we still use **[docling-graph’s visualization tooling](https://github.com/docling-project/docling-graph/blob/main/docs/fundamentals/graph-management/visualization.md)** to explore structure. The demo below is a **subgraph from the published custom-judge v2.0.0 bundle** (merged Exxon Mobil and Caterpillar GraphSnapshots), aligned with three representative `dev.jsonl` items:
 
-| Benchmark style | Example question | Graph path |
-|-----------------|------------------|------------|
-| **FinanceBench** | What was total net sales in the most recent fiscal year? | `FY2024 10-K` → Item 7 MD&A → XBRL net-sales fact |
-| **FinDER** | What risk factors does the company highlight for supply chain? | `FY2024 10-K` → Item 1A → HTML risk narrative |
-| **FinAgentBench** | Compare net sales discussion across the two most recent 10-K filings. | Both 10-K documents → respective Item 7 sections, linked by `TEMPORAL_TRANSITION` |
+| Benchmark style | Item id | Example question | Graph path |
+|-----------------|---------|------------------|------------|
+| **FinanceBench** | `v2-financebench-0594` | What were the total proceeds (billions) from ExxonMobil divestment activities, including Singapore retail fuels and Mobil Argentina? | `10-K` → Item 7 MD&A → divestment narrative chunk |
+| **FinDER** | `v2-finder-0002` | Which business sales were part of ExxonMobil's $1.1B divestment activities? | `10-K` → Item 7 → Singapore retail fuels / Mobil Argentina excerpt |
+| **FinAgentBench** | `v2-finagentbench-0095` | Compare how Caterpillar and Exxon Mobil discuss international trade and geopolitical conflict risks. | Both issuers' `10-K` documents → respective Item 1A risk-factor sections |
 
-**Note on filing dates:** The demo uses a **frozen benchmark corpus** (FY2024 and FY2023 Apple 10-K accessions) so evaluation runs stay reproducible—it is not a live “as of today” EDGAR snapshot. In mid-2026, Apple’s most recent annual filing is the **FY2025 10-K** (period ended September 27, 2025, filed October 31, 2025). A live `ask` run would macro-bind that filing; the graph here shows structure and routing on the pinned corpus used in our paper baseline.
+**Note on corpus:** The interactive graph uses the **frozen paper-v2 benchmark bundle** (`data/benchmarks/custom-judge/v2.0.0`), not live EDGAR. Node excerpts are truncated in the detail panel; the underlying GraphSnapshot stores full materialized windows (up to ~6k characters per chunk).
 
-The interactive view includes an **investigation overlay (019)**: select an evaluation item by **item id** to see the benchmark question, expected answer, and graph-path highlights. **Click document or chunk nodes** to open materialized node details in the right panel (documents include a clickable EDGAR URL).
+The interactive view shows the **union** of all three evaluation paths (plus a XOM `TEMPORAL_TRANSITION` between FY2025 and FY2026 filings). Select an item by **item id** to overlay path rings without hiding other nodes. **Click document, section, or chunk nodes** for materialized details in the right panel (documents include a clickable EDGAR URL).
 
-**[Open the interactive graph →](https://caldeirav.github.io/agentic-graphrag-finance/assets/aapl-eval-graph/visualization.html?v=5)**
+**[Open the interactive graph →](https://caldeirav.github.io/agentic-graphrag-finance/assets/aapl-eval-graph/visualization.html?v=9)**
 
 For a full materialize → ask walkthrough with traces and judge output, see the [end-to-end guide on GitHub](https://github.com/caldeirav/agentic-graphrag-finance/blob/main/docs/end-to-end-walkthrough.md).
 
