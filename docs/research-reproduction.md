@@ -78,6 +78,9 @@ uv run agent-query repro run-all \
   --manifest releases/paper-v1.0/manifest.yaml \
   --output reports/repro-paper-v1.0 \
   --defer-judge --no-resume
+```
+
+Use `--defer-judge` for the recommended workflow (batched Gemini judging). If you omit it, `run-all` still runs a **final Gemini judge batch** after all variants so `value_alignment` is scored for answer-GT items; inline ask-audit only covers trajectory criteria.
 
 # 3. Verify tables against frozen baseline
 uv run agent-query repro verify-tables \

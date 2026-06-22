@@ -101,6 +101,23 @@ def test_no_skip_v3_missing_value_alignment() -> None:
     assert missing == 0
 
 
+def test_no_skip_ask_audit_missing_value_alignment() -> None:
+    rows = [
+        _result(
+            judge_version="ask-audit",
+            scores={
+                "trajectory_coherence": 1.0,
+                "routing_decisions": 1.0,
+                "retrieval_fidelity": 1.0,
+                "synthesis_grounding": 1.0,
+            },
+        )
+    ]
+    pending, missing = jb._pending_results(rows, {"item-1": _item()}, "graph-full", force_rescore=False)
+    assert pending == rows
+    assert missing == 0
+
+
 def test_force_rescore_includes_v3_complete() -> None:
     rows = [
         _result(

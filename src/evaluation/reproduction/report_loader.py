@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from evaluation.generation.bundle_version import is_v2_or_later
+from evaluation.generation.review._paths import resolve_release_bundle
 from evaluation.reproduction.manifest import load_release_manifest
 from evaluation.reproduction.report_errors import ReportInputError
 from evaluation.reproduction.report_models import (
@@ -76,10 +77,16 @@ def _load_item_metadata(
     if not release_manifest:
         return {}
     bundle_rel = release_manifest.get("custom_judge_bundle_path")
+    version = str(release_manifest.get("custom_judge_version") or "")
     if not bundle_rel:
         return {}
     split = str(release_manifest.get("eval_split") or "dev")
-    items_path = repo_root / str(bundle_rel) / "items" / f"{split}.jsonl"
+    bundle_root = resolve_release_bundle(
+        repo_root,
+        bundle_rel_path=str(bundle_rel),
+        version=version,
+    )
+    items_path = bundle_root / "items" / f"{split}.jsonl"
     if not items_path.is_file():
         return {}
     out: dict[str, dict[str, str]] = {}

@@ -741,24 +741,30 @@ class ReproRunner:
         if self.defer_config.enabled and self.defer_config.judge_after == "all_variants":
             _progress("Judge batch (all variants)...")
             self.run_judge_batch_phase(output_dir, max_items=max_items)
-            summaries = []
-            for variant in variants:
-                results_path = output_dir / variant.variant_id / "results.json"
-                if not results_path.is_file():
-                    continue
-                results = [
-                    BenchmarkResult.model_validate(row)
-                    for row in json.loads(results_path.read_text(encoding="utf-8"))
-                ]
-                summaries.append(
-                    build_variant_summary(
-                        variant.variant_id,
-                        results,
-                        profiles,
-                        rel,
-                        gt,
-                    )
+        elif not self.defer_config.enabled:
+            _progress(
+                "Judge batch (Gemini panel for value_alignment on answer-GT items)..."
+            )
+            self.run_judge_batch_phase(output_dir, max_items=max_items)
+
+        summaries = []
+        for variant in variants:
+            results_path = output_dir / variant.variant_id / "results.json"
+            if not results_path.is_file():
+                continue
+            results = [
+                BenchmarkResult.model_validate(row)
+                for row in json.loads(results_path.read_text(encoding="utf-8"))
+            ]
+            summaries.append(
+                build_variant_summary(
+                    variant.variant_id,
+                    results,
+                    profiles,
+                    rel,
+                    gt,
                 )
+            )
 
         if not summaries:
             for variant in variants:
