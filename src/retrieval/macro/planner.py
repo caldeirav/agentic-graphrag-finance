@@ -65,6 +65,9 @@ def _apply_metric_cue(proposal: MacroBindingProposal, query: str) -> MacroBindin
 def plan_macro_binding(
     query: str,
     snapshot: GraphSnapshot,
+    *,
+    temporal_anchor: str = "",
+    fiscal_period_labels: list[str] | None = None,
 ) -> tuple[MacroBindingProposal, dict]:
     """Return proposal and optional trace patch from LLM invoke."""
     if os.environ.get("USE_MOCK_LLM", "0") == "1":
@@ -97,8 +100,19 @@ def plan_macro_binding(
 
     llm = create_chat_llm()
     manifest_json = _manifest_summary(snapshot)
+    temporal_line = ""
+    if temporal_anchor.strip():
+        temporal_line = f"Benchmark temporal anchor: {temporal_anchor.strip()}.\n"
+    fiscal_line = ""
+    if fiscal_period_labels:
+        fiscal_line = (
+            "Benchmark fiscal periods (prefer filings whose period_end matches): "
+            f"{', '.join(fiscal_period_labels)}.\n"
+        )
     prompt = (
         f"Question: {query}\n"
+        f"{temporal_line}"
+        f"{fiscal_line}"
         f"Available filings: {manifest_json}\n"
         "Return JSON with intent_summary, comparison_mode (none|yoy|qoq|sequential), "
         "anchor (latest_quarter|prior_quarter|latest_annual|null), period_labels, "

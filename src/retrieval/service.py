@@ -101,6 +101,7 @@ class QueryService:
                 "suppress_benchmark_path_injection", ""
             ).lower()
             in ("1", "true", "yes"),
+            "fiscal_period_labels_json": request.metadata.get("fiscal_period_labels", "[]"),
         }
 
         defer_judge = should_skip_post_query_audit(request.metadata)

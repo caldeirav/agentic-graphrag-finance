@@ -144,7 +144,8 @@ def test_synthesize_empty_llm_uses_yoy_deterministic(monkeypatch):
     assert out["status"] == QueryStatus.SUCCESS
     assert "Based on" not in out["answer"].text
     assert "416.16" in out["answer"].text
-    assert out.get("synthesis_path") == "numeric_xbrl_deterministic"
+    assert out.get("synthesis_path") == "live_llm"
+    assert out.get("synthesis_fallback") == "yoy_deterministic"
 
 
 def test_synthesize_yoy_net_sales_intra_filing_single_10k():

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date
 
 from models.enums import ComparisonMode, QueryStatus
@@ -76,7 +77,20 @@ def macro_router(state: AgentState, *, graph_api=None) -> dict:
         )
         macro_llm_skipped = True
     else:
-        proposal, trace_patch = plan_macro_binding(query, snap)
+        fiscal_labels: list[str] = []
+        raw_fiscal = str(state.get("fiscal_period_labels_json") or "[]")
+        try:
+            parsed = json.loads(raw_fiscal)
+            if isinstance(parsed, list):
+                fiscal_labels = [str(label) for label in parsed]
+        except json.JSONDecodeError:
+            fiscal_labels = []
+        proposal, trace_patch = plan_macro_binding(
+            query,
+            snap,
+            temporal_anchor=str(state.get("temporal_anchor") or ""),
+            fiscal_period_labels=fiscal_labels or None,
+        )
         if not proposal.anchor:
             inferred = infer_anchor_from_query(query)
             if inferred:

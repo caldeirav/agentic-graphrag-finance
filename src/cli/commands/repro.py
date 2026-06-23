@@ -167,7 +167,11 @@ def judge_batch_cmd(
     """Run deferred judge batch on pending items in results.json."""
     _require_offline()
     rel = load_release_manifest(manifest)
-    bundle = REPO_ROOT / rel.custom_judge_bundle_path
+    bundle = resolve_release_bundle(
+        REPO_ROOT,
+        bundle_rel_path=rel.custom_judge_bundle_path,
+        version=rel.custom_judge_version,
+    )
 
     def _progress(msg: str) -> None:
         if quiet and " item=" in msg:

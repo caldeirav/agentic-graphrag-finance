@@ -533,6 +533,11 @@ class ReproRunner:
             "variant_xbrl_only": str(caps.xbrl_only).lower(),
             "cli_prebound": "true" if pre_bound else "false",
             "temporal_anchor": temporal_anchor,
+            "fiscal_period_labels": json.dumps(
+                list(item.expected_bindings.fiscal_periods or [])
+                if item.expected_bindings
+                else []
+            ),
             "trace_level": "quiet",
             "defer_judge": "true" if self.defer_config.enabled else "false",
             "suppress_benchmark_path_injection": (

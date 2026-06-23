@@ -6,13 +6,13 @@ alwaysApply: true
 For additional context about technologies, project structure, shell commands, and
 pipeline segments, read the current implementation plan:
 
-**Plan**: `specs/019-agent-failure-investigation/plan.md` (active) | Shipped: `specs/018-eval-dataset-quality/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
+**Plan**: `specs/020-agent-capability-first/plan.md` (active) | Shipped: `specs/019-agent-failure-investigation/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
 
 Quick reference:
 - **Stack**: uv, custom-judge v2.0.1 quality pass, judge v3.1 VA-only task_success, **paper-v1.0** (immutable baseline) / **paper-v1.1** (cohort-gated)
-- **Layers**: `src/evaluation/reproduction/investigation/` (pack, taxonomy, cohort gate, debug), `src/retrieval/` (macro/synthesis remediations), `src/evaluation/generation/review/` (018 integration)
-- **CLI**: `review export-investigation` → `repro cohort-freeze|cohort-debug|cohort-validate` → failure-mode regression → `repro run-all` (hard block until gate pass)
-- **Storage**: repro `reports/repro-paper-v1.0/`; draft `drafts/quality-v2.0.1/`; cohort `tier1_cohort.json` (~84 items); investigation `failure_investigation.html`
-- **Focus**: Tier-1 agent failures (MRR≥0.5/nDCG≥0.3 + VA=0); unified investigation pack; cohort gate before full repro
-- **Docs**: `specs/019-agent-failure-investigation/quickstart.md`, `docs/eval-dataset-quality.md`, `docs/research-reproduction.md`
+- **Layers**: `src/retrieval/skills/` (structured answer, XBRL resolution), `src/retrieval/` (macro/synthesis), `src/evaluation/reproduction/investigation/`
+- **CLI**: `repro cohort-debug` with `xbrl_numeric_cohort.json` → failure-mode regression → full `repro run-all`
+- **Storage**: cohort `drafts/quality-v2.0.1/xbrl_numeric_cohort.json` (26 XBRL-stratum items); repro `reports/repro-paper-v1.1/`
+- **Focus**: Capability-first numeric synthesis (structured output, temporal hints, XBRL skill); Principle VII + `agent-capability-first.mdc`
+- **Docs**: `specs/020-agent-capability-first/quickstart.md`, `docs/research-reproduction.md`
 <!-- SPECKIT END -->

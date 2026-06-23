@@ -60,4 +60,5 @@ class AgentState(TypedDict, total=False):
     variant_xbrl_only: bool | None
     expected_section_paths_json: str | None
     suppress_benchmark_path_injection: bool | None
+    fiscal_period_labels_json: str | None
     navigation_trace: Any | None

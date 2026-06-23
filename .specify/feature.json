@@ -1,3 +1,6 @@
 {
-  "feature_directory": "specs/019-agent-failure-investigation"
+  "feature": "020-agent-capability-first",
+  "branch": "019-agent-failure-investigation",
+  "spec_dir": "specs/020-agent-capability-first",
+  "status": "completed"
 }
