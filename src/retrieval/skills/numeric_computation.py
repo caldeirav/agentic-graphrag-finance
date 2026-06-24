@@ -6,6 +6,8 @@ import re
 
 from retrieval.skills.metric_intent import MetricIntent
 from retrieval.skills.structured_answer import StructuredAnswerPayload
+from retrieval.skills.temporal_scope import TemporalScopeIntent, xbrl_period_matches_intent
+from retrieval.skills.xbrl_concept_guards import concept_passes_guard, query_concept_family
 from retrieval.skills.xbrl_fact_catalog import XbrlFactCatalogEntry
 from retrieval.skills.xbrl_fact_resolution import XbrlFactResolutionResult
 
@@ -54,18 +56,54 @@ def _entries_by_id(
     return out or list(catalog[: resolution.selected_chunk_ids and len(resolution.selected_chunk_ids) or 1])
 
 
+def _entries_pass_gates(
+    entries: list[XbrlFactCatalogEntry],
+    query: str,
+    metric_intent: MetricIntent,
+    temporal_intent: TemporalScopeIntent | None,
+) -> bool:
+    guard_family = query_concept_family(query, metric_intent)
+    for entry in entries:
+        if guard_family and not concept_passes_guard(
+            entry.concept,
+            guard_family,
+            segment_in_excerpt=bool(entry.segment_hint),
+        ):
+            return False
+        if temporal_intent and not xbrl_period_matches_intent(
+            period_start=entry.period_start,
+            period_end=entry.period_end,
+            is_annual=entry.is_annual,
+            intent=temporal_intent,
+        ):
+            return False
+    return True
+
+
 def compute_numeric_answer(
     metric_intent: MetricIntent,
     resolution: XbrlFactResolutionResult,
     catalog: list[XbrlFactCatalogEntry],
     *,
     fiscal_period: str = "",
+    query: str = "",
+    temporal_intent: TemporalScopeIntent | None = None,
 ) -> StructuredAnswerPayload | None:
     if not resolution.sufficient or not catalog:
         return None
     selected = _entries_by_id(catalog, resolution)
     if not selected:
         return None
+    if query and not _entries_pass_gates(selected, query, metric_intent, temporal_intent):
+        return StructuredAnswerPayload(
+            metric_label=metric_intent.metric_label or "computation",
+            value="n/a",
+            citation_chunk_ids=[e.chunk_id for e in selected],
+            confidence="low",
+            abstain=True,
+            abstain_reason="Selected facts fail concept or period guard for the question.",
+            metric_type=metric_intent.metric_type,
+        )
 
     if metric_intent.metric_type == "point" or metric_intent.periods_needed == 1:
         best = selected[0]

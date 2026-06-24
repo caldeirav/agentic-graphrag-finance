@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from retrieval.skills.metric_intent import MetricIntent
 from retrieval.skills.numeric_computation import compute_numeric_answer, parse_display_value
+from retrieval.skills.temporal_scope import infer_temporal_scope_intent
 from retrieval.skills.xbrl_fact_catalog import XbrlFactCatalogEntry
 from retrieval.skills.xbrl_fact_resolution import XbrlFactResolutionResult
 
@@ -40,3 +41,32 @@ def test_compute_percent_change() -> None:
     assert payload is not None
     assert payload.abstain is False
     assert "10.00%" in payload.value
+
+
+def test_compute_abstains_when_period_guard_fails() -> None:
+    intent = MetricIntent(metric_type="point", metric_label="Equity", periods_needed=1)
+    temporal = infer_temporal_scope_intent(
+        "What was total shareholder equity for fiscal year 2025?",
+        fiscal_period_labels=["FY2025"],
+    )
+    catalog = [
+        XbrlFactCatalogEntry(
+            chunk_id="bad",
+            concept="StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+            value_display="$100.00 billion",
+            period_start="2026-01-01",
+            period_end="2026-04-01",
+            is_annual=False,
+            matches_query=True,
+        )
+    ]
+    resolution = XbrlFactResolutionResult(selected_chunk_ids=["bad"], sufficient=True)
+    payload = compute_numeric_answer(
+        intent,
+        resolution,
+        catalog,
+        query="What was total shareholder equity for fiscal year 2025?",
+        temporal_intent=temporal,
+    )
+    assert payload is not None
+    assert payload.abstain is True

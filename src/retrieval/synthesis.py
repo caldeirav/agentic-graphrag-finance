@@ -129,10 +129,20 @@ def _apply_xbrl_fact_resolution(
 ) -> tuple[list[EvidenceChunk], dict, list]:
     from retrieval.skills.xbrl_fact_catalog import build_xbrl_fact_catalog
 
+    from retrieval.skills.temporal_scope import intent_from_state
+
     xbrl = [c for c in evidence if is_xbrl_evidence_chunk(c)]
     if not xbrl:
         return evidence, {}, []
-    catalog = build_xbrl_fact_catalog(evidence, query, filing_set, state=state)
+    temporal_intent = intent_from_state(state)
+    catalog = build_xbrl_fact_catalog(
+        evidence,
+        query,
+        filing_set,
+        state=state,
+        temporal_intent=temporal_intent,
+        metric_intent=metric_intent,
+    )
     if not catalog:
         return evidence, {}, []
     resolution, trace_patch = resolve_xbrl_facts(
@@ -163,11 +173,21 @@ def _try_computed_numeric_synthesis(
     from retrieval.skills.xbrl_fact_catalog import build_xbrl_fact_catalog
     from retrieval.skills.xbrl_fact_resolution import resolve_xbrl_facts_from_catalog
 
+    from retrieval.skills.temporal_scope import intent_from_state
+
     xbrl = [c for c in evidence if is_xbrl_evidence_chunk(c)]
     if not xbrl:
         return None
+    temporal_intent = intent_from_state(state)
     metric_intent, metric_trace = classify_metric_intent(query)
-    catalog = build_xbrl_fact_catalog(evidence, query, filing_set, state=state)
+    catalog = build_xbrl_fact_catalog(
+        evidence,
+        query,
+        filing_set,
+        state=state,
+        temporal_intent=temporal_intent,
+        metric_intent=metric_intent,
+    )
     if not catalog:
         return None
     resolution, res_trace = resolve_xbrl_facts_from_catalog(
@@ -191,8 +211,12 @@ def _try_computed_numeric_synthesis(
         resolution,
         catalog,
         fiscal_period=fiscal_period,
+        query=query,
+        temporal_intent=temporal_intent,
     )
     if payload is None:
+        return None
+    if payload.abstain:
         return None
     if state is not None and isinstance(state, dict):
         state["metric_intent_json"] = metric_intent.model_dump_json()

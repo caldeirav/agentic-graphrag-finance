@@ -1,4 +1,4 @@
-"""Temporal scope intent for FY/quarter filing binding (021)."""
+"""Temporal scope intent for FY/quarter filing binding (021/022)."""
 
 from __future__ import annotations
 
@@ -28,9 +28,37 @@ class TemporalScopeIntent(BaseModel):
 _QUARTER_RE = re.compile(r"\b(q[1-4]|quarter|10-q|10 q)\b", re.I)
 _FY_LABEL_RE = re.compile(r"\bFY(20\d{2})\b", re.I)
 _YEAR_RE = re.compile(r"\b(20\d{2})\b")
+_BENCHMARK_PERIOD_RE = re.compile(r"^(20\d{2})(?:-FY|FY)?$", re.I)
+
+
+def normalize_fiscal_period_labels(labels: list[str]) -> tuple[list[str], int | None]:
+    """Normalize benchmark formats (2025, 2025-FY) to FY2025 labels."""
+    normalized: list[str] = []
+    target: int | None = None
+    for label in labels:
+        raw = (label or "").strip()
+        if not raw:
+            continue
+        m = _FY_LABEL_RE.search(raw)
+        if m:
+            year = int(m.group(1))
+            normalized.append(f"FY{year}")
+            target = target or year
+            continue
+        m = _BENCHMARK_PERIOD_RE.match(raw)
+        if m:
+            year = int(m.group(1))
+            normalized.append(f"FY{year}")
+            target = target or year
+            continue
+        normalized.append(raw)
+    return normalized, target
 
 
 def _year_from_labels(labels: list[str]) -> int | None:
+    _normalized, target = normalize_fiscal_period_labels(labels)
+    if target is not None:
+        return target
     for label in labels:
         m = _FY_LABEL_RE.search(label)
         if m:
@@ -50,10 +78,18 @@ def infer_temporal_scope_intent(
     temporal_anchor: str = "",
     fiscal_period_labels: list[str] | None = None,
 ) -> TemporalScopeIntent:
-    labels = list(fiscal_period_labels or [])
+    raw_labels = list(fiscal_period_labels or [])
+    labels, label_target = normalize_fiscal_period_labels(raw_labels)
     anchor = (temporal_anchor or "").strip()
+    if anchor:
+        norm_anchor, anchor_target = normalize_fiscal_period_labels([anchor])
+        if norm_anchor:
+            labels = labels or norm_anchor
+            label_target = label_target or anchor_target
+            anchor = norm_anchor[0]
+
     years = _years_in_query(query)
-    target_year = _year_from_labels(labels) or (years[0] if len(years) == 1 else None)
+    target_year = label_target or _year_from_labels(labels) or (years[0] if len(years) == 1 else None)
 
     if anchor.upper().startswith("FY") and len(anchor) >= 6:
         labels = labels or [anchor.upper()]
@@ -128,54 +164,141 @@ def apply_intent_to_proposal(
     return proposal.model_copy(update=updates)
 
 
-def align_filings_to_intent(
+def filing_satisfies_temporal_intent(
+    ref: FilingRef,
+    intent: TemporalScopeIntent,
+    *,
+    fiscal_year_end_month: int,
+) -> bool:
+    if not intent.target_fiscal_year:
+        return True
+    target = intent.target_fiscal_year
+    if intent.form_preference == "10-K":
+        if ref.form_type.upper() != "10-K":
+            return False
+        lbl = fiscal_period_label(ref, fiscal_year_end_month=fiscal_year_end_month).label
+        if lbl == f"FY{target}":
+            return True
+        return ref.period_end.year == target
+    if intent.form_preference == "10-Q":
+        if ref.form_type.upper() != "10-Q":
+            return False
+        return str(target) in fiscal_period_label(ref, fiscal_year_end_month=fiscal_year_end_month).label
+    return True
+
+
+def _calendar_year_annual(manifest: list[FilingRef], target: int) -> FilingRef | None:
+    candidates = [
+        r for r in manifest if r.form_type.upper() == "10-K" and r.period_end.year == target
+    ]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda r: (r.period_end, r.filed_at))
+
+
+def _best_annual_for_intent_from_manifest(
+    manifest: list[FilingRef],
+    intent: TemporalScopeIntent,
+    fy_end: int,
+) -> FilingRef | None:
+    target = intent.target_fiscal_year
+    if not target:
+        return None
+    for ref in manifest:
+        if ref.form_type.upper() != "10-K":
+            continue
+        lbl = fiscal_period_label(ref, fiscal_year_end_month=fy_end).label
+        if lbl == f"FY{target}":
+            return ref
+    return _calendar_year_annual(manifest, target)
+
+
+def resolve_filings_to_intent(
     refs: list[FilingRef],
     snapshot: GraphSnapshot,
     intent: TemporalScopeIntent,
-) -> list[FilingRef]:
-    if not refs:
-        return refs
+) -> tuple[list[FilingRef], list[str]]:
+    """Pick best filing(s) from manifest for temporal intent; return narrowed_from accessions."""
     manifest = list(snapshot.manifest.filing_refs or [])
-    fy_end = infer_fiscal_year_end_month(manifest or refs)
+    if not manifest:
+        return refs, []
+    fy_end = infer_fiscal_year_end_month(manifest)
+    original_accs = [r.accession for r in refs]
 
     if intent.period_labels:
         label_set = set(intent.period_labels)
         matched = [
             r
-            for r in refs
+            for r in manifest
             if fiscal_period_label(r, fiscal_year_end_month=fy_end).label in label_set
+            and (
+                not intent.form_preference
+                or r.form_type.upper() == intent.form_preference.upper()
+            )
         ]
-        if intent.form_preference == "10-K":
-            annual = [r for r in matched if r.form_type.upper() == "10-K"]
-            if annual:
-                matched = annual
         if matched:
-            return matched
-        broader = pair_period_labels(snapshot, intent.period_labels)
+            best = max(matched, key=lambda r: r.period_end)
+            narrowed = [a for a in original_accs if a and a != best.accession]
+            return [best], narrowed
+        broader = pair_period_labels(snapshot, list(label_set))
         if broader:
             if intent.form_preference == "10-K":
                 annual = [r for r in broader if r.form_type.upper() == "10-K"]
                 if annual:
-                    return annual
-            return broader
+                    best = max(annual, key=lambda r: r.period_end)
+                    narrowed = [a for a in original_accs if a and a != best.accession]
+                    return [best], narrowed
+            best = broader[0]
+            narrowed = [a for a in original_accs if a and a != best.accession]
+            return [best], narrowed
 
     if intent.target_fiscal_year and intent.form_preference == "10-K":
-        target = intent.target_fiscal_year
-        annuals = [r for r in refs if r.form_type.upper() == "10-K"]
-        for ref in annuals:
-            lbl = fiscal_period_label(ref, fiscal_year_end_month=fy_end).label
-            if lbl == f"FY{target}":
-                return [ref]
-        for ref in annuals:
-            if ref.period_end.year == target:
-                return [ref]
-        pool = [r for r in manifest if r.form_type.upper() == "10-K"]
-        for ref in pool:
-            lbl = fiscal_period_label(ref, fiscal_year_end_month=fy_end).label
-            if lbl == f"FY{target}":
-                return [ref]
+        best = _best_annual_for_intent_from_manifest(manifest, intent, fy_end)
+        if best is not None:
+            narrowed = [a for a in original_accs if a and a != best.accession]
+            return [best], narrowed
 
-    return refs
+    return refs, []
+
+
+def align_filings_to_intent(
+    refs: list[FilingRef],
+    snapshot: GraphSnapshot,
+    intent: TemporalScopeIntent,
+) -> list[FilingRef]:
+    resolved, _ = resolve_filings_to_intent(refs, snapshot, intent)
+    return resolved
+
+
+def xbrl_period_matches_intent(
+    *,
+    period_start: str,
+    period_end: str,
+    is_annual: bool,
+    intent: TemporalScopeIntent | None,
+) -> bool:
+    if not intent or not intent.target_fiscal_year:
+        return True
+    target = intent.target_fiscal_year
+    if not period_end:
+        return True
+    try:
+        end_year = int(period_end[:4])
+    except ValueError:
+        return True
+    start_year = end_year
+    if period_start and period_start[:4].isdigit():
+        start_year = int(period_start[:4])
+
+    if intent.form_preference == "10-Q":
+        return str(target) in period_end or end_year == target
+
+    if is_annual:
+        return end_year == target or start_year == target
+
+    if start_year >= target + 1 and end_year > target:
+        return False
+    return end_year == target or start_year == target
 
 
 def intent_from_state(state: dict | None) -> TemporalScopeIntent | None:

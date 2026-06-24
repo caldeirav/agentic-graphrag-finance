@@ -28,6 +28,22 @@ class MetricIntent(BaseModel):
 def _heuristic_metric_intent(query: str) -> MetricIntent:
     q = query.lower()
     label = query.strip()[:120]
+    if "effective tax rate" in q or ("tax rate" in q and "effective" in q):
+        return MetricIntent(
+            metric_type="ratio",
+            metric_label=label,
+            periods_needed=1,
+            formula="tax_expense/pretax_income*100",
+            required_concepts=["IncomeTaxExpense", "EarningsBeforeIncomeTax"],
+        )
+    if "dividend payout" in q or ("dividend" in q and "payout" in q):
+        return MetricIntent(
+            metric_type="ratio",
+            metric_label=label,
+            periods_needed=1,
+            formula="dividends/net_income*100",
+            required_concepts=["Dividends", "NetIncome"],
+        )
     if any(k in q for k in ("margin", "ratio", " divided by ", " divide ", " as a percentage of")):
         return MetricIntent(
             metric_type="ratio",

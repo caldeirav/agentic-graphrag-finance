@@ -33,11 +33,13 @@ def test_catalog_prefers_matching_concept_and_period() -> None:
     evidence = [
         _chunk(
             "q1",
-            "XBRL StockholdersEquity: $269.81 billion USD for period 2025-01-01 - 2025-04-01",
+            "XBRL StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest: "
+            "$269.81 billion USD for period 2025-01-01 - 2025-04-01",
         ),
         _chunk(
             "fy",
-            "XBRL StockholdersEquity: $216.10 billion USD for period 2025-01-01 - 2025-12-31",
+            "XBRL StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest: "
+            "$216.10 billion USD for period 2025-01-01 - 2025-12-31",
         ),
     ]
     catalog = build_xbrl_fact_catalog(
@@ -46,6 +48,30 @@ def test_catalog_prefers_matching_concept_and_period() -> None:
         [filing],
     )
     assert len(catalog) >= 1
+    assert all("EquityOther" not in e.concept for e in catalog)
     annual = [e for e in catalog if e.is_annual]
     assert annual
     assert annual[0].chunk_id == "fy"
+
+
+def test_catalog_excludes_equity_other() -> None:
+    filing = FilingRef(
+        cik="34088",
+        accession="acc",
+        form_type="10-K",
+        filed_at=date(2025, 1, 1),
+        period_end=date(2025, 12, 31),
+        source_uri="",
+    )
+    evidence = [
+        _chunk(
+            "other",
+            "XBRL StockholdersEquityOther: $664.00 million USD for period 2026-01-01 - 2026-04-01",
+        ),
+    ]
+    catalog = build_xbrl_fact_catalog(
+        evidence,
+        "What was total shareholder equity for fiscal year 2025?",
+        [filing],
+    )
+    assert catalog == []

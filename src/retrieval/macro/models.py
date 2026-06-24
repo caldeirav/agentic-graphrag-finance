@@ -30,6 +30,7 @@ class MisalignmentCode(StrEnum):
     INVALID_ACCESSION = "invalid_accession"
     INVALID_PAIRING = "invalid_pairing"
     INVALID_PROPOSAL = "invalid_proposal"
+    TEMPORAL_MISMATCH = "temporal_mismatch"
 
 
 class MacroBindingProposal(BaseModel):
