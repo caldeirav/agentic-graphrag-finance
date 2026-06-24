@@ -23,6 +23,10 @@ def resolution_selection_instructions(
     min_facts = min_facts_required(metric_intent)
     lines = [
         f"Select exactly {min_facts} catalog fact(s) when sufficient=true.",
+        "Each catalog row includes standard_label and metric_roles (e.g. net_income, "
+        "pretax_income, revenue, margin_denominator). Map question phrasing to roles "
+        "and pick chunk_ids whose metric_roles match; do not confuse pretax_income "
+        "with net_income.",
     ]
     if metric_intent and metric_intent.metric_type == "ratio":
         lines.append(

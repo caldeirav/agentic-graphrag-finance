@@ -143,7 +143,9 @@ def resolve_xbrl_facts_from_catalog(
         resolution_selection_instructions,
     )
 
-    facts = [entry.model_dump() for entry in catalog[:20]]
+    from retrieval.skills.xbrl_taxonomy_catalog import catalog_entries_for_resolution
+
+    facts = catalog_entries_for_resolution(catalog, limit=40)
     hint_line = ""
     if fiscal_period_hints:
         hint_line = f"Prefer periods matching: {', '.join(fiscal_period_hints)}.\n"

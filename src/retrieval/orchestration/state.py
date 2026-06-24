@@ -64,6 +64,7 @@ class AgentState(TypedDict, total=False):
     temporal_scope_intent_json: str | None
     metric_intent_json: str | None
     xbrl_resolution_json: str | None
+    xbrl_taxonomy_catalog_json: str | None
     evidence_enrichment_json: str | None
     synthesis_path: str | None
     numeric_llm_fallback_blocked: bool | None

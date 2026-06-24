@@ -55,7 +55,7 @@
 
 ### Cohort gate M2 (partial)
 
-- [ ] T023 [US2] Cohort re-run → `reports/cohort-023-m2` + judge-batch
+- [x] T023 [US2] Cohort re-run → `reports/cohort-023-m2` + judge-batch
 - [ ] T024 [US2] `check_phase_gate.py` adapted thresholds — floor ≥2 outcome_gt0
 
 ---

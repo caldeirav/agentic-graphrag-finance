@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "xbrl-catalog-v2.schema.json",
+  "title": "XbrlTaxonomyCatalogV2",
+  "description": "Taxonomy-aware XBRL fact catalog exposed to the retrieval agent (023)",
+  "type": "object",
+  "required": ["schema_version", "entries"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "2.0.0"
+    },
+    "temporal_anchor": { "type": "string" },
+    "filing_accessions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/XbrlFactCatalogEntryV2" }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "XbrlFactCatalogEntryV2": {
+      "type": "object",
+      "required": ["chunk_id", "concept", "schema_version"],
+      "properties": {
+        "chunk_id": { "type": "string" },
+        "concept": { "type": "string" },
+        "value_raw": { "type": "string" },
+        "value_display": { "type": "string" },
+        "period_start": { "type": "string" },
+        "period_end": { "type": "string" },
+        "is_annual": { "type": "boolean" },
+        "concept_family": { "type": "string" },
+        "segment_hint": { "type": ["string", "null"] },
+        "segment_dimension": { "type": ["string", "null"] },
+        "matches_query": { "type": "boolean" },
+        "standard_label": { "type": "string" },
+        "metric_roles": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "statement_role": {
+          "type": "string",
+          "enum": [
+            "income_statement",
+            "balance_sheet",
+            "cash_flow",
+            "other"
+          ]
+        },
+        "period_type": {
+          "type": "string",
+          "enum": ["annual", "interim", "instant", "unknown"]
+        },
+        "accession": { "type": "string" },
+        "schema_version": {
+          "type": "string",
+          "const": "2.0.0"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

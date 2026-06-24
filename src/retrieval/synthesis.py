@@ -151,22 +151,27 @@ def _apply_xbrl_fact_resolution(
     *,
     metric_intent=None,
 ) -> tuple[list[EvidenceChunk], dict, list]:
-    from retrieval.skills.xbrl_fact_catalog import build_xbrl_fact_catalog
-
     from retrieval.skills.temporal_scope import intent_from_state
+    from retrieval.skills.xbrl_taxonomy_catalog import (
+        build_taxonomy_catalog,
+        persist_taxonomy_catalog_on_state,
+    )
 
     xbrl = [c for c in evidence if is_xbrl_evidence_chunk(c)]
     if not xbrl:
         return evidence, {}, []
     temporal_intent = intent_from_state(state)
-    catalog = build_xbrl_fact_catalog(
+    taxonomy = build_taxonomy_catalog(
         evidence,
         query,
         filing_set,
         state=state,
         temporal_intent=temporal_intent,
         metric_intent=metric_intent,
+        temporal_anchor=str((state or {}).get("temporal_anchor") or ""),
     )
+    catalog = taxonomy.entries
+    persist_taxonomy_catalog_on_state(state, taxonomy)
     if not catalog:
         return evidence, {}, []
     resolution, trace_patch = resolve_xbrl_facts(
@@ -201,8 +206,11 @@ def _try_computed_numeric_synthesis(
     from retrieval.skills.numeric_synthesis_policy import should_block_numeric_llm_fallback
     from retrieval.skills.point_fact_selection import select_point_fact
     from retrieval.skills.structured_answer import StructuredAnswerPayload
-    from retrieval.skills.xbrl_fact_catalog import build_xbrl_fact_catalog
     from retrieval.skills.xbrl_fact_resolution import resolve_xbrl_facts_from_catalog
+    from retrieval.skills.xbrl_taxonomy_catalog import (
+        build_taxonomy_catalog,
+        persist_taxonomy_catalog_on_state,
+    )
 
     from retrieval.skills.temporal_scope import intent_from_state
 
@@ -216,18 +224,22 @@ def _try_computed_numeric_synthesis(
     if state is not None and isinstance(state, dict):
         state["metric_intent_json"] = metric_intent.model_dump_json()
         state["numeric_llm_fallback_blocked"] = block_llm_fallback
-    catalog = (
-        build_xbrl_fact_catalog(
+    taxonomy = (
+        build_taxonomy_catalog(
             evidence,
             query,
             filing_set,
             state=state,
             temporal_intent=temporal_intent,
             metric_intent=metric_intent,
+            temporal_anchor=str((state or {}).get("temporal_anchor") or ""),
         )
         if xbrl
-        else []
+        else None
     )
+    catalog = taxonomy.entries if taxonomy else []
+    if taxonomy is not None:
+        persist_taxonomy_catalog_on_state(state, taxonomy)
 
     fiscal_period = ""
     if state:
