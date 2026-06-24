@@ -106,3 +106,29 @@ def concept_passes_guard(concept: str, family: str | None, *, segment_in_excerpt
             return False
         return bool(_ASSETS_PREFERRED.search(concept) or concept == "Assets")
     return True
+
+
+def forbidden_concept_hints(
+    query: str,
+    metric_intent: MetricIntent | None = None,
+) -> list[str]:
+    """Concept substrings the resolution LLM must not select (023 M2)."""
+    family = query_concept_family(query, metric_intent)
+    if family == "tax_rate":
+        return [
+            "Statutory",
+            "Reconciliation",
+            "IncomeTaxReconciliation",
+            "OtherComprehensive",
+            "AccruedIncomeTax",
+        ]
+    if family == "margin":
+        return ["OtherComprehensive", "SegmentOperating", "FairValue", "Accrued"]
+    if family == "dividend_payout":
+        return ["OtherComprehensive", "Accrued", "FairValue", "Reclassification"]
+    if family == "equity":
+        return ["EquityOther", "FairValue", "Member", "NoncontrollingInterestMember"]
+    if family == "assets":
+        return ["FairValue", "OtherAssetsFairValue", "AvailableForSale", "Derivative"]
+    return []
+

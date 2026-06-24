@@ -199,7 +199,6 @@ def _try_computed_numeric_synthesis(
     from retrieval.skills.numeric_computation import compute_numeric_answer, format_numeric_display
     from retrieval.skills.numeric_synthesis_policy import should_block_numeric_llm_fallback
     from retrieval.skills.point_fact_selection import select_point_fact
-    from retrieval.skills.ratio_pair_resolution import resolve_ratio_pair
     from retrieval.skills.structured_answer import StructuredAnswerPayload
     from retrieval.skills.xbrl_fact_catalog import build_xbrl_fact_catalog
     from retrieval.skills.xbrl_fact_resolution import resolve_xbrl_facts_from_catalog
@@ -290,6 +289,8 @@ def _try_computed_numeric_synthesis(
             query=query,
             temporal_intent=temporal_intent,
         )
+        if state is not None and isinstance(state, dict):
+            state["xbrl_resolution_json"] = resolution.model_dump_json()
 
     if payload is None and not catalog:
         html_hit = extract_from_html_tables(
@@ -321,16 +322,6 @@ def _try_computed_numeric_synthesis(
                 result.setdefault("trace_events", []).extend(metric_trace["trace_events"])
             return result
         return None
-    if state is not None and isinstance(state, dict):
-        if metric_intent.metric_type == "ratio":
-            pair = resolve_ratio_pair(
-                catalog,
-                metric_intent,
-                query,
-                temporal_intent=temporal_intent,
-            )
-            if pair.sufficient:
-                state["ratio_pair_resolution_json"] = pair.model_dump_json()
     result = structured_synthesis_result(payload, evidence, trace_patch=res_trace)
     if metric_trace.get("trace_events"):
         result.setdefault("trace_events", []).extend(metric_trace["trace_events"])

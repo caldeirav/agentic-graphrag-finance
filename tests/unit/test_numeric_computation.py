@@ -77,6 +77,25 @@ def test_compute_ratio_outputs_percent_only() -> None:
     assert payload.abstain is False
     assert payload.value.endswith("%")
     assert "$" not in payload.value
+    assert payload.formula == "IncomeTaxExpense/IncomeBeforeIncomeTaxes*100"
+
+
+def test_compute_ratio_abstains_without_two_resolved_facts() -> None:
+    catalog = [
+        XbrlFactCatalogEntry(
+            chunk_id="ni",
+            concept="NetIncomeLoss",
+            value_display="$36.00 billion",
+            period_end="2025-12-31",
+            is_annual=True,
+            matches_query=True,
+        ),
+    ]
+    intent = MetricIntent(metric_type="ratio", metric_label="margin", periods_needed=1)
+    resolution = XbrlFactResolutionResult(selected_chunk_ids=["ni"], sufficient=True)
+    payload = compute_numeric_answer(intent, resolution, catalog, query="Net profit margin FY2025")
+    assert payload is not None
+    assert payload.abstain is True
 
 
 def test_compute_abstains_when_period_guard_fails() -> None:

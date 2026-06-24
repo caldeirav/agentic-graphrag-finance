@@ -45,7 +45,19 @@ def _mock_resolve_catalog(
     catalog: list[XbrlFactCatalogEntry],
     query: str,
     metric_intent: MetricIntent | None,
+    *,
+    temporal_intent=None,
 ) -> XbrlFactResolutionResult:
+    if metric_intent and metric_intent.metric_type == "ratio":
+        from retrieval.skills.ratio_pair_resolution import ratio_pair_to_resolution, resolve_ratio_pair
+
+        pair = resolve_ratio_pair(
+            catalog,
+            metric_intent,
+            query,
+            temporal_intent=temporal_intent,
+        )
+        return ratio_pair_to_resolution(pair)
     target_year = _year_from_query(query)
     best_id = ""
     best_score = -1.0
@@ -102,17 +114,13 @@ def resolve_xbrl_facts_from_catalog(
             ),
             {},
         )
-    if metric_intent and metric_intent.metric_type == "ratio" and metric_intent.periods_needed == 1:
-        from retrieval.skills.ratio_pair_resolution import ratio_pair_to_resolution, resolve_ratio_pair
-
-        pair = resolve_ratio_pair(
-            catalog,
-            metric_intent,
-            query,
-            temporal_intent=temporal_intent,
+    if len(catalog) == 1 and not (
+        metric_intent
+        and (
+            metric_intent.metric_type in ("ratio", "delta", "percent_change")
+            or metric_intent.periods_needed >= 2
         )
-        return ratio_pair_to_resolution(pair), {}
-    if len(catalog) == 1:
+    ):
         return (
             XbrlFactResolutionResult(
                 selected_chunk_ids=[catalog[0].chunk_id],
@@ -122,7 +130,18 @@ def resolve_xbrl_facts_from_catalog(
             {},
         )
     if os.environ.get("USE_MOCK_LLM", "0") == "1":
-        return _mock_resolve_catalog(catalog, query, metric_intent), {}
+        return _mock_resolve_catalog(
+            catalog,
+            query,
+            metric_intent,
+            temporal_intent=temporal_intent,
+        ), {}
+
+    from retrieval.skills.xbrl_concept_guards import forbidden_concept_hints
+    from retrieval.skills.xbrl_resolution_prompt import (
+        min_facts_required,
+        resolution_selection_instructions,
+    )
 
     facts = [entry.model_dump() for entry in catalog[:20]]
     hint_line = ""
@@ -134,15 +153,20 @@ def resolve_xbrl_facts_from_catalog(
             f"Metric type: {metric_intent.metric_type}; periods_needed="
             f"{metric_intent.periods_needed}.\n"
         )
+    forbidden = forbidden_concept_hints(query, metric_intent)
+    instructions = resolution_selection_instructions(
+        metric_intent,
+        forbidden_patterns=forbidden,
+    )
 
     prompt = (
         f"Question: {query}\n"
         f"{hint_line}"
         f"{metric_line}"
+        f"{instructions}\n"
         f"XBRL catalog (JSON): {json.dumps(facts, indent=2)}\n"
         "Return JSON: "
         '{"selected_chunk_ids": [str], "rationale": str, "sufficient": bool}\n'
-        "Select fact(s) matching metric AND period. For delta/ratio/% select multiple ids."
     )
     llm = create_chat_llm()
     messages = [
@@ -153,7 +177,12 @@ def resolve_xbrl_facts_from_catalog(
     text = resp.content if isinstance(resp.content, str) else str(resp.content)
     data = extract_json_from_llm(text)
     if not data:
-        return _mock_resolve_catalog(catalog, query, metric_intent), trace_patch
+        return _mock_resolve_catalog(
+            catalog,
+            query,
+            metric_intent,
+            temporal_intent=temporal_intent,
+        ), trace_patch
     try:
         result = XbrlFactResolutionResult.model_validate(data)
     except Exception:
@@ -163,9 +192,22 @@ def resolve_xbrl_facts_from_catalog(
             rationale=str(data.get("rationale") or ""),
             sufficient=bool(data.get("sufficient", True)),
         )
-    if not result.selected_chunk_ids:
+    needed = min_facts_required(metric_intent)
+    if len(result.selected_chunk_ids) < needed:
         result = result.model_copy(
-            update={"selected_chunk_ids": [catalog[0].chunk_id], "sufficient": False}
+            update={
+                "sufficient": False,
+                "rationale": result.rationale
+                or f"Need {needed} facts; got {len(result.selected_chunk_ids)}.",
+            }
+        )
+    elif not result.selected_chunk_ids:
+        result = result.model_copy(
+            update={
+                "selected_chunk_ids": [catalog[0].chunk_id],
+                "sufficient": False,
+                "rationale": result.rationale or "No facts selected.",
+            }
         )
     return result, trace_patch
 

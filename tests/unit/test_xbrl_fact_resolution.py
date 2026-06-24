@@ -1,16 +1,21 @@
-"""Unit tests for XBRL fact resolution skill (020)."""
+"""Unit tests for XBRL fact resolution skill (020 / 023 M2)."""
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import date
+from unittest.mock import MagicMock, patch
 
 from models.enums import EvidenceSourceType
 from models.filing import FilingRef
 from models.query import EvidenceChunk
+from retrieval.skills.metric_intent import MetricIntent
+from retrieval.skills.xbrl_fact_catalog import XbrlFactCatalogEntry
 from retrieval.skills.xbrl_fact_resolution import (
     filter_evidence_by_resolution,
     resolve_xbrl_facts,
+    resolve_xbrl_facts_from_catalog,
     XbrlFactResolutionResult,
 )
 
@@ -70,3 +75,87 @@ def test_filter_evidence_keeps_non_xbrl() -> None:
     filtered = filter_evidence_by_resolution([html, xbrl], resolution)
     ids = {c.chunk_node_id for c in filtered}
     assert ids == {"html1", "x1"}
+
+
+def _margin_catalog() -> list[XbrlFactCatalogEntry]:
+    return [
+        XbrlFactCatalogEntry(
+            chunk_id="ni",
+            concept="NetIncomeLoss",
+            value_display="$36.00 billion",
+            period_end="2025-12-31",
+            is_annual=True,
+            matches_query=True,
+        ),
+        XbrlFactCatalogEntry(
+            chunk_id="rev",
+            concept="Revenues",
+            value_display="$413.00 billion",
+            period_end="2025-12-31",
+            is_annual=True,
+            matches_query=True,
+        ),
+    ]
+
+
+def test_mock_resolve_ratio_pair_returns_two_ids(monkeypatch) -> None:
+    monkeypatch.setenv("USE_MOCK_LLM", "1")
+    intent = MetricIntent(metric_type="ratio", metric_label="Net profit margin", periods_needed=1)
+    result, _ = resolve_xbrl_facts_from_catalog(
+        _margin_catalog(),
+        "What was net profit margin for fiscal year 2025?",
+        [],
+        metric_intent=intent,
+    )
+    assert result.sufficient is True
+    assert len(result.selected_chunk_ids) == 2
+
+
+def test_live_resolve_accepts_llm_ratio_pair(monkeypatch) -> None:
+    monkeypatch.delenv("USE_MOCK_LLM", raising=False)
+    intent = MetricIntent(metric_type="ratio", metric_label="Net profit margin", periods_needed=1)
+    llm_payload = {
+        "selected_chunk_ids": ["ni", "rev"],
+        "rationale": "Net income over revenue for FY2025.",
+        "sufficient": True,
+    }
+    mock_resp = MagicMock()
+    mock_resp.content = json.dumps(llm_payload)
+
+    with patch(
+        "retrieval.skills.xbrl_fact_resolution.traced_llm_invoke",
+        return_value=(mock_resp, {}),
+    ):
+        result, _ = resolve_xbrl_facts_from_catalog(
+            _margin_catalog(),
+            "What was net profit margin for fiscal year 2025?",
+            [],
+            metric_intent=intent,
+        )
+
+    assert result.selected_chunk_ids == ["ni", "rev"]
+    assert result.sufficient is True
+
+
+def test_live_resolve_marks_insufficient_when_llm_returns_one_id(monkeypatch) -> None:
+    monkeypatch.delenv("USE_MOCK_LLM", raising=False)
+    intent = MetricIntent(metric_type="ratio", metric_label="Net profit margin", periods_needed=1)
+    mock_resp = MagicMock()
+    mock_resp.content = json.dumps(
+        {
+            "selected_chunk_ids": ["ni"],
+            "rationale": "Only net income found.",
+            "sufficient": True,
+        }
+    )
+    with patch(
+        "retrieval.skills.xbrl_fact_resolution.traced_llm_invoke",
+        return_value=(mock_resp, {}),
+    ):
+        result, _ = resolve_xbrl_facts_from_catalog(
+            _margin_catalog(),
+            "What was net profit margin for fiscal year 2025?",
+            [],
+            metric_intent=intent,
+        )
+    assert result.sufficient is False

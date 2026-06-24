@@ -1,4 +1,7 @@
-"""Two-fact ratio resolution for margin, tax rate, dividend payout (022-A)."""
+"""Two-fact ratio resolution for margin, tax rate, dividend payout (022-A).
+
+Deprecated for live synthesis (023 M2): used only under USE_MOCK_LLM=1 mock resolution.
+"""
 
 from __future__ import annotations
 

@@ -85,6 +85,65 @@ def _entries_pass_gates(
     return True
 
 
+def _compute_ratio_payload(
+    metric_intent: MetricIntent,
+    selected: list[XbrlFactCatalogEntry],
+    *,
+    fiscal_period: str,
+) -> StructuredAnswerPayload:
+    if len(selected) < 2:
+        return StructuredAnswerPayload(
+            metric_label=metric_intent.metric_label or "ratio",
+            value="n/a",
+            citation_chunk_ids=[e.chunk_id for e in selected],
+            confidence="low",
+            abstain=True,
+            abstain_reason="Ratio resolution must provide numerator and denominator facts.",
+            metric_type="ratio",
+        )
+    num_e, den_e = selected[0], selected[1]
+    v_num = parse_display_value(num_e.value_display)
+    v_den = parse_display_value(den_e.value_display)
+    if v_num is None or v_den is None or v_den == 0:
+        return StructuredAnswerPayload(
+            metric_label=metric_intent.metric_label or "ratio",
+            value="n/a",
+            citation_chunk_ids=[num_e.chunk_id, den_e.chunk_id],
+            confidence="low",
+            abstain=True,
+            abstain_reason="Could not parse ratio pair values.",
+            metric_type="ratio",
+        )
+    result = v_num / abs(v_den) * 100.0
+    rendered = _format_value(result, as_percent=True)
+    return StructuredAnswerPayload(
+        metric_label=metric_intent.metric_label or "ratio",
+        value=rendered,
+        unit="percent",
+        fiscal_period=fiscal_period or num_e.period_end,
+        citation_chunk_ids=[num_e.chunk_id, den_e.chunk_id],
+        confidence="high",
+        abstain=False,
+        metric_type="ratio",
+        formula=f"{num_e.concept}/{den_e.concept}*100",
+        computed_value=rendered,
+        inputs=[
+            {
+                "chunk_id": num_e.chunk_id,
+                "concept": num_e.concept,
+                "period_end": num_e.period_end,
+                "value": num_e.value_display,
+            },
+            {
+                "chunk_id": den_e.chunk_id,
+                "concept": den_e.concept,
+                "period_end": den_e.period_end,
+                "value": den_e.value_display,
+            },
+        ],
+    )
+
+
 def compute_numeric_answer(
     metric_intent: MetricIntent,
     resolution: XbrlFactResolutionResult,
@@ -112,68 +171,14 @@ def compute_numeric_answer(
             metric_type=metric_intent.metric_type,
         )
 
+    if metric_intent.metric_type == "ratio":
+        return _compute_ratio_payload(
+            metric_intent,
+            selected,
+            fiscal_period=fiscal_period,
+        )
+
     if metric_intent.metric_type == "point" or metric_intent.periods_needed == 1:
-        if metric_intent.metric_type == "ratio":
-            from retrieval.skills.ratio_pair_resolution import resolve_ratio_pair
-
-            pair = resolve_ratio_pair(
-                catalog,
-                metric_intent,
-                query,
-                temporal_intent=temporal_intent,
-            )
-            if not pair.sufficient or not pair.numerator_entry or not pair.denominator_entry:
-                return StructuredAnswerPayload(
-                    metric_label=metric_intent.metric_label or "ratio",
-                    value="n/a",
-                    citation_chunk_ids=[],
-                    confidence="low",
-                    abstain=True,
-                    abstain_reason=pair.abstain_reason or "Ratio pair incomplete.",
-                    metric_type="ratio",
-                )
-            num_e, den_e = pair.numerator_entry, pair.denominator_entry
-            v_num = parse_display_value(num_e.value_display)
-            v_den = parse_display_value(den_e.value_display)
-            if v_num is None or v_den is None or v_den == 0:
-                return StructuredAnswerPayload(
-                    metric_label=metric_intent.metric_label or "ratio",
-                    value="n/a",
-                    citation_chunk_ids=[num_e.chunk_id, den_e.chunk_id],
-                    confidence="low",
-                    abstain=True,
-                    abstain_reason="Could not parse ratio pair values.",
-                    metric_type="ratio",
-                )
-            result = v_num / abs(v_den) * 100.0
-            rendered = _format_value(result, as_percent=True)
-            return StructuredAnswerPayload(
-                metric_label=metric_intent.metric_label or "ratio",
-                value=rendered,
-                unit="percent",
-                fiscal_period=fiscal_period or num_e.period_end,
-                citation_chunk_ids=[num_e.chunk_id, den_e.chunk_id],
-                confidence="high",
-                abstain=False,
-                metric_type="ratio",
-                formula=f"{num_e.concept}/{den_e.concept}*100",
-                computed_value=rendered,
-                inputs=[
-                    {
-                        "chunk_id": num_e.chunk_id,
-                        "concept": num_e.concept,
-                        "period_end": num_e.period_end,
-                        "value": num_e.value_display,
-                    },
-                    {
-                        "chunk_id": den_e.chunk_id,
-                        "concept": den_e.concept,
-                        "period_end": den_e.period_end,
-                        "value": den_e.value_display,
-                    },
-                ],
-            )
-
         best = selected[0]
         val = parse_display_value(best.value_display)
         if val is None:

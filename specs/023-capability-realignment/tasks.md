@@ -42,16 +42,16 @@
 
 **Gate**: SC-001 — ≥2/26 outcome_gt0
 
-- [ ] T016 [US2] Extend `resolve_xbrl_facts_from_catalog` prompt: ratio requires 2 ids; forbidden concepts list from metric/query
-- [ ] T017 [US2] Remove live calls to `resolve_ratio_pair` / `ratio_pair_to_resolution` from synthesis and resolution
-- [ ] T018 [US2] Wire `periods_needed=2` resolution branch for ratio without regex pair module
-- [ ] T019 [US2] Ensure `compute_numeric_answer` ratio branch uses resolution ids only (delete duplicate regex path if redundant)
+- [x] T016 [US2] Extend `resolve_xbrl_facts_from_catalog` prompt: ratio requires 2 ids; forbidden concepts list from metric/query
+- [x] T017 [US2] Remove live calls to `resolve_ratio_pair` / `ratio_pair_to_resolution` from synthesis and resolution
+- [x] T018 [US2] Wire `periods_needed=2` resolution branch for ratio without regex pair module
+- [x] T019 [US2] Ensure `compute_numeric_answer` ratio branch uses resolution ids only (delete duplicate regex path if redundant)
 
 ### Tests
 
-- [ ] T020 [P] [US2] Extend `tests/unit/test_xbrl_fact_resolution.py` — mock LLM returns two ids for margin
-- [ ] T021 [P] [US2] Extend `tests/unit/test_numeric_computation.py` — percent from two-fact resolution
-- [ ] T022 [P] [US2] Keep `tests/unit/test_ratio_pair_resolution.py` as mock-only regression or mark deprecated
+- [x] T020 [P] [US2] Extend `tests/unit/test_xbrl_fact_resolution.py` — mock LLM returns two ids for margin
+- [x] T021 [P] [US2] Extend `tests/unit/test_numeric_computation.py` — percent from two-fact resolution
+- [x] T022 [P] [US2] Keep `tests/unit/test_ratio_pair_resolution.py` as mock-only regression or mark deprecated
 
 ### Cohort gate M2 (partial)
 
@@ -62,15 +62,15 @@
 
 ## Phase 3: User Story 3 — Retrieval Enrichment (P1)
 
-- [ ] T025 [US3] Add `numeric_evidence_enrichment.py` — detect missing concept families for metric intent
-- [ ] T026 [US3] Wire enrichment before synthesis (graph micro or pre-synthesis node) using bound filing XBRL index
-- [ ] T027 [US3] Trace field `evidence_enrichment_json` on state
-- [ ] T028 [US3] Ratio targets: ensure revenue + income families present when available in snapshot
+- [x] T025 [US3] Add `numeric_evidence_enrichment.py` — detect missing concept families for metric intent
+- [x] T026 [US3] Wire enrichment before synthesis (graph micro or pre-synthesis node) using bound filing XBRL index
+- [x] T027 [US3] Trace field `evidence_enrichment_json` on state
+- [x] T028 [US3] Ratio targets: ensure revenue + income families present when available in snapshot
 
 ### Tests
 
-- [ ] T029 [P] [US3] `tests/unit/test_numeric_evidence_enrichment.py` — 0548 fixture adds revenue chunk
-- [ ] T030 [P] [US3] Integration smoke: catalog ≥2 ratio concepts for margin mock evidence
+- [x] T029 [P] [US3] `tests/unit/test_numeric_evidence_enrichment.py` — 0548 fixture adds revenue chunk
+- [x] T030 [P] [US3] Integration smoke: catalog ≥2 ratio concepts for margin mock evidence
 
 ### Cohort gate M2 (full)
 
