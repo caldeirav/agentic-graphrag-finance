@@ -159,10 +159,7 @@ class QueryService:
         judge_scores = {}
         if audit is not None and audit.judge_summary:
             judge_scores = {c.criterion_id: c.score for c in audit.judge_summary.criteria}
-        traj_snapshot = None
-        traj_snapshot = None
-        if defer_judge and snapshot is not None:
-            traj_snapshot = snapshot.model_dump(mode="json")
+        traj_snapshot = snapshot.model_dump(mode="json") if snapshot is not None else None
         return QueryResponse(
             answer=result.get("answer"),
             status=status,

@@ -119,6 +119,29 @@ def _insufficient_synthesis_result(query: str, evidence: list[EvidenceChunk]) ->
     }
 
 
+def _numeric_abstain_synthesis_result(
+    query: str,
+    evidence: list[EvidenceChunk],
+    *,
+    metric_label: str = "",
+    trace_patch: dict | None = None,
+) -> dict:
+    from retrieval.skills.structured_answer import StructuredAnswerPayload, structured_synthesis_result
+
+    label = metric_label.strip() or query.strip()[:120]
+    payload = StructuredAnswerPayload(
+        metric_label=label,
+        abstain=True,
+        abstain_reason=(
+            "Insufficient XBRL facts in the bound filings to compute the requested metric."
+        ),
+    )
+    result = structured_synthesis_result(payload, evidence, trace_patch=trace_patch)
+    if trace_patch and trace_patch.get("trace_events"):
+        result.setdefault("trace_events", []).extend(trace_patch["trace_events"])
+    return result
+
+
 def _apply_xbrl_fact_resolution(
     evidence: list[EvidenceChunk],
     query: str,
@@ -174,6 +197,7 @@ def _try_computed_numeric_synthesis(
     )
     from retrieval.skills.metric_intent import classify_metric_intent
     from retrieval.skills.numeric_computation import compute_numeric_answer, format_numeric_display
+    from retrieval.skills.numeric_synthesis_policy import should_block_numeric_llm_fallback
     from retrieval.skills.point_fact_selection import select_point_fact
     from retrieval.skills.ratio_pair_resolution import resolve_ratio_pair
     from retrieval.skills.structured_answer import StructuredAnswerPayload
@@ -185,6 +209,13 @@ def _try_computed_numeric_synthesis(
     temporal_intent = intent_from_state(state)
     metric_intent, metric_trace = classify_metric_intent(query)
     xbrl = [c for c in evidence if is_xbrl_evidence_chunk(c)]
+    block_llm_fallback = should_block_numeric_llm_fallback(
+        metric_intent,
+        has_xbrl_evidence=bool(xbrl),
+    )
+    if state is not None and isinstance(state, dict):
+        state["metric_intent_json"] = metric_intent.model_dump_json()
+        state["numeric_llm_fallback_blocked"] = block_llm_fallback
     catalog = (
         build_xbrl_fact_catalog(
             evidence,
@@ -272,11 +303,25 @@ def _try_computed_numeric_synthesis(
                 state["html_fallback_used"] = True
 
     if payload is None:
+        if block_llm_fallback:
+            result = _numeric_abstain_synthesis_result(
+                query,
+                evidence,
+                metric_label=metric_intent.metric_label,
+                trace_patch=res_trace,
+            )
+            if metric_trace.get("trace_events"):
+                result.setdefault("trace_events", []).extend(metric_trace["trace_events"])
+            return result
         return None
     if payload.abstain:
+        if block_llm_fallback:
+            result = structured_synthesis_result(payload, evidence, trace_patch=res_trace)
+            if metric_trace.get("trace_events"):
+                result.setdefault("trace_events", []).extend(metric_trace["trace_events"])
+            return result
         return None
     if state is not None and isinstance(state, dict):
-        state["metric_intent_json"] = metric_intent.model_dump_json()
         if metric_intent.metric_type == "ratio":
             pair = resolve_ratio_pair(
                 catalog,
@@ -290,6 +335,16 @@ def _try_computed_numeric_synthesis(
     if metric_trace.get("trace_events"):
         result.setdefault("trace_events", []).extend(metric_trace["trace_events"])
     if is_chunk_dump_answer(result["answer"].text):
+        if block_llm_fallback:
+            abstain = _numeric_abstain_synthesis_result(
+                query,
+                evidence,
+                metric_label=metric_intent.metric_label,
+                trace_patch=res_trace,
+            )
+            if metric_trace.get("trace_events"):
+                abstain.setdefault("trace_events", []).extend(metric_trace["trace_events"])
+            return abstain
         return None
     return result
 
@@ -383,7 +438,18 @@ def synthesize(state: AgentState) -> dict:
     resolution_patch: dict = {}
     computed = _try_computed_numeric_synthesis(evidence, query, filing_set, state)
     if computed is not None:
-        return _tag_synthesis_path(computed, "computed_numeric")
+        path = (
+            "numeric_abstain"
+            if computed.get("status") == QueryStatus.INSUFFICIENT_EVIDENCE
+            else "computed_numeric"
+        )
+        return _tag_synthesis_path(computed, path)
+
+    if state.get("numeric_llm_fallback_blocked"):
+        return _tag_synthesis_path(
+            _insufficient_synthesis_result(query, evidence),
+            "numeric_abstain",
+        )
 
     evidence, resolution_patch, _catalog = _apply_xbrl_fact_resolution(
         evidence, query, filing_set, state

@@ -620,6 +620,7 @@ class ReproRunner:
             trajectory_fidelity=traj_score,
             ranking_metrics=ranking,
             judge_verdict=verdict,
+            trajectory_snapshot=resp.trajectory_snapshot,
         )
 
     def run_all(

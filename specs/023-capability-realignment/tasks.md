@@ -8,9 +8,9 @@
 
 ## Phase 0: Setup
 
-- [ ] T001 Create spec artifacts (spec, plan, tasks, research, data-model, quickstart, contracts, checklists, fixtures)
-- [ ] T002 [P] Set `.specify/feature.json` to `023-capability-realignment`
-- [ ] T003 [P] Update `.cursor/rules/specify-rules.mdc` plan pointer to 023
+- [x] T001 Create spec artifacts (spec, plan, tasks, research, data-model, quickstart, contracts, checklists, fixtures)
+- [x] T002 [P] Set `.specify/feature.json` to `023-capability-realignment`
+- [x] T003 [P] Update `.cursor/rules/specify-rules.mdc` plan pointer to 023
 
 ---
 
@@ -18,18 +18,18 @@
 
 **Gate**: SC-003 — 0 numeric items on live_llm/structured_llm; SC-004 — 26/26 synthesis_path
 
-- [ ] T004 [US1] Add `NumericSynthesisPolicy` / helper in `synthesis.py` — detect numeric metric types
-- [ ] T005 [US1] Refactor `_try_computed_numeric_synthesis` → returns result **or** explicit `numeric_abstain` dict (not `None` for numeric)
-- [ ] T006 [US1] Remove numeric fallthrough: skip `_try_structured_synthesis` and live LLM when policy blocks
-- [ ] T007 [US1] Tag abstain path `synthesis_path=numeric_abstain`
-- [ ] T008 [US1] Fix `QueryService.answer` — always attach `trajectory_snapshot` (defer and non-defer)
-- [ ] T009 [US1] Fix `ReproRunner._score_graph_item` — copy `trajectory_snapshot` + merge `synthesis_path` onto `BenchmarkResult`
+- [x] T004 [US1] Add `NumericSynthesisPolicy` / helper in `synthesis.py` — detect numeric metric types
+- [x] T005 [US1] Refactor `_try_computed_numeric_synthesis` → returns result **or** explicit `numeric_abstain` dict (not `None` for numeric)
+- [x] T006 [US1] Remove numeric fallthrough: skip `_try_structured_synthesis` and live LLM when policy blocks
+- [x] T007 [US1] Tag abstain path `synthesis_path=numeric_abstain`
+- [x] T008 [US1] Fix `QueryService.answer` — always attach `trajectory_snapshot` (defer and non-defer)
+- [x] T009 [US1] Fix `ReproRunner._score_graph_item` — copy `trajectory_snapshot` + merge `synthesis_path` onto `BenchmarkResult`
 
 ### Tests
 
-- [ ] T010 [P] [US1] `tests/regression/failure_modes/test_no_numeric_llm_fallback.py` — mock synthesis order
-- [ ] T011 [P] [US1] `tests/unit/test_numeric_synthesis_policy.py`
-- [ ] T012 [P] [US1] `tests/unit/test_repro_trajectory_snapshot.py` — non-defer path has synthesis_path
+- [x] T010 [P] [US1] `tests/regression/failure_modes/test_no_numeric_llm_fallback.py` — mock synthesis order
+- [x] T011 [P] [US1] `tests/unit/test_numeric_synthesis_policy.py`
+- [x] T012 [P] [US1] `tests/unit/test_repro_trajectory_snapshot.py` — non-defer path has synthesis_path
 
 ### Cohort gate M1
 
