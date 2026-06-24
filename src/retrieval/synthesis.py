@@ -131,6 +131,7 @@ def _numeric_abstain_synthesis_result(
     label = metric_label.strip() or query.strip()[:120]
     payload = StructuredAnswerPayload(
         metric_label=label,
+        value="n/a",
         abstain=True,
         abstain_reason=(
             "Insufficient XBRL facts in the bound filings to compute the requested metric."
