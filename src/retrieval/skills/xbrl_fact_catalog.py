@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 
 from pydantic import BaseModel, Field
@@ -150,6 +151,11 @@ def _entry_passes_filters(
     return True
 
 
+def default_strict_concept_filter() -> bool:
+    """Live path keeps period-only catalog; mock tests retain pre-guards (023 M3)."""
+    return os.environ.get("USE_MOCK_LLM", "0") == "1"
+
+
 def build_xbrl_fact_catalog(
     evidence: list[EvidenceChunk],
     query: str,
@@ -158,7 +164,10 @@ def build_xbrl_fact_catalog(
     state: dict | None = None,
     temporal_intent: TemporalScopeIntent | None = None,
     metric_intent: MetricIntent | None = None,
+    strict_concept: bool | None = None,
 ) -> list[XbrlFactCatalogEntry]:
+    if strict_concept is None:
+        strict_concept = default_strict_concept_filter()
     intent = temporal_intent or intent_from_state(state)
     guard_family = query_concept_family(query, metric_intent)
     prefer_annual = bool(intent and intent.form_preference == "10-K")
@@ -182,23 +191,23 @@ def build_xbrl_fact_catalog(
             is_annual=is_annual,
             query=query,
             intent=intent,
-            guard_family=guard_family,
-            strict_concept=True,
+            guard_family=guard_family if strict_concept else None,
+            strict_concept=strict_concept,
         ):
             continue
         if prefer_annual and intent and intent.target_fiscal_year and not is_annual:
             if period_end and str(intent.target_fiscal_year) not in period_end[:4]:
                 continue
-        matches = xbrl_concept_matches_query(concept, query)
+        matches = xbrl_concept_matches_query(concept, query) if strict_concept else False
         seg = _segment_hint(chunk.excerpt, query)
         seg_dim = _segment_dimension(chunk.excerpt, query)
         segment_query = _segment_query_name(query)
-        if guard_family == "segment_revenue":
+        if strict_concept and guard_family == "segment_revenue":
             if segment_query and not seg:
                 continue
             if segment_query and seg and segment_query.lower() not in seg.lower():
                 continue
-        if guard_family == "segment_revenue" and not seg and not segment_query:
+        if strict_concept and guard_family == "segment_revenue" and not seg and not segment_query:
             continue
         entries.append(
             XbrlFactCatalogEntry(
@@ -216,7 +225,7 @@ def build_xbrl_fact_catalog(
             )
         )
 
-    if not entries and guard_family:
+    if not entries and guard_family and strict_concept:
         for chunk in evidence:
             if not is_xbrl_evidence_chunk(chunk):
                 continue

@@ -28,6 +28,7 @@ from retrieval.skills.temporal_scope import (
 from retrieval.skills.xbrl_concept_guards import concept_passes_guard, query_concept_family
 from retrieval.skills.xbrl_concept_roles import ConceptRoleRule, register_concept_role_rules
 from retrieval.skills.xbrl_fact_catalog import XbrlFactCatalogEntry, build_xbrl_fact_catalog
+from retrieval.skills.xbrl_resolution_validate import ValidatedXbrlResolution, validate_xbrl_resolution
 from retrieval.skills.xbrl_taxonomy_catalog import (
     CATALOG_SCHEMA_VERSION,
     XbrlFactCatalogEntryV2,
@@ -52,6 +53,7 @@ __all__ = [
     "RatioPairResolution",
     "StructuredAnswerPayload",
     "TemporalScopeIntent",
+    "ValidatedXbrlResolution",
     "XbrlFactCatalogEntry",
     "XbrlFactCatalogEntryV2",
     "XbrlFactResolutionResult",
@@ -82,5 +84,6 @@ __all__ = [
     "resolve_xbrl_facts_from_catalog",
     "select_point_fact",
     "synthesize_structured_answer",
+    "validate_xbrl_resolution",
     "xbrl_period_matches_intent",
 ]

@@ -82,15 +82,15 @@
 
 **Gate**: SC-002 — ≥5/26 outcome_gt0
 
-- [ ] T032 [US4] Add `xbrl_resolution_validate.py` — reject picks failing concept/period guards
-- [ ] T033 [US4] Soften `build_xbrl_fact_catalog` — `strict_concept=False` live; period filter remains
-- [ ] T034 [US4] Move guard calls from catalog loop to post-resolution validator
-- [ ] T035 [US4] Enrich resolution LLM prompt with forbidden patterns (statutory tax, EquityOther, Q1 interim)
+- [x] T032 [US4] Add `xbrl_resolution_validate.py` — reject picks failing concept/period guards
+- [x] T033 [US4] Soften `build_xbrl_fact_catalog` — `strict_concept=False` live; period filter remains
+- [x] T034 [US4] Move guard calls from catalog loop to post-resolution validator
+- [x] T035 [US4] Enrich resolution LLM prompt with forbidden patterns (statutory tax, EquityOther, Q1 interim)
 
 ### Tests
 
-- [ ] T036 [P] [US4] `tests/unit/test_xbrl_resolution_validate.py`
-- [ ] T037 [P] [US4] Update `test_xbrl_fact_catalog.py` — catalog includes guarded concepts; validator rejects
+- [x] T036 [P] [US4] `tests/unit/test_xbrl_resolution_validate.py`
+- [x] T037 [P] [US4] Update `test_xbrl_fact_catalog.py` — catalog includes guarded concepts; validator rejects
 
 ### Cohort gate M3
 

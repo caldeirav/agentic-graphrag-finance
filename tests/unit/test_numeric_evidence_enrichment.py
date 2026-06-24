@@ -177,3 +177,52 @@ def test_enrichment_yields_two_ratio_catalog_entries() -> None:
     assert len(catalog) >= 2
     assert any("NetIncome" in c for c in concepts)
     assert any("Revenue" in c for c in concepts)
+
+
+def test_enrichment_prefers_net_income_over_pretax_from_graph() -> None:
+    snap = _snapshot()
+    pretax_id = f"{DOC}-xbrl-pretax"
+    snap.nodes.append(
+        GraphNode(
+            node_id=pretax_id,
+            node_type=GraphNodeType.CHUNK_XBRL_FACT,
+            label="Pretax",
+            properties={"xbrl_concept": "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest"},
+            source_ref=(
+                "XBRL IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest: "
+                "$40.00 billion USD for period 2025-01-01 - 2025-12-31"
+            ),
+        )
+    )
+    snap.edges.append(
+        GraphEdge(
+            edge_id="e3",
+            source_id=DOC,
+            target_id=pretax_id,
+            edge_type=GraphEdgeType.CONTAINS,
+        )
+    )
+    api = InMemoryGraphQueryAPI(snap)
+    evidence = [
+        EvidenceChunk(
+            chunk_node_id=f"{DOC}-xbrl-rev",
+            excerpt="XBRL Revenues: $413.00 billion USD for period 2025-01-01 - 2025-12-31",
+            content_hash="h2",
+            source_type=EvidenceSourceType.XBRL,
+            accession=ACCESSION,
+            section_id="XBRL",
+        )
+    ]
+    intent = MetricIntent(metric_type="ratio", metric_label="margin", periods_needed=1)
+    result = enrich_numeric_evidence(
+        evidence,
+        "Net profit margin fiscal year 2025",
+        [_filing()],
+        snapshot_id=snap.snapshot_id,
+        graph_api=api,
+        metric_intent=intent,
+    )
+    added = [c for c in result.evidence if c.chunk_node_id in result.added_chunk_ids]
+    assert len(added) == 1
+    assert added[0].chunk_node_id == f"{DOC}-xbrl-ni"
+    assert "NetIncomeLoss" in added[0].excerpt

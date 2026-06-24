@@ -25,8 +25,11 @@ _XBRL_EXCERPT = re.compile(
 
 class XbrlFactResolutionResult(BaseModel):
     selected_chunk_ids: list[str] = Field(default_factory=list)
+    selected_concepts: list[str] = Field(default_factory=list)
     rationale: str = ""
     sufficient: bool = True
+    abstain_reason: str = ""
+    validation_rejections: list[str] = Field(default_factory=list)
 
 
 def _parse_xbrl_line(excerpt: str) -> dict[str, str] | None:
@@ -121,21 +124,38 @@ def resolve_xbrl_facts_from_catalog(
             or metric_intent.periods_needed >= 2
         )
     ):
-        return (
-            XbrlFactResolutionResult(
-                selected_chunk_ids=[catalog[0].chunk_id],
-                rationale="Single catalog entry.",
-                sufficient=True,
-            ),
-            {},
+        from retrieval.skills.xbrl_resolution_validate import validate_xbrl_resolution
+
+        single = XbrlFactResolutionResult(
+            selected_chunk_ids=[catalog[0].chunk_id],
+            rationale="Single catalog entry.",
+            sufficient=True,
         )
+        validated = validate_xbrl_resolution(
+            single,
+            catalog,
+            query,
+            metric_intent=metric_intent,
+            temporal_intent=temporal_intent,
+        )
+        return validated.resolution, {}
     if os.environ.get("USE_MOCK_LLM", "0") == "1":
-        return _mock_resolve_catalog(
+        mock_result = _mock_resolve_catalog(
             catalog,
             query,
             metric_intent,
             temporal_intent=temporal_intent,
-        ), {}
+        )
+        from retrieval.skills.xbrl_resolution_validate import validate_xbrl_resolution
+
+        validated = validate_xbrl_resolution(
+            mock_result,
+            catalog,
+            query,
+            metric_intent=metric_intent,
+            temporal_intent=temporal_intent,
+        )
+        return validated.resolution, {}
 
     from retrieval.skills.xbrl_concept_guards import forbidden_concept_hints
     from retrieval.skills.xbrl_resolution_prompt import (
@@ -146,9 +166,6 @@ def resolve_xbrl_facts_from_catalog(
     from retrieval.skills.xbrl_taxonomy_catalog import catalog_entries_for_resolution
 
     facts = catalog_entries_for_resolution(catalog, limit=40)
-    hint_line = ""
-    if fiscal_period_hints:
-        hint_line = f"Prefer periods matching: {', '.join(fiscal_period_hints)}.\n"
     metric_line = ""
     if metric_intent:
         metric_line = (
@@ -159,11 +176,12 @@ def resolve_xbrl_facts_from_catalog(
     instructions = resolution_selection_instructions(
         metric_intent,
         forbidden_patterns=forbidden,
+        temporal_intent=temporal_intent,
+        fiscal_period_hints=fiscal_period_hints,
     )
 
     prompt = (
         f"Question: {query}\n"
-        f"{hint_line}"
         f"{metric_line}"
         f"{instructions}\n"
         f"XBRL catalog (JSON): {json.dumps(facts, indent=2)}\n"
@@ -211,7 +229,17 @@ def resolve_xbrl_facts_from_catalog(
                 "rationale": result.rationale or "No facts selected.",
             }
         )
-    return result, trace_patch
+
+    from retrieval.skills.xbrl_resolution_validate import validate_xbrl_resolution
+
+    validated = validate_xbrl_resolution(
+        result,
+        catalog,
+        query,
+        metric_intent=metric_intent,
+        temporal_intent=temporal_intent,
+    )
+    return validated.resolution, trace_patch
 
 
 def resolve_xbrl_facts(

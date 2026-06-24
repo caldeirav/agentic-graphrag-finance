@@ -1,4 +1,4 @@
-"""Retrieval enrichment for multi-fact numeric metrics (023 M2)."""
+"""Retrieval enrichment for multi-fact numeric metrics (023 M2/M3)."""
 
 from __future__ import annotations
 
@@ -13,7 +13,8 @@ from models.filing import FilingRef
 from models.query import EvidenceChunk
 from retrieval.skills.metric_intent import MetricIntent, heuristic_metric_intent
 from retrieval.skills.xbrl_concept_guards import query_concept_family
-from retrieval.skills.xbrl_fact_catalog import build_xbrl_fact_catalog
+from retrieval.skills.xbrl_fact_catalog import XbrlFactCatalogEntry, build_xbrl_fact_catalog, parse_xbrl_excerpt
+from retrieval.skills.xbrl_taxonomy_catalog import enrich_catalog_entry, rank_entries_by_metric_role
 
 _FAMILY_PATTERNS: dict[str, list[tuple[str, re.Pattern[str]]]] = {
     "margin": [
@@ -46,6 +47,14 @@ _FAMILY_PATTERNS: dict[str, list[tuple[str, re.Pattern[str]]]] = {
         ("dividends", re.compile(r"Dividends(?:Paid)?|DistributionsTo(?:Shareholders|Stockholders)", re.I)),
         ("income", re.compile(r"NetIncome(?:Loss)?|ProfitLoss", re.I)),
     ],
+}
+
+_FAMILY_RANK_ROLE: dict[str, str | None] = {
+    "income": "net_income",
+    "revenue": "total_revenue",
+    "pretax": "pretax_income",
+    "tax": None,
+    "dividends": None,
 }
 
 
@@ -98,6 +107,50 @@ def _node_to_chunk(node, accession: str) -> EvidenceChunk:
     )
 
 
+def _catalog_entry_from_node(node, accession: str) -> XbrlFactCatalogEntry | None:
+    excerpt = (node.source_ref or node.label or "").strip()
+    concept = str((node.properties or {}).get("xbrl_concept") or node.label or "")
+    parsed = parse_xbrl_excerpt(excerpt)
+    if not parsed and not concept:
+        return None
+    if not parsed:
+        parsed = {"concept": concept, "value_display": "", "value_raw": "", "period_start": "", "period_end": ""}
+    return XbrlFactCatalogEntry(
+        chunk_id=node.node_id,
+        concept=parsed.get("concept") or concept,
+        value_raw=parsed.get("value_raw", ""),
+        value_display=parsed.get("value_display", ""),
+        period_start=parsed.get("period_start", ""),
+        period_end=parsed.get("period_end", ""),
+        is_annual=parsed.get("is_annual") == "True",
+    )
+
+
+def _pick_best_node_for_family(
+    candidates: list[tuple],
+    family_name: str,
+) -> tuple | None:
+    if not candidates:
+        return None
+    role = _FAMILY_RANK_ROLE.get(family_name)
+    if not role:
+        return candidates[0]
+    ranked_entries: list[tuple[XbrlFactCatalogEntry, tuple]] = []
+    for item in candidates:
+        node, accession, concept = item
+        base = _catalog_entry_from_node(node, accession)
+        if base is None:
+            continue
+        ranked_entries.append((enrich_catalog_entry(base, accession=accession), item))
+    if not ranked_entries:
+        return candidates[0]
+    best = rank_entries_by_metric_role([entry for entry, _ in ranked_entries], role)[0]
+    for entry, item in ranked_entries:
+        if entry.chunk_id == best.chunk_id:
+            return item
+    return candidates[0]
+
+
 def enrich_numeric_evidence(
     evidence: list[EvidenceChunk],
     query: str,
@@ -128,33 +181,39 @@ def enrich_numeric_evidence(
     added_chunks: list[EvidenceChunk] = []
     added_ids: list[str] = []
     still_missing = list(missing)
+    candidates_by_family: dict[str, list[tuple]] = {name: [] for name in still_missing}
 
     for node in snap.nodes:
-        if still_missing and node.node_type != GraphNodeType.CHUNK_XBRL_FACT:
+        if node.node_type != GraphNodeType.CHUNK_XBRL_FACT:
             continue
-        if not still_missing:
-            break
         accession = accession_from_node_id(node.node_id)
         if accession not in filing_accessions:
             continue
         if node.node_id in existing_ids:
             continue
         concept = str((node.properties or {}).get("xbrl_concept") or node.label or "")
-        for family_name in list(still_missing):
+        for family_name in still_missing:
             pattern = pattern_by_name.get(family_name)
             if pattern is None or not pattern.search(concept):
                 continue
-            added_chunks.append(_node_to_chunk(node, accession))
-            added_ids.append(node.node_id)
-            existing_ids.add(node.node_id)
-            still_missing.remove(family_name)
-            break
+            candidates_by_family[family_name].append((node, accession, concept))
+
+    for family_name in list(still_missing):
+        picked = _pick_best_node_for_family(candidates_by_family.get(family_name, []), family_name)
+        if picked is None:
+            continue
+        node, accession, _concept = picked
+        added_chunks.append(_node_to_chunk(node, accession))
+        added_ids.append(node.node_id)
+        existing_ids.add(node.node_id)
+        still_missing.remove(family_name)
 
     trace = {
         "missing_families_before": missing,
         "added_chunk_ids": added_ids,
         "metric_type": intent.metric_type,
         "ratio_family": family_key,
+        "ranked_selection": True,
     }
     return NumericEvidenceEnrichmentResult(
         evidence=list(evidence) + added_chunks,

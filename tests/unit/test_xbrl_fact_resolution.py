@@ -159,3 +159,50 @@ def test_live_resolve_marks_insufficient_when_llm_returns_one_id(monkeypatch) ->
             metric_intent=intent,
         )
     assert result.sufficient is False
+
+
+def test_live_resolve_rejects_pretax_margin_pair_via_validator(monkeypatch) -> None:
+    monkeypatch.delenv("USE_MOCK_LLM", raising=False)
+    from retrieval.skills.xbrl_taxonomy_catalog import enrich_catalog_entry
+
+    catalog = [
+        enrich_catalog_entry(
+            XbrlFactCatalogEntry(
+                chunk_id="pretax",
+                concept="IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+                value_display="$36.55 billion",
+                period_end="2025-12-31",
+                is_annual=True,
+            )
+        ),
+        enrich_catalog_entry(
+            XbrlFactCatalogEntry(
+                chunk_id="rev",
+                concept="Revenues",
+                value_display="$413.00 billion",
+                period_end="2025-12-31",
+                is_annual=True,
+            )
+        ),
+    ]
+    intent = MetricIntent(metric_type="ratio", metric_label="Net profit margin", periods_needed=1)
+    mock_resp = MagicMock()
+    mock_resp.content = json.dumps(
+        {
+            "selected_chunk_ids": ["pretax", "rev"],
+            "rationale": "Used pretax income.",
+            "sufficient": True,
+        }
+    )
+    with patch(
+        "retrieval.skills.xbrl_fact_resolution.traced_llm_invoke",
+        return_value=(mock_resp, {}),
+    ):
+        result, _ = resolve_xbrl_facts_from_catalog(
+            catalog,
+            "What was net profit margin for fiscal year 2025?",
+            [],
+            metric_intent=intent,
+        )
+    assert result.sufficient is False
+    assert result.validation_rejections
