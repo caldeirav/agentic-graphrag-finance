@@ -20,7 +20,7 @@ _EQUITY_PREFERRED = re.compile(
 
 _RATIO_TAX_EXCLUDE = re.compile(
     r"AccruedIncomeTax|OtherComprehensive|Reclassification|FairValue|Pension|"
-    r"ComprehensiveIncome|DefinedBenefit|Aoci",
+    r"ComprehensiveIncome|DefinedBenefit|Aoci|Statutory|Reconciliation|IncomeTaxReconciliation",
     re.I,
 )
 _RATIO_TAX_NUMERATOR = re.compile(r"IncomeTaxExpense|ProvisionForIncomeTax|EffectiveIncomeTax", re.I)
@@ -98,7 +98,9 @@ def concept_passes_guard(concept: str, family: str | None, *, segment_in_excerpt
     if family == "segment_revenue":
         if _SEGMENT_REVENUE.search(concept):
             return True
-        return segment_in_excerpt and not _CONSOLIDATED_REVENUE.search(concept)
+        if segment_in_excerpt and re.search(r"Revenue|Sales", concept, re.I):
+            return True
+        return False
     if family == "assets":
         if _ASSET_CHANGE_EXCLUDE.search(concept):
             return False

@@ -6,12 +6,12 @@ alwaysApply: true
 For additional context about technologies, project structure, shell commands, and
 pipeline segments, read the current implementation plan:
 
-**Plan**: `specs/021-xbrl-numeric-binding/plan.md` (active) | Shipped: `specs/020-agent-capability-first/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
+**Plan**: `specs/022-outcome-score-ladder/plan.md` (active) | Shipped: `specs/021-xbrl-numeric-binding/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
 
 Quick reference:
 - **Stack**: uv, custom-judge v2.0.1 draft, judge v3.1 VA-only task_success, **paper-v1.1** cohort-gated
-- **Layers**: `src/retrieval/skills/` (temporal_scope, xbrl catalog, metric_intent, numeric_computation), macro validator/pairing, synthesis pipeline
-- **CLI**: `repro cohort-debug` on `xbrl_numeric_cohort.json` (020 fixture) → judge-batch `--force-rescore`
-- **Focus**: FY 10-K binding, concept-aware XBRL, Python computation, gate live numeric overrides (021 steps 1–4)
-- **Docs**: `specs/021-xbrl-numeric-binding/quickstart.md`, `specs/020-agent-capability-first/fixtures/xbrl_numeric_cohort.json`
+- **Layers**: `src/retrieval/skills/` (ratio_pair, point_fact, html_table_fallback, xbrl catalog, numeric_computation), repro slice expansion
+- **CLI**: `repro cohort-debug` → judge-batch → `specs/022-outcome-score-ladder/scripts/check_phase_gate.py --phase A`
+- **Focus**: Phased outcome_score ladder (A ratio → B point → C slice → D HTML → E segment); gate after each phase
+- **Docs**: `specs/022-outcome-score-ladder/quickstart.md`, baseline `reports/cohort-xbrl-022-debug`
 <!-- SPECKIT END -->

@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RatioPairResolution",
+  "type": "object",
+  "required": ["sufficient", "output_unit"],
+  "properties": {
+    "numerator_concept": { "type": "string" },
+    "denominator_concept": { "type": "string" },
+    "numerator_value": { "type": "string" },
+    "denominator_value": { "type": "string" },
+    "computed_percent": { "type": "string", "pattern": "^-?[0-9]+(\\.[0-9]+)?%$" },
+    "output_unit": { "type": "string", "const": "percent" },
+    "sufficient": { "type": "boolean" },
+    "abstain_reason": { "type": "string" },
+    "numerator_chunk_id": { "type": "string" },
+    "denominator_chunk_id": { "type": "string" }
+  },
+  "additionalProperties": false
+}

@@ -25,6 +25,11 @@ class MetricIntent(BaseModel):
     formula: str = ""
 
 
+def heuristic_metric_intent(query: str) -> MetricIntent:
+    """Deterministic metric typing without LLM (repro slice expansion, tests)."""
+    return _heuristic_metric_intent(query)
+
+
 def _heuristic_metric_intent(query: str) -> MetricIntent:
     q = query.lower()
     label = query.strip()[:120]

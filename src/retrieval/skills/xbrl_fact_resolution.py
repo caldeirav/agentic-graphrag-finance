@@ -91,6 +91,7 @@ def resolve_xbrl_facts_from_catalog(
     *,
     fiscal_period_hints: list[str] | None = None,
     metric_intent: MetricIntent | None = None,
+    temporal_intent=None,
 ) -> tuple[XbrlFactResolutionResult, dict]:
     if not catalog:
         return (
@@ -101,6 +102,16 @@ def resolve_xbrl_facts_from_catalog(
             ),
             {},
         )
+    if metric_intent and metric_intent.metric_type == "ratio" and metric_intent.periods_needed == 1:
+        from retrieval.skills.ratio_pair_resolution import ratio_pair_to_resolution, resolve_ratio_pair
+
+        pair = resolve_ratio_pair(
+            catalog,
+            metric_intent,
+            query,
+            temporal_intent=temporal_intent,
+        )
+        return ratio_pair_to_resolution(pair), {}
     if len(catalog) == 1:
         return (
             XbrlFactResolutionResult(

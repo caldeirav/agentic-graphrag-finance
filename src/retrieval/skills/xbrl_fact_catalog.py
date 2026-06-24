@@ -27,7 +27,7 @@ def is_xbrl_evidence_chunk(chunk: EvidenceChunk) -> bool:
     return "XBRL" in chunk.excerpt[:40].upper()
 
 _XBRL_LINE = re.compile(
-    r"XBRL (\w+):\s*(\$?[\d,.]+ (?:billion|million|trillion)?(?:\s*USD)?)"
+    r"XBRL (\w+)(?:[^:\n]*?)?:\s*(\$?[\d,.]+ (?:billion|million|trillion)?(?:\s*USD)?)"
     r"(?:\s*for period (\d{4}-\d{2}-\d{2})\s*-\s*(\d{4}-\d{2}-\d{2}))?",
     re.I,
 )
@@ -51,6 +51,7 @@ class XbrlFactCatalogEntry(BaseModel):
     is_annual: bool = False
     concept_family: str = ""
     segment_hint: str | None = None
+    segment_dimension: str | None = None
     matches_query: bool = False
 
 
@@ -75,11 +76,32 @@ def _concept_family(concept: str) -> str:
     return "other"
 
 
-def _segment_hint(excerpt: str, query: str) -> str | None:
-    combined = f"{excerpt} {query}".lower()
+def _segment_hint(excerpt: str, query: str = "") -> str | None:
+    text = excerpt.lower()
     for name in _SEGMENT_NAMES:
-        if name.lower() in combined:
+        if name.lower() in text:
             return name
+    return None
+
+
+def _segment_dimension(excerpt: str, query: str) -> str | None:
+    hint = _segment_hint(excerpt, query)
+    if hint:
+        return hint
+    m = re.search(r"segment[:\s]+([A-Za-z][A-Za-z\s&]+)", excerpt, re.I)
+    if m:
+        return m.group(1).strip()
+    return None
+
+
+def _segment_query_name(query: str) -> str | None:
+    q = query.lower()
+    for name in _SEGMENT_NAMES:
+        if name.lower() in q:
+            return name
+    m = re.search(r"([\w\s&]+)\s+segment", query, re.I)
+    if m:
+        return m.group(1).strip()
     return None
 
 
@@ -140,7 +162,6 @@ def build_xbrl_fact_catalog(
     intent = temporal_intent or intent_from_state(state)
     guard_family = query_concept_family(query, metric_intent)
     prefer_annual = bool(intent and intent.form_preference == "10-K")
-    q_lower = query.lower()
 
     entries: list[XbrlFactCatalogEntry] = []
     for chunk in evidence:
@@ -170,11 +191,15 @@ def build_xbrl_fact_catalog(
                 continue
         matches = xbrl_concept_matches_query(concept, query)
         seg = _segment_hint(chunk.excerpt, query)
-        if guard_family == "segment_revenue" and not seg and not _segment_hint("", query):
+        seg_dim = _segment_dimension(chunk.excerpt, query)
+        segment_query = _segment_query_name(query)
+        if guard_family == "segment_revenue":
+            if segment_query and not seg:
+                continue
+            if segment_query and seg and segment_query.lower() not in seg.lower():
+                continue
+        if guard_family == "segment_revenue" and not seg and not segment_query:
             continue
-        if "segment" in q_lower or "energy product" in q_lower:
-            if seg and seg.lower() not in chunk.excerpt.lower() and seg.lower() not in q_lower:
-                pass
         entries.append(
             XbrlFactCatalogEntry(
                 chunk_id=chunk.chunk_node_id,
@@ -186,6 +211,7 @@ def build_xbrl_fact_catalog(
                 is_annual=is_annual,
                 concept_family=_concept_family(concept),
                 segment_hint=seg,
+                segment_dimension=seg_dim,
                 matches_query=matches,
             )
         )
@@ -224,6 +250,7 @@ def build_xbrl_fact_catalog(
                     is_annual=is_annual,
                     concept_family=_concept_family(parsed["concept"]),
                     segment_hint=_segment_hint(chunk.excerpt, query),
+                    segment_dimension=_segment_dimension(chunk.excerpt, query),
                     matches_query=xbrl_concept_matches_query(parsed["concept"], query),
                 )
             )

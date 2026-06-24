@@ -168,35 +168,36 @@ def _try_computed_numeric_synthesis(
     filing_set: list[FilingRef],
     state: AgentState | None,
 ) -> dict | None:
+    from retrieval.skills.html_table_fallback import (
+        extract_from_html_tables,
+        html_extraction_to_payload,
+    )
     from retrieval.skills.metric_intent import classify_metric_intent
-    from retrieval.skills.numeric_computation import compute_numeric_answer
+    from retrieval.skills.numeric_computation import compute_numeric_answer, format_numeric_display
+    from retrieval.skills.point_fact_selection import select_point_fact
+    from retrieval.skills.ratio_pair_resolution import resolve_ratio_pair
+    from retrieval.skills.structured_answer import StructuredAnswerPayload
     from retrieval.skills.xbrl_fact_catalog import build_xbrl_fact_catalog
     from retrieval.skills.xbrl_fact_resolution import resolve_xbrl_facts_from_catalog
 
     from retrieval.skills.temporal_scope import intent_from_state
 
-    xbrl = [c for c in evidence if is_xbrl_evidence_chunk(c)]
-    if not xbrl:
-        return None
     temporal_intent = intent_from_state(state)
     metric_intent, metric_trace = classify_metric_intent(query)
-    catalog = build_xbrl_fact_catalog(
-        evidence,
-        query,
-        filing_set,
-        state=state,
-        temporal_intent=temporal_intent,
-        metric_intent=metric_intent,
+    xbrl = [c for c in evidence if is_xbrl_evidence_chunk(c)]
+    catalog = (
+        build_xbrl_fact_catalog(
+            evidence,
+            query,
+            filing_set,
+            state=state,
+            temporal_intent=temporal_intent,
+            metric_intent=metric_intent,
+        )
+        if xbrl
+        else []
     )
-    if not catalog:
-        return None
-    resolution, res_trace = resolve_xbrl_facts_from_catalog(
-        catalog,
-        query,
-        filing_set,
-        fiscal_period_hints=_fiscal_period_hints(state),
-        metric_intent=metric_intent,
-    )
+
     fiscal_period = ""
     if state:
         raw = str(state.get("fiscal_period_labels_json") or "[]")
@@ -206,20 +207,85 @@ def _try_computed_numeric_synthesis(
                 fiscal_period = str(labels[0])
         except json.JSONDecodeError:
             pass
-    payload = compute_numeric_answer(
-        metric_intent,
-        resolution,
-        catalog,
-        fiscal_period=fiscal_period,
-        query=query,
-        temporal_intent=temporal_intent,
-    )
+
+    payload: StructuredAnswerPayload | None = None
+    res_trace: dict = {}
+
+    if metric_intent.metric_type == "point" and catalog:
+        point = select_point_fact(
+            catalog,
+            query,
+            metric_intent,
+            temporal_intent=temporal_intent,
+            evidence=evidence,
+            filing_set=filing_set,
+        )
+        if point and point.confidence == "high" and point.value_normalized is not None:
+            rendered = format_numeric_display(point.value_normalized)
+            payload = StructuredAnswerPayload(
+                metric_label=metric_intent.metric_label or point.concept,
+                value=rendered,
+                concept=point.concept,
+                fiscal_period=fiscal_period or point.period_end,
+                citation_chunk_ids=[point.chunk_id],
+                confidence=point.confidence,
+                abstain=False,
+                metric_type="point",
+                computed_value=rendered,
+                inputs=[
+                    {
+                        "chunk_id": point.chunk_id,
+                        "concept": point.concept,
+                        "period_end": point.period_end,
+                        "value": point.value_display,
+                    }
+                ],
+            )
+
+    if payload is None and catalog:
+        resolution, res_trace = resolve_xbrl_facts_from_catalog(
+            catalog,
+            query,
+            filing_set,
+            fiscal_period_hints=_fiscal_period_hints(state),
+            metric_intent=metric_intent,
+            temporal_intent=temporal_intent,
+        )
+        payload = compute_numeric_answer(
+            metric_intent,
+            resolution,
+            catalog,
+            fiscal_period=fiscal_period,
+            query=query,
+            temporal_intent=temporal_intent,
+        )
+
+    if payload is None and not catalog:
+        html_hit = extract_from_html_tables(
+            evidence,
+            query,
+            temporal_intent=temporal_intent,
+        )
+        if html_hit:
+            payload = html_extraction_to_payload(html_hit, query, metric_label=metric_intent.metric_label)
+            if state is not None and isinstance(state, dict):
+                state["html_fallback_used"] = True
+
     if payload is None:
         return None
     if payload.abstain:
         return None
     if state is not None and isinstance(state, dict):
         state["metric_intent_json"] = metric_intent.model_dump_json()
+        if metric_intent.metric_type == "ratio":
+            pair = resolve_ratio_pair(
+                catalog,
+                metric_intent,
+                query,
+                temporal_intent=temporal_intent,
+            )
+            if pair.sufficient:
+                state["ratio_pair_resolution_json"] = pair.model_dump_json()
     result = structured_synthesis_result(payload, evidence, trace_patch=res_trace)
     if metric_trace.get("trace_events"):
         result.setdefault("trace_events", []).extend(metric_trace["trace_events"])

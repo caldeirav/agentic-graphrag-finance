@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CohortPhaseGateResult",
+  "type": "object",
+  "required": ["phase", "outcome_gt0", "outcome_total", "target_floor", "passed"],
+  "properties": {
+    "phase": {
+      "type": "string",
+      "enum": ["A", "B", "C", "D", "E"]
+    },
+    "report_dir": { "type": "string" },
+    "variant": { "type": "string", "default": "graph-full" },
+    "outcome_gt0": { "type": "integer", "minimum": 0 },
+    "outcome_total": { "type": "integer", "minimum": 1 },
+    "mean_outcome_score": { "type": "number" },
+    "mean_value_alignment": { "type": "number" },
+    "abstain_like_count": { "type": "integer", "minimum": 0 },
+    "temporal_mismatch_count": { "type": "integer", "minimum": 0 },
+    "forbidden_pattern_hits": { "type": "integer", "minimum": 0 },
+    "target_floor": { "type": "integer", "minimum": 0 },
+    "target_stretch": { "type": "integer", "minimum": 0 },
+    "passed": { "type": "boolean" },
+    "primary_item_outcomes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "outcome_score": { "type": "number" },
+          "value_alignment": { "type": "number" }
+        }
+      }
+    },
+    "checked_at": { "type": "string", "format": "date-time" }
+  },
+  "additionalProperties": false
+}

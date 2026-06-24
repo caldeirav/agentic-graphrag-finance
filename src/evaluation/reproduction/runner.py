@@ -205,10 +205,28 @@ class ReproRunner:
             accessions = list(item.expected_bindings.accessions)
         if not accessions:
             raise MissingBindingsError(item.item_id)
+        index = self._accession_index_for_bundle()
+        from evaluation.reproduction.slice_expansion import expand_slice_accessions
+        from retrieval.skills.metric_intent import heuristic_metric_intent
+        from retrieval.skills.temporal_scope import infer_temporal_scope_intent
+
+        temporal = infer_temporal_scope_intent(
+            item.question,
+            fiscal_period_labels=list(item.expected_bindings.fiscal_periods or [])
+            if item.expected_bindings
+            else None,
+        )
+        metric = heuristic_metric_intent(item.question)
+        accessions = expand_slice_accessions(
+            accessions,
+            index,
+            query=item.question,
+            temporal_intent=temporal,
+            metric_intent=metric,
+        )
         key = frozenset(accessions)
         if key in self._slice_cache:
             return self._slice_cache[key]
-        index = self._accession_index_for_bundle()
         slice_id, snapshot = load_item_subgraph(
             bundle_root,
             accessions,

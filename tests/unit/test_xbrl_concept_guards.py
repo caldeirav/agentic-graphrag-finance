@@ -29,6 +29,10 @@ def test_dividend_payout_guard_rejects_oci() -> None:
     )
 
 
+def test_tax_rate_guard_rejects_statutory_reconciliation() -> None:
+    assert concept_passes_guard("IncomeTaxReconciliationIncomeTaxExpenseAtFederalStatutoryRate", "tax_rate") is False
+
+
 def test_query_concept_family_effective_tax_rate() -> None:
     intent = MetricIntent(metric_type="ratio", metric_label="rate")
     family = query_concept_family("What was the effective tax rate for fiscal year 2025?", intent)

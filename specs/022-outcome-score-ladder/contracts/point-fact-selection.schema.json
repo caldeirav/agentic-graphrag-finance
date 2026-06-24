@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PointFactSelection",
+  "type": "object",
+  "required": ["concept", "value_normalized", "accession", "issuer_ticker"],
+  "properties": {
+    "concept": { "type": "string", "minLength": 1 },
+    "period_end": { "type": "string", "format": "date" },
+    "value_normalized": { "type": "number" },
+    "value_display": { "type": "string" },
+    "scale": {
+      "type": "string",
+      "enum": ["units", "thousands", "millions", "billions"]
+    },
+    "issuer_ticker": { "type": "string", "minLength": 1 },
+    "accession": { "type": "string", "minLength": 1 },
+    "chunk_id": { "type": "string" },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low"]
+    }
+  },
+  "additionalProperties": false
+}

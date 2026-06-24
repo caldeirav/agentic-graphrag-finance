@@ -1,0 +1,56 @@
+{
+  "phase_a_ratio": {
+    "description": "Ratio pipeline — margin, tax rate, payout",
+    "primary_item_ids": [
+      "v2-financebench-0548",
+      "v2-financebench-0667",
+      "v2-financebench-0666",
+      "v2-financebench-0592"
+    ],
+    "gate_outcome_gt0_floor": 2,
+    "gate_outcome_gt0_stretch": 4,
+    "forbidden_answer_patterns": [
+      "margin.*was \\$",
+      "tax rate.*was \\$",
+      "payout.*was \\$"
+    ]
+  },
+  "phase_b_point": {
+    "description": "Point facts on rebound filing + CAT",
+    "primary_item_ids": [
+      "v2-financebench-0436",
+      "v2-financebench-0495",
+      "v2-financebench-0534",
+      "v2-financebench-0547"
+    ],
+    "gate_outcome_gt0_floor_cumulative": 5,
+    "gate_outcome_gt0_stretch_cumulative": 8
+  },
+  "phase_c_slice": {
+    "description": "Slice expansion + benchmark alignment",
+    "primary_item_ids": [
+      "v2-financebench-0600",
+      "v2-financebench-0536"
+    ],
+    "gate_outcome_gt0_floor_cumulative": 7,
+    "gate_macro_temporal_mismatch_max": 1
+  },
+  "phase_d_html": {
+    "description": "HTML table fallback",
+    "primary_item_ids": [
+      "v2-financebench-0436",
+      "v2-financebench-0449",
+      "v2-financebench-0460"
+    ],
+    "gate_outcome_gt0_floor_cumulative": 8,
+    "gate_abstain_max": 12
+  },
+  "phase_e_segment": {
+    "description": "Segment dimension graph",
+    "primary_item_ids": [
+      "v2-financebench-0428"
+    ],
+    "gate_outcome_gt0_floor_cumulative": 10,
+    "gate_outcome_gt0_sc001_target": 15
+  }
+}
