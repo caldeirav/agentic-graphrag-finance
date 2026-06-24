@@ -17,6 +17,8 @@ Phases A–E code shipped on branch `019-agent-failure-investigation`:
 
 **Operator pending**: cohort re-runs + `check_phase_gate.py` per phase (T018–T065).
 
+**Superseded by**: `specs/023-capability-realignment` — retire live heuristic paths; enforce VII-compliant LLM skill + Python compute pipeline after 022-E 0/26 result.
+
 ## Cohort progression
 
 | Metric | 020 | 021 | 022 |

@@ -1,7 +1,7 @@
 {
-  "feature": "022-outcome-score-ladder",
+  "feature": "023-capability-realignment",
   "branch": "019-agent-failure-investigation",
-  "spec_dir": "specs/022-outcome-score-ladder",
-  "status": "implemented",
-  "depends_on": "021-xbrl-numeric-binding"
+  "spec_dir": "specs/023-capability-realignment",
+  "status": "draft",
+  "depends_on": "022-outcome-score-ladder"
 }

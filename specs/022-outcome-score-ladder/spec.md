@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-24
 
-**Status**: Draft
+**Status**: Draft — superseded in intent by `023-capability-realignment` (022 heuristic paths)
 
 **Depends on**: `021-xbrl-numeric-binding` (shipped), informal `022` binding/guards commit (`99e9d48`)
 
