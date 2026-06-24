@@ -54,5 +54,6 @@ def test_synthesize_abstains_when_llm_empty_no_template_dump(monkeypatch):
         }
     )
     assert out["answer"].text
-    assert out["status"] == QueryStatus.INSUFFICIENT_EVIDENCE
+    assert out["status"] == QueryStatus.SUCCESS
     assert "Based on" not in out["answer"].text
+    assert out.get("synthesis_path") == "computed_numeric"

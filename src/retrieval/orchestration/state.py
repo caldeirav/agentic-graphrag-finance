@@ -61,4 +61,6 @@ class AgentState(TypedDict, total=False):
     expected_section_paths_json: str | None
     suppress_benchmark_path_injection: bool | None
     fiscal_period_labels_json: str | None
+    temporal_scope_intent_json: str | None
+    metric_intent_json: str | None
     navigation_trace: Any | None

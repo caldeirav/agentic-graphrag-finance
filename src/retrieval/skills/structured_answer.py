@@ -34,6 +34,10 @@ class StructuredAnswerPayload(BaseModel):
     confidence: Literal["high", "medium", "low"] = "medium"
     abstain: bool = False
     abstain_reason: str = ""
+    metric_type: Literal["point", "delta", "ratio", "percent_change"] = "point"
+    inputs: list[dict] = Field(default_factory=list)
+    formula: str = ""
+    computed_value: str = ""
 
 
 def is_chunk_dump_answer(text: str) -> bool:
@@ -53,6 +57,8 @@ def render_structured_answer(payload: StructuredAnswerPayload) -> str:
     if payload.concept:
         lead += f" (XBRL {payload.concept})"
     lead += "."
+    if payload.formula and payload.computed_value:
+        lead += f" Computed as {payload.formula}: {payload.computed_value}."
     if payload.confidence != "high":
         lead += f" Confidence: {payload.confidence}."
     return lead

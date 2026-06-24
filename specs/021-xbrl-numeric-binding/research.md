@@ -44,6 +44,19 @@
 
 Same 26 ids: `specs/020-agent-capability-first/fixtures/xbrl_numeric_cohort.json`
 
+### 021 implementation (2026-06-23)
+
+Code complete (T001–T024, T026–T027). Unit/regression suite: 72 tests passing for 021 modules + failure_modes.
+
+**T025 pending (operator)**: Re-run cohort-debug per [quickstart.md](./quickstart.md) and record before/after metrics here:
+
+| Metric | After 020 | After 021 (pending) |
+|--------|-----------|---------------------|
+| outcome_score > 0 | 0/26 | — |
+| Abstention-like | ~19/26 | — |
+| binding_miss | — | — |
+| VA (cohort mean) | 0 | — |
+
 ## References
 
 - `specs/020-agent-capability-first/research.md`

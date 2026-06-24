@@ -83,7 +83,7 @@ def test_live_path_rejects_chunk_dump_from_llm(monkeypatch) -> None:
             )
     assert not is_chunk_dump_answer(out["answer"].text)
     assert "416" in out["answer"].text
-    assert out.get("synthesis_path") in ("structured_llm", "live_llm")
+    assert out.get("synthesis_path") in ("structured_llm", "live_llm", "computed_numeric")
 
 
 def test_live_path_abstains_instead_of_template_when_llm_empty(monkeypatch) -> None:

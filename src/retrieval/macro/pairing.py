@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import yaml
@@ -68,7 +69,29 @@ def infer_form_type_preference(query: str) -> str | None:
     return None
 
 
+_QUARTER_RE = re.compile(r"\b(q[1-4]|quarter|10-q|10 q)\b", re.I)
+_FY_LABEL_RE = re.compile(r"\bFY(20\d{2})\b", re.I)
+_YEAR_RE = re.compile(r"\b(20\d{2})\b")
+
+
+def annual_fiscal_year_requested(query: str) -> bool:
+    q = query.lower()
+    if _QUARTER_RE.search(q):
+        return False
+    if re.search(r"fiscal year\s+20\d{2}", q):
+        return True
+    if _FY_LABEL_RE.search(query):
+        return True
+    if "fiscal year" in q and _YEAR_RE.search(q):
+        return True
+    if re.search(r"for the fiscal year", q) and _YEAR_RE.search(q):
+        return True
+    return False
+
+
 def detect_quarterly_metric_cue(query: str) -> bool:
+    if annual_fiscal_year_requested(query):
+        return False
     q = query.lower()
     tokens = _load_phrases().get("quarterly_metric_tokens") or [
         "revenue",

@@ -2,6 +2,6 @@
   "feature": "021-xbrl-numeric-binding",
   "branch": "019-agent-failure-investigation",
   "spec_dir": "specs/021-xbrl-numeric-binding",
-  "status": "draft",
+  "status": "implemented",
   "depends_on": "020-agent-capability-first"
 }

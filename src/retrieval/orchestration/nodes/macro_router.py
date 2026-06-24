@@ -18,6 +18,10 @@ from retrieval.macro.pairing import infer_anchor_from_query
 from retrieval.macro.planner import plan_macro_binding
 from retrieval.macro.validator import validate_macro_binding
 from retrieval.orchestration.state import AgentState
+from retrieval.skills.temporal_scope import (
+    apply_intent_to_proposal,
+    infer_temporal_scope_intent,
+)
 
 
 def _refs_for_accessions(snapshot, accessions: list[str]) -> list[FilingRef]:
@@ -30,11 +34,28 @@ def _scope_error_message(validation) -> str:
     return f"Macro binding failed ({codes}): {validation.rationale}"
 
 
+def _fiscal_labels_from_state(state: AgentState) -> list[str]:
+    raw_fiscal = str(state.get("fiscal_period_labels_json") or "[]")
+    try:
+        parsed = json.loads(raw_fiscal)
+        if isinstance(parsed, list):
+            return [str(label) for label in parsed]
+    except json.JSONDecodeError:
+        pass
+    return []
+
+
 def macro_router(state: AgentState, *, graph_api=None) -> dict:
     query = state["query"]
     snapshot_id = state["snapshot_id"]
     pre_bound = list(state.get("filing_set") or [])
     cli_prebound = bool(state.get("cli_prebound")) or bool(pre_bound)
+    fiscal_labels = _fiscal_labels_from_state(state)
+    temporal_intent = infer_temporal_scope_intent(
+        query,
+        temporal_anchor=str(state.get("temporal_anchor") or ""),
+        fiscal_period_labels=fiscal_labels or None,
+    )
 
     if graph_api is None:
         return {
@@ -69,22 +90,16 @@ def macro_router(state: AgentState, *, graph_api=None) -> dict:
             is_comparison=is_comparison,
             comparison_mode=ComparisonMode.YOY if is_comparison else None,
         )
+        proposal = apply_intent_to_proposal(proposal, temporal_intent)
         validation = validate_macro_binding(
             proposal,
             snap,
             cli_bound=pre_bound,
             query=query,
+            temporal_intent=temporal_intent,
         )
         macro_llm_skipped = True
     else:
-        fiscal_labels: list[str] = []
-        raw_fiscal = str(state.get("fiscal_period_labels_json") or "[]")
-        try:
-            parsed = json.loads(raw_fiscal)
-            if isinstance(parsed, list):
-                fiscal_labels = [str(label) for label in parsed]
-        except json.JSONDecodeError:
-            fiscal_labels = []
         proposal, trace_patch = plan_macro_binding(
             query,
             snap,
@@ -95,7 +110,13 @@ def macro_router(state: AgentState, *, graph_api=None) -> dict:
             inferred = infer_anchor_from_query(query)
             if inferred:
                 proposal = proposal.model_copy(update={"anchor": inferred})
-        validation = validate_macro_binding(proposal, snap, query=query)
+        proposal = apply_intent_to_proposal(proposal, temporal_intent)
+        validation = validate_macro_binding(
+            proposal,
+            snap,
+            query=query,
+            temporal_intent=temporal_intent,
+        )
         macro_llm_skipped = False
 
     record = MacroBindingRecord(
@@ -123,6 +144,7 @@ def macro_router(state: AgentState, *, graph_api=None) -> dict:
             "answer": AnswerPackage(text=_scope_error_message(validation), citations=[]),
             "status": QueryStatus.ERROR,
             "graph_traversal": [{"node_id": "macro", "stage": "macro"}],
+            "temporal_scope_intent_json": temporal_intent.model_dump_json(),
         }
         if trace_patch.get("trace_events"):
             out["trace_events"] = trace_patch["trace_events"]
@@ -153,6 +175,7 @@ def macro_router(state: AgentState, *, graph_api=None) -> dict:
         "macro_binding_failed": False,
         "macro_llm_skipped": macro_llm_skipped,
         "temporal_anchor": temporal_anchor,
+        "temporal_scope_intent_json": temporal_intent.model_dump_json(),
         "graph_traversal": [{"node_id": "macro", "stage": "macro"}],
     }
     if trace_patch.get("trace_events"):
@@ -160,7 +183,6 @@ def macro_router(state: AgentState, *, graph_api=None) -> dict:
     return out
 
 
-# Re-export for tests that imported private helpers from this module
 from retrieval.macro.llm_json import extract_json_from_llm as _extract_json_from_llm  # noqa: E402
 from retrieval.macro.llm_json import parse_comparison_mode as _parse_comparison_mode  # noqa: E402
 

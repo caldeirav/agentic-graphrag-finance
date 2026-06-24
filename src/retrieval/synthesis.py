@@ -124,15 +124,24 @@ def _apply_xbrl_fact_resolution(
     query: str,
     filing_set: list[FilingRef],
     state: AgentState | None,
-) -> tuple[list[EvidenceChunk], dict]:
+    *,
+    metric_intent=None,
+) -> tuple[list[EvidenceChunk], dict, list]:
+    from retrieval.skills.xbrl_fact_catalog import build_xbrl_fact_catalog
+
     xbrl = [c for c in evidence if is_xbrl_evidence_chunk(c)]
-    if len(xbrl) < 2:
-        return evidence, {}
+    if not xbrl:
+        return evidence, {}, []
+    catalog = build_xbrl_fact_catalog(evidence, query, filing_set, state=state)
+    if not catalog:
+        return evidence, {}, []
     resolution, trace_patch = resolve_xbrl_facts(
         xbrl,
         query,
         filing_set,
         fiscal_period_hints=_fiscal_period_hints(state),
+        metric_intent=metric_intent,
+        catalog=catalog,
     )
     filtered = filter_evidence_by_resolution(evidence, resolution)
     out: dict = {}
@@ -140,7 +149,59 @@ def _apply_xbrl_fact_resolution(
         out["trace_events"] = trace_patch["trace_events"]
     if resolution.rationale:
         out["xbrl_resolution_rationale"] = resolution.rationale
-    return filtered, out
+    return filtered, out, catalog
+
+
+def _try_computed_numeric_synthesis(
+    evidence: list[EvidenceChunk],
+    query: str,
+    filing_set: list[FilingRef],
+    state: AgentState | None,
+) -> dict | None:
+    from retrieval.skills.metric_intent import classify_metric_intent
+    from retrieval.skills.numeric_computation import compute_numeric_answer
+    from retrieval.skills.xbrl_fact_catalog import build_xbrl_fact_catalog
+    from retrieval.skills.xbrl_fact_resolution import resolve_xbrl_facts_from_catalog
+
+    xbrl = [c for c in evidence if is_xbrl_evidence_chunk(c)]
+    if not xbrl:
+        return None
+    metric_intent, metric_trace = classify_metric_intent(query)
+    catalog = build_xbrl_fact_catalog(evidence, query, filing_set, state=state)
+    if not catalog:
+        return None
+    resolution, res_trace = resolve_xbrl_facts_from_catalog(
+        catalog,
+        query,
+        filing_set,
+        fiscal_period_hints=_fiscal_period_hints(state),
+        metric_intent=metric_intent,
+    )
+    fiscal_period = ""
+    if state:
+        raw = str(state.get("fiscal_period_labels_json") or "[]")
+        try:
+            labels = json.loads(raw)
+            if isinstance(labels, list) and labels:
+                fiscal_period = str(labels[0])
+        except json.JSONDecodeError:
+            pass
+    payload = compute_numeric_answer(
+        metric_intent,
+        resolution,
+        catalog,
+        fiscal_period=fiscal_period,
+    )
+    if payload is None:
+        return None
+    if state is not None and isinstance(state, dict):
+        state["metric_intent_json"] = metric_intent.model_dump_json()
+    result = structured_synthesis_result(payload, evidence, trace_patch=res_trace)
+    if metric_trace.get("trace_events"):
+        result.setdefault("trace_events", []).extend(metric_trace["trace_events"])
+    if is_chunk_dump_answer(result["answer"].text):
+        return None
+    return result
 
 
 def _try_structured_synthesis(
@@ -230,7 +291,11 @@ def synthesize(state: AgentState) -> dict:
         )
 
     resolution_patch: dict = {}
-    evidence, resolution_patch = _apply_xbrl_fact_resolution(
+    computed = _try_computed_numeric_synthesis(evidence, query, filing_set, state)
+    if computed is not None:
+        return _tag_synthesis_path(computed, "computed_numeric")
+
+    evidence, resolution_patch, _catalog = _apply_xbrl_fact_resolution(
         evidence, query, filing_set, state
     )
 
@@ -995,6 +1060,8 @@ def _correct_numeric_from_xbrl(
     evidence: list[EvidenceChunk],
     filing_set: list[FilingRef],
 ) -> str:
+    if not _use_deterministic_shortcuts():
+        return text
     result = _try_synthesize_numeric_xbrl(evidence, query, filing_set)
     if result is None:
         return text
@@ -1351,7 +1418,9 @@ def _correct_revenue_denial(
                 "insufficient",
             )
         ):
-            return yoy_text
+            if _use_deterministic_shortcuts():
+                return yoy_text
+            return text
     lower = text.lower()
     refusal_phrases = (
         "not reported",
