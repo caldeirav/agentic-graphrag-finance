@@ -12,6 +12,7 @@ from retrieval.skills.xbrl_concept_guards import concept_passes_guard, forbidden
 from retrieval.skills.xbrl_fact_catalog import XbrlFactCatalogEntry
 from retrieval.skills.xbrl_fact_resolution import XbrlFactResolutionResult
 from retrieval.skills.xbrl_resolution_prompt import min_facts_required
+from retrieval.skills.ratio_entry_roles import assign_ratio_pair_for_query
 from retrieval.skills.xbrl_taxonomy_catalog import XbrlFactCatalogEntryV2, enrich_catalog_entry
 
 
@@ -102,7 +103,16 @@ def validate_xbrl_resolution(
         and metric_intent.metric_type == "ratio"
         and len(selected_entries) == 2
     ):
-        num, den = selected_entries[0], selected_entries[1]
+        pair = assign_ratio_pair_for_query(selected_entries, query, metric_intent)
+        if pair is None:
+            rejections.append("Could not assign numerator and denominator roles for ratio pair.")
+            num, den = selected_entries[0], selected_entries[1]
+        else:
+            num, den = pair
+            if [num.chunk_id, den.chunk_id] != selected:
+                selected = [num.chunk_id, den.chunk_id]
+                selected_entries = [num, den]
+                selected_concepts = [num.concept, den.concept]
         if num.period_end and den.period_end and num.period_end != den.period_end:
             rejections.append(
                 f"Ratio facts use different periods ({num.period_end} vs {den.period_end})."

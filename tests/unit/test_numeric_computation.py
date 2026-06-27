@@ -80,6 +80,80 @@ def test_compute_ratio_outputs_percent_only() -> None:
     assert payload.formula == "IncomeTaxExpense/IncomeBeforeIncomeTaxes*100"
 
 
+def test_compute_ratio_reversed_ids_still_uses_tax_over_pretax() -> None:
+    catalog = [
+        XbrlFactCatalogEntry(
+            chunk_id="tax",
+            concept="IncomeTaxExpense",
+            value_display="$8.67 billion",
+            period_end="2025-12-31",
+            is_annual=True,
+            matches_query=True,
+        ),
+        XbrlFactCatalogEntry(
+            chunk_id="pretax",
+            concept="IncomeBeforeIncomeTaxes",
+            value_display="$40.00 billion",
+            period_end="2025-12-31",
+            is_annual=True,
+            matches_query=True,
+        ),
+    ]
+    intent = MetricIntent(metric_type="ratio", metric_label="Effective tax rate", periods_needed=1)
+    resolution = XbrlFactResolutionResult(
+        selected_chunk_ids=["pretax", "tax"],
+        sufficient=True,
+    )
+    payload = compute_numeric_answer(
+        intent,
+        resolution,
+        catalog,
+        query="What was the effective tax rate for fiscal year 2025?",
+    )
+    assert payload is not None
+    assert payload.abstain is False
+    assert payload.formula == "IncomeTaxExpense/IncomeBeforeIncomeTaxes*100"
+
+
+def test_compute_ratio_abstains_on_fiscal_period_mismatch() -> None:
+    catalog = [
+        XbrlFactCatalogEntry(
+            chunk_id="pretax",
+            concept="IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+            value_display="$48.87 billion",
+            period_start="2024-01-01",
+            period_end="2025-01-01",
+            is_annual=False,
+        ),
+        XbrlFactCatalogEntry(
+            chunk_id="rev",
+            concept="Revenues",
+            value_display="$35.53 billion",
+            period_start="2024-01-01",
+            period_end="2025-01-01",
+            is_annual=False,
+        ),
+    ]
+    temporal = infer_temporal_scope_intent(
+        "What was net profit margin for fiscal year 2025?",
+        fiscal_period_labels=["FY2025"],
+    )
+    intent = MetricIntent(metric_type="ratio", metric_label="Net profit margin", periods_needed=1)
+    resolution = XbrlFactResolutionResult(
+        selected_chunk_ids=["rev", "pretax"],
+        sufficient=True,
+    )
+    payload = compute_numeric_answer(
+        intent,
+        resolution,
+        catalog,
+        query="What was net profit margin for fiscal year 2025?",
+        temporal_intent=temporal,
+    )
+    assert payload is not None
+    assert payload.abstain is True
+
+
 def test_compute_ratio_abstains_without_two_resolved_facts() -> None:
     catalog = [
         XbrlFactCatalogEntry(

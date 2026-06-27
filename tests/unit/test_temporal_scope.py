@@ -62,6 +62,25 @@ def test_xbrl_period_rejects_q1_next_year() -> None:
     ) is False
 
 
+def test_xbrl_period_rejects_jan_end_prior_year_start_for_fy2025() -> None:
+    intent = infer_temporal_scope_intent(
+        "What was net profit margin for fiscal year 2025?",
+        fiscal_period_labels=["FY2025"],
+    )
+    assert xbrl_period_matches_intent(
+        period_start="2024-01-01",
+        period_end="2025-01-01",
+        is_annual=False,
+        intent=intent,
+    ) is False
+    assert xbrl_period_matches_intent(
+        period_start="2025-01-01",
+        period_end="2025-12-31",
+        is_annual=True,
+        intent=intent,
+    ) is True
+
+
 def test_calendar_year_rebind_from_manifest() -> None:
     """March-FYE issuer: FY2025 label absent; calendar 2025 10-K should win."""
     fy26 = FilingRef(

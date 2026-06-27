@@ -8,6 +8,7 @@ from retrieval.skills.metric_intent import MetricIntent
 from retrieval.skills.structured_answer import StructuredAnswerPayload
 from retrieval.skills.temporal_scope import TemporalScopeIntent, xbrl_period_matches_intent
 from retrieval.skills.xbrl_concept_guards import concept_passes_guard, query_concept_family
+from retrieval.skills.ratio_entry_roles import assign_ratio_pair_for_query
 from retrieval.skills.xbrl_fact_catalog import XbrlFactCatalogEntry
 from retrieval.skills.xbrl_fact_resolution import XbrlFactResolutionResult
 
@@ -90,6 +91,7 @@ def _compute_ratio_payload(
     selected: list[XbrlFactCatalogEntry],
     *,
     fiscal_period: str,
+    query: str = "",
 ) -> StructuredAnswerPayload:
     if len(selected) < 2:
         return StructuredAnswerPayload(
@@ -101,7 +103,18 @@ def _compute_ratio_payload(
             abstain_reason="Ratio resolution must provide numerator and denominator facts.",
             metric_type="ratio",
         )
-    num_e, den_e = selected[0], selected[1]
+    pair = assign_ratio_pair_for_query(selected, query, metric_intent)
+    if pair is None:
+        return StructuredAnswerPayload(
+            metric_label=metric_intent.metric_label or "ratio",
+            value="n/a",
+            citation_chunk_ids=[e.chunk_id for e in selected],
+            confidence="low",
+            abstain=True,
+            abstain_reason="Could not assign numerator and denominator roles for ratio pair.",
+            metric_type="ratio",
+        )
+    num_e, den_e = pair
     v_num = parse_display_value(num_e.value_display)
     v_den = parse_display_value(den_e.value_display)
     if v_num is None or v_den is None or v_den == 0:
@@ -172,10 +185,21 @@ def compute_numeric_answer(
         )
 
     if metric_intent.metric_type == "ratio":
+        if query and not _entries_pass_gates(selected, query, metric_intent, temporal_intent):
+            return StructuredAnswerPayload(
+                metric_label=metric_intent.metric_label or "ratio",
+                value="n/a",
+                citation_chunk_ids=[e.chunk_id for e in selected],
+                confidence="low",
+                abstain=True,
+                abstain_reason="Selected ratio facts fail concept or period guard for the question.",
+                metric_type="ratio",
+            )
         return _compute_ratio_payload(
             metric_intent,
             selected,
             fiscal_period=fiscal_period,
+            query=query,
         )
 
     if metric_intent.metric_type == "point" or metric_intent.periods_needed == 1:

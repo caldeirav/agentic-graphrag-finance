@@ -96,6 +96,67 @@ def test_validator_rejects_pretax_with_calc_child_net_income() -> None:
     assert any("calc_children" in r for r in validated.validation_rejections)
 
 
+def test_validator_rejects_reversed_pretax_margin_pair() -> None:
+    intent = MetricIntent(metric_type="ratio", metric_label="Net profit margin", periods_needed=1)
+    resolution = XbrlFactResolutionResult(
+        selected_chunk_ids=["rev", "pretax"],
+        sufficient=True,
+    )
+    validated = validate_xbrl_resolution(
+        resolution,
+        _margin_catalog(),
+        "What was net profit margin for fiscal year 2025?",
+        metric_intent=intent,
+    )
+    assert validated.resolution.sufficient is False
+    assert any("pretax" in reason.lower() or "net income alternative" in reason.lower()
+               for reason in validated.validation_rejections)
+
+
+def test_validator_rejects_exxon_jan_end_period_for_fy2025() -> None:
+    catalog = [
+        enrich_catalog_entry(
+            XbrlFactCatalogEntry(
+                chunk_id="pretax",
+                concept="IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+                value_display="$48.87 billion",
+                period_start="2024-01-01",
+                period_end="2025-01-01",
+                is_annual=False,
+            )
+        ),
+        enrich_catalog_entry(
+            XbrlFactCatalogEntry(
+                chunk_id="rev",
+                concept="Revenues",
+                value_display="$35.53 billion",
+                period_start="2024-01-01",
+                period_end="2025-01-01",
+                is_annual=False,
+            )
+        ),
+    ]
+    intent = MetricIntent(metric_type="ratio", metric_label="Net profit margin", periods_needed=1)
+    temporal = TemporalScopeIntent(
+        target_fiscal_year=2025,
+        form_preference="10-K",
+        period_labels=["FY2025"],
+    )
+    resolution = XbrlFactResolutionResult(
+        selected_chunk_ids=["rev", "pretax"],
+        sufficient=True,
+    )
+    validated = validate_xbrl_resolution(
+        resolution,
+        catalog,
+        "What was net profit margin for fiscal year 2025?",
+        metric_intent=intent,
+        temporal_intent=temporal,
+    )
+    assert validated.resolution.sufficient is False
+    assert any("mismatches fiscal intent" in r for r in validated.validation_rejections)
+
+
 def test_validator_rejects_pretax_margin_numerator() -> None:
     intent = MetricIntent(metric_type="ratio", metric_label="Net profit margin", periods_needed=1)
     resolution = XbrlFactResolutionResult(

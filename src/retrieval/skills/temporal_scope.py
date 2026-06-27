@@ -293,6 +293,19 @@ def xbrl_period_matches_intent(
     if intent.form_preference == "10-Q":
         return str(target) in period_end or end_year == target
 
+    if intent.form_preference == "10-K":
+        if period_end[5:10] == "01-01" and start_year == target - 1 and end_year == target:
+            return False
+        if is_annual and end_year == target:
+            return True
+        if is_annual:
+            return end_year == target or start_year == target
+        if end_year == target and period_end[5:10] == "12-31":
+            return True
+        if start_year >= target + 1 and end_year > target:
+            return False
+        return end_year == target and period_end[5:10] != "01-01"
+
     if is_annual:
         return end_year == target or start_year == target
 
