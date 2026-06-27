@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 from dataclasses import dataclass, field
 
 from graph.accession import accession_from_node_id
-from models.enums import EvidenceSourceType, GraphNodeType
+from models.enums import GraphNodeType
 from models.filing import FilingRef
 from models.query import EvidenceChunk
 from retrieval.skills.metric_intent import MetricIntent, heuristic_metric_intent
 from retrieval.skills.xbrl_concept_guards import query_concept_family
 from retrieval.skills.xbrl_fact_catalog import XbrlFactCatalogEntry, build_xbrl_fact_catalog, parse_xbrl_excerpt
+from retrieval.skills.xbrl_graph_chunks import xbrl_node_to_evidence_chunk
 from retrieval.skills.xbrl_taxonomy_catalog import enrich_catalog_entry, rank_entries_by_metric_role
 
 _FAMILY_PATTERNS: dict[str, list[tuple[str, re.Pattern[str]]]] = {
@@ -95,16 +95,7 @@ def _families_present(
 
 
 def _node_to_chunk(node, accession: str) -> EvidenceChunk:
-    excerpt = (node.source_ref or node.label or "").strip()
-    return EvidenceChunk(
-        chunk_node_id=node.node_id,
-        excerpt=excerpt[:2000],
-        content_hash=hashlib.sha256(excerpt.encode()).hexdigest(),
-        citation_label=(node.label or "XBRL")[:80],
-        source_type=EvidenceSourceType.XBRL,
-        accession=accession,
-        section_id=str((node.properties or {}).get("section_id", "XBRL")),
-    )
+    return xbrl_node_to_evidence_chunk(node, accession)
 
 
 def _catalog_entry_from_node(node, accession: str) -> XbrlFactCatalogEntry | None:

@@ -150,15 +150,20 @@ def _apply_xbrl_fact_resolution(
     state: AgentState | None,
     *,
     metric_intent=None,
+    graph_api=None,
 ) -> tuple[list[EvidenceChunk], dict, list]:
     from retrieval.skills.temporal_scope import intent_from_state
+    from retrieval.skills.xbrl_graph_chunks import collect_filing_xbrl_chunks, merge_xbrl_evidence
     from retrieval.skills.xbrl_taxonomy_catalog import (
         build_taxonomy_catalog,
         persist_taxonomy_catalog_on_state,
     )
 
-    xbrl = [c for c in evidence if is_xbrl_evidence_chunk(c)]
-    if not xbrl:
+    snapshot_id = str((state or {}).get("snapshot_id") or "")
+    filing_chunks = collect_filing_xbrl_chunks(graph_api, snapshot_id, filing_set)
+    merged_evidence = merge_xbrl_evidence(evidence, filing_chunks)
+    xbrl = [c for c in merged_evidence if is_xbrl_evidence_chunk(c)]
+    if not xbrl and not filing_chunks:
         return evidence, {}, []
     temporal_intent = intent_from_state(state)
     taxonomy = build_taxonomy_catalog(
@@ -169,6 +174,8 @@ def _apply_xbrl_fact_resolution(
         temporal_intent=temporal_intent,
         metric_intent=metric_intent,
         temporal_anchor=str((state or {}).get("temporal_anchor") or ""),
+        graph_api=graph_api,
+        snapshot_id=snapshot_id,
     )
     catalog = taxonomy.entries
     persist_taxonomy_catalog_on_state(state, taxonomy)
@@ -182,7 +189,7 @@ def _apply_xbrl_fact_resolution(
         metric_intent=metric_intent,
         catalog=catalog,
     )
-    filtered = filter_evidence_by_resolution(evidence, resolution)
+    filtered = filter_evidence_by_resolution(merged_evidence, resolution)
     out: dict = {}
     if trace_patch.get("trace_events"):
         out["trace_events"] = trace_patch["trace_events"]
@@ -196,17 +203,14 @@ def _try_computed_numeric_synthesis(
     query: str,
     filing_set: list[FilingRef],
     state: AgentState | None,
+    *,
+    graph_api=None,
 ) -> dict | None:
-    from retrieval.skills.html_table_fallback import (
-        extract_from_html_tables,
-        html_extraction_to_payload,
-    )
     from retrieval.skills.metric_intent import classify_metric_intent
-    from retrieval.skills.numeric_computation import compute_numeric_answer, format_numeric_display
+    from retrieval.skills.numeric_computation import compute_numeric_answer
     from retrieval.skills.numeric_synthesis_policy import should_block_numeric_llm_fallback
-    from retrieval.skills.point_fact_selection import select_point_fact
-    from retrieval.skills.structured_answer import StructuredAnswerPayload
     from retrieval.skills.xbrl_fact_resolution import resolve_xbrl_facts_from_catalog
+    from retrieval.skills.xbrl_graph_chunks import collect_filing_xbrl_chunks, merge_xbrl_evidence
     from retrieval.skills.xbrl_taxonomy_catalog import (
         build_taxonomy_catalog,
         persist_taxonomy_catalog_on_state,
@@ -214,6 +218,9 @@ def _try_computed_numeric_synthesis(
 
     from retrieval.skills.temporal_scope import intent_from_state
 
+    snapshot_id = str((state or {}).get("snapshot_id") or "")
+    filing_chunks = collect_filing_xbrl_chunks(graph_api, snapshot_id, filing_set)
+    evidence = merge_xbrl_evidence(evidence, filing_chunks)
     temporal_intent = intent_from_state(state)
     metric_intent, metric_trace = classify_metric_intent(query)
     xbrl = [c for c in evidence if is_xbrl_evidence_chunk(c)]
@@ -233,8 +240,10 @@ def _try_computed_numeric_synthesis(
             temporal_intent=temporal_intent,
             metric_intent=metric_intent,
             temporal_anchor=str((state or {}).get("temporal_anchor") or ""),
+            graph_api=graph_api,
+            snapshot_id=snapshot_id,
         )
-        if xbrl
+        if xbrl or filing_chunks
         else None
     )
     catalog = taxonomy.entries if taxonomy else []
@@ -251,41 +260,10 @@ def _try_computed_numeric_synthesis(
         except json.JSONDecodeError:
             pass
 
-    payload: StructuredAnswerPayload | None = None
+    payload = None
     res_trace: dict = {}
 
-    if metric_intent.metric_type == "point" and catalog:
-        point = select_point_fact(
-            catalog,
-            query,
-            metric_intent,
-            temporal_intent=temporal_intent,
-            evidence=evidence,
-            filing_set=filing_set,
-        )
-        if point and point.confidence == "high" and point.value_normalized is not None:
-            rendered = format_numeric_display(point.value_normalized)
-            payload = StructuredAnswerPayload(
-                metric_label=metric_intent.metric_label or point.concept,
-                value=rendered,
-                concept=point.concept,
-                fiscal_period=fiscal_period or point.period_end,
-                citation_chunk_ids=[point.chunk_id],
-                confidence=point.confidence,
-                abstain=False,
-                metric_type="point",
-                computed_value=rendered,
-                inputs=[
-                    {
-                        "chunk_id": point.chunk_id,
-                        "concept": point.concept,
-                        "period_end": point.period_end,
-                        "value": point.value_display,
-                    }
-                ],
-            )
-
-    if payload is None and catalog:
+    if catalog:
         resolution, res_trace = resolve_xbrl_facts_from_catalog(
             catalog,
             query,
@@ -304,17 +282,6 @@ def _try_computed_numeric_synthesis(
         )
         if state is not None and isinstance(state, dict):
             state["xbrl_resolution_json"] = resolution.model_dump_json()
-
-    if payload is None and not catalog:
-        html_hit = extract_from_html_tables(
-            evidence,
-            query,
-            temporal_intent=temporal_intent,
-        )
-        if html_hit:
-            payload = html_extraction_to_payload(html_hit, query, metric_label=metric_intent.metric_label)
-            if state is not None and isinstance(state, dict):
-                state["html_fallback_used"] = True
 
     if payload is None:
         if block_llm_fallback:
@@ -378,7 +345,7 @@ def _try_structured_synthesis(
     return result
 
 
-def synthesize(state: AgentState) -> dict:
+def synthesize(state: AgentState, *, graph_api=None) -> dict:
     if state.get("macro_binding_failed") and state.get("answer") is not None:
         return {
             "answer": state["answer"],
@@ -440,7 +407,9 @@ def synthesize(state: AgentState) -> dict:
         )
 
     resolution_patch: dict = {}
-    computed = _try_computed_numeric_synthesis(evidence, query, filing_set, state)
+    computed = _try_computed_numeric_synthesis(
+        evidence, query, filing_set, state, graph_api=graph_api
+    )
     if computed is not None:
         path = (
             "numeric_abstain"
@@ -456,7 +425,7 @@ def synthesize(state: AgentState) -> dict:
         )
 
     evidence, resolution_patch, _catalog = _apply_xbrl_fact_resolution(
-        evidence, query, filing_set, state
+        evidence, query, filing_set, state, graph_api=graph_api
     )
 
     structured = _try_structured_synthesis(

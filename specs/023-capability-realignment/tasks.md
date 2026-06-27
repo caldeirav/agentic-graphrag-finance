@@ -100,9 +100,9 @@
 
 ## Phase 5: User Story 6 — Heuristic Retirement (P2)
 
-- [ ] T039 [US6] Remove live imports: `point_fact_selection`, `html_table_fallback` from synthesis
-- [ ] T040 [US6] Mark modules deprecated in docstrings; keep for mock/CI if needed
-- [ ] T041 [P] [US6] `tests/regression/failure_modes/test_no_live_heuristic_imports.py`
+- [x] T039 [US6] Remove live imports: `point_fact_selection`, `html_table_fallback` from synthesis
+- [x] T040 [US6] Mark modules deprecated in docstrings; keep for mock/CI if needed
+- [x] T041 [P] [US6] `tests/regression/failure_modes/test_no_live_heuristic_imports.py`
 - [ ] T042 [US6] Update 022 research.md cross-link — superseded by 023
 
 ### Tests

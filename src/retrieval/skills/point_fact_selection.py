@@ -1,4 +1,8 @@
-"""Primary annual point-fact selection from XBRL catalog (022-B)."""
+"""Primary annual point-fact selection from XBRL catalog (022-B).
+
+DEPRECATED for live synthesis (023 US6): mock/regression tests only.
+Live numeric path uses resolve_xbrl_facts_from_catalog + validate_xbrl_resolution.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,7 @@
-"""HTML/table numeric fallback when XBRL catalog is empty (022-D)."""
+"""HTML/table numeric fallback when XBRL catalog is empty (022-D).
+
+DEPRECATED for live synthesis (023 US6): mock/regression tests only.
+"""
 
 from __future__ import annotations
 

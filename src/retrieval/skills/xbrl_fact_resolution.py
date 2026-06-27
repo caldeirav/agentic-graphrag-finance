@@ -165,7 +165,7 @@ def resolve_xbrl_facts_from_catalog(
 
     from retrieval.skills.xbrl_taxonomy_catalog import catalog_entries_for_resolution
 
-    facts = catalog_entries_for_resolution(catalog, limit=40)
+    facts = catalog_entries_for_resolution(catalog, limit=50)
     metric_line = ""
     if metric_intent:
         metric_line = (

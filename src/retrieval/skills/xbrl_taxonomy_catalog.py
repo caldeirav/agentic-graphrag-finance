@@ -10,11 +10,14 @@ from models.filing import FilingRef
 from models.query import EvidenceChunk
 from retrieval.skills.metric_intent import MetricIntent
 from retrieval.skills.temporal_scope import TemporalScopeIntent
+from retrieval.skills.xbrl_concept_guards import query_concept_family
 from retrieval.skills.xbrl_concept_roles import infer_concept_taxonomy
 from retrieval.skills.xbrl_fact_catalog import (
     XbrlFactCatalogEntry,
     build_xbrl_fact_catalog,
+    is_xbrl_evidence_chunk,
 )
+from retrieval.skills.xbrl_graph_chunks import collect_filing_xbrl_chunks, merge_xbrl_evidence
 
 CATALOG_SCHEMA_VERSION = "2.0.0"
 
@@ -111,6 +114,61 @@ def enrich_catalog_entry(
     )
 
 
+def trim_catalog_for_resolution(
+    entries: list[XbrlFactCatalogEntryV2],
+    query: str,
+    metric_intent: MetricIntent | None,
+    *,
+    micro_chunk_ids: set[str] | None = None,
+    limit: int = 50,
+) -> list[XbrlFactCatalogEntryV2]:
+    """Keep micro evidence + role-relevant rows when the filing index is large."""
+    if len(entries) <= limit:
+        return entries
+    micro_chunk_ids = micro_chunk_ids or set()
+    pinned = [e for e in entries if e.chunk_id in micro_chunk_ids]
+    pool = [e for e in entries if e.chunk_id not in micro_chunk_ids]
+
+    roles: list[str] = []
+    family = query_concept_family(query, metric_intent)
+    if metric_intent and metric_intent.metric_type == "ratio":
+        if family == "margin":
+            roles = ["net_income", "total_revenue", "revenue", "margin_denominator", "margin_numerator"]
+        elif family == "tax_rate":
+            roles = ["pretax_income", "net_income"]
+        elif family == "dividend_payout":
+            roles = ["net_income", "total_revenue"]
+        else:
+            roles = ["net_income", "total_revenue", "revenue"]
+    elif metric_intent and metric_intent.metric_type == "point":
+        roles = ["total_equity", "net_income", "total_revenue", "total_assets", "operating_cash_flow"]
+
+    selected: list[XbrlFactCatalogEntryV2] = list(pinned)
+    seen = {e.chunk_id for e in selected}
+    if roles:
+        for role in roles:
+            for entry in rank_entries_by_metric_role(pool, role):
+                if entry.chunk_id in seen:
+                    continue
+                selected.append(entry)
+                seen.add(entry.chunk_id)
+                if len(selected) >= limit:
+                    return selected[:limit]
+    annual = sorted(
+        [e for e in pool if e.chunk_id not in seen],
+        key=lambda e: (int(e.is_annual), e.period_end),
+        reverse=True,
+    )
+    for entry in annual:
+        if entry.chunk_id in seen:
+            continue
+        selected.append(entry)
+        seen.add(entry.chunk_id)
+        if len(selected) >= limit:
+            break
+    return selected[:limit]
+
+
 def build_taxonomy_catalog(
     evidence: list[EvidenceChunk],
     query: str,
@@ -120,19 +178,28 @@ def build_taxonomy_catalog(
     temporal_intent: TemporalScopeIntent | None = None,
     metric_intent: MetricIntent | None = None,
     temporal_anchor: str = "",
+    graph_api=None,
+    snapshot_id: str = "",
 ) -> XbrlTaxonomyCatalog:
-    """Build period-filtered v1 catalog rows and enrich with taxonomy metadata."""
+    """Build period-filtered catalog from micro evidence plus filing-level XBRL index."""
+    filing_chunks = collect_filing_xbrl_chunks(graph_api, snapshot_id, filing_set)
+    merged_evidence = merge_xbrl_evidence(evidence, filing_chunks)
+    micro_ids = {c.chunk_node_id for c in evidence if is_xbrl_evidence_chunk(c)}
+
     accession_by_chunk: dict[str, str] = {}
     for filing in filing_set:
         acc = filing.accession or ""
         if not acc:
             continue
-        for chunk in evidence:
-            if acc in (chunk.section_id or "") or acc in chunk.excerpt[:120]:
+        for chunk in merged_evidence:
+            if acc in (chunk.accession or "") or acc in (chunk.section_id or "") or acc in chunk.excerpt[:120]:
                 accession_by_chunk[chunk.chunk_node_id] = acc
+    for chunk in filing_chunks:
+        if chunk.accession:
+            accession_by_chunk[chunk.chunk_node_id] = chunk.accession
 
     base_entries = build_xbrl_fact_catalog(
-        evidence,
+        merged_evidence,
         query,
         filing_set,
         state=state,
@@ -147,17 +214,23 @@ def build_taxonomy_catalog(
         )
         for entry in base_entries
     ]
+    trimmed = trim_catalog_for_resolution(
+        enriched,
+        query,
+        metric_intent,
+        micro_chunk_ids=micro_ids,
+    )
     return XbrlTaxonomyCatalog(
         temporal_anchor=temporal_anchor,
         filing_accessions=[f.accession for f in filing_set if f.accession],
-        entries=enriched,
+        entries=trimmed,
     )
 
 
 def catalog_entries_for_resolution(
     entries: list[XbrlFactCatalogEntry | XbrlFactCatalogEntryV2],
     *,
-    limit: int = 40,
+    limit: int = 50,
 ) -> list[dict[str, Any]]:
     """Compact JSON rows for XBRL resolution prompts."""
     out: list[dict[str, Any]] = []
