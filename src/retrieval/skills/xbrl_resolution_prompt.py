@@ -50,8 +50,9 @@ def resolution_selection_instructions(
     lines = [
         f"Select exactly {min_facts} catalog fact(s) when sufficient=true.",
         "Each catalog row includes standard_label and metric_roles (e.g. net_income, "
-        "pretax_income, revenue, margin_denominator). Map question phrasing to roles "
-        "and pick chunk_ids whose metric_roles match; do not confuse pretax_income "
+        "pretax_income, revenue, margin_denominator). Prefer standard_label text from "
+        "the taxonomy linkbase over camelCase concept names when mapping question phrasing "
+        "to roles; pick chunk_ids whose metric_roles match; do not confuse pretax_income "
         "with net_income.",
         "Natural-language labels in the question (e.g. 'Earnings Attributable', "
         "'Total Revenues and Other Income') map to metric_roles, not verbatim XBRL names.",

@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from models.filing import FilingRef
 from models.query import EvidenceChunk
+from parsing.xbrl_taxonomy_index import XbrlConceptMeta
 from retrieval.skills.metric_intent import MetricIntent
 from retrieval.skills.temporal_scope import TemporalScopeIntent
 from retrieval.skills.xbrl_concept_guards import query_concept_family
@@ -17,9 +18,14 @@ from retrieval.skills.xbrl_fact_catalog import (
     build_xbrl_fact_catalog,
     is_xbrl_evidence_chunk,
 )
-from retrieval.skills.xbrl_graph_chunks import collect_filing_xbrl_chunks, merge_xbrl_evidence
+from retrieval.skills.xbrl_graph_chunks import (
+    collect_filing_xbrl_chunks,
+    collect_filing_xbrl_taxonomy_lookup,
+    load_filing_taxonomy_from_packages,
+    merge_xbrl_evidence,
+)
 
-CATALOG_SCHEMA_VERSION = "2.0.0"
+CATALOG_SCHEMA_VERSION = "3.0.0"
 
 RESOLUTION_AGENT_FIELDS = (
     "chunk_id",
@@ -32,6 +38,8 @@ RESOLUTION_AGENT_FIELDS = (
     "period_end",
     "is_annual",
     "segment_hint",
+    "calc_parents",
+    "calc_children",
 )
 
 
@@ -45,6 +53,8 @@ class XbrlFactCatalogEntryV2(XbrlFactCatalogEntry):
     statement_role: str = "other"
     period_type: str = "unknown"
     accession: str = ""
+    calc_parents: list[str] = Field(default_factory=list)
+    calc_children: list[str] = Field(default_factory=list)
     schema_version: str = CATALOG_SCHEMA_VERSION
 
     def for_agent_dict(self) -> dict[str, Any]:
@@ -62,6 +72,10 @@ class XbrlFactCatalogEntryV2(XbrlFactCatalogEntry):
             payload["period_start"] = self.period_start
         if self.segment_hint:
             payload["segment_hint"] = self.segment_hint
+        if self.calc_parents:
+            payload["calc_parents"] = self.calc_parents
+        if self.calc_children:
+            payload["calc_children"] = self.calc_children
         if self.matches_query:
             payload["matches_query"] = True
         return payload
@@ -98,8 +112,24 @@ def enrich_catalog_entry(
     entry: XbrlFactCatalogEntry,
     *,
     accession: str = "",
+    taxonomy_meta: XbrlConceptMeta | None = None,
 ) -> XbrlFactCatalogEntryV2:
     roles, statement_role, standard_label = infer_concept_taxonomy(entry.concept)
+    calc_parents: list[str] = []
+    calc_children: list[str] = []
+    if taxonomy_meta:
+        if taxonomy_meta.standard_label:
+            standard_label = taxonomy_meta.standard_label
+        if taxonomy_meta.statement_role and taxonomy_meta.statement_role != "other":
+            statement_role = taxonomy_meta.statement_role
+        if taxonomy_meta.metric_roles:
+            merged_roles: list[str] = []
+            for role in list(taxonomy_meta.metric_roles) + list(roles):
+                if role not in merged_roles:
+                    merged_roles.append(role)
+            roles = merged_roles
+        calc_parents = list(taxonomy_meta.calc_parents)
+        calc_children = list(taxonomy_meta.calc_children)
     return XbrlFactCatalogEntryV2(
         **entry.model_dump(),
         standard_label=standard_label,
@@ -111,6 +141,8 @@ def enrich_catalog_entry(
             period_end=entry.period_end,
         ),
         accession=accession,
+        calc_parents=calc_parents,
+        calc_children=calc_children,
     )
 
 
@@ -183,6 +215,10 @@ def build_taxonomy_catalog(
 ) -> XbrlTaxonomyCatalog:
     """Build period-filtered catalog from micro evidence plus filing-level XBRL index."""
     filing_chunks = collect_filing_xbrl_chunks(graph_api, snapshot_id, filing_set)
+    taxonomy_lookup = collect_filing_xbrl_taxonomy_lookup(graph_api, snapshot_id, filing_set)
+    if filing_set and len(taxonomy_lookup) < 3:
+        for concept, meta in load_filing_taxonomy_from_packages(filing_set).items():
+            taxonomy_lookup.setdefault(concept, meta)
     merged_evidence = merge_xbrl_evidence(evidence, filing_chunks)
     micro_ids = {c.chunk_node_id for c in evidence if is_xbrl_evidence_chunk(c)}
 
@@ -211,6 +247,7 @@ def build_taxonomy_catalog(
         enrich_catalog_entry(
             entry,
             accession=accession_by_chunk.get(entry.chunk_id, default_accession),
+            taxonomy_meta=taxonomy_lookup.get(entry.concept),
         )
         for entry in base_entries
     ]

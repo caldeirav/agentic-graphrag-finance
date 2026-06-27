@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 from models.enums import HtmlNarrativeStatus
@@ -14,3 +16,4 @@ class ParsedDocument(BaseModel):
     content_hash: str
     html_narrative_status: HtmlNarrativeStatus = HtmlNarrativeStatus.NOT_ATTEMPTED
     html_artifact_path: str = ""
+    xbrl_taxonomy_index: dict[str, dict[str, Any]] = Field(default_factory=dict)

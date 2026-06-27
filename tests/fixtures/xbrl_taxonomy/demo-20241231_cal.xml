@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<linkbase xmlns="http://www.xbrl.org/2003/linkbase"
+          xmlns:xlink="http://www.w3.org/1999/xlink"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <calculationLink xlink:type="extended" xlink:role="http://demo.com/role/StatementOfIncome">
+    <loc xlink:type="locator" xlink:href="demo-20241231.xsd#demo_IncomeLossFromContinuingOperationsBeforeIncomeTaxes" xlink:label="loc_Pretax"/>
+    <loc xlink:type="locator" xlink:href="demo-20241231.xsd#demo_ProfitLoss" xlink:label="loc_ProfitLoss"/>
+    <loc xlink:type="locator" xlink:href="demo-20241231.xsd#demo_IncomeTaxExpenseBenefit" xlink:label="loc_Tax"/>
+    <calculationArc xlink:type="arc" xlink:arcrole="http://www.xbrl.org/2003/arcrole/summation-item" xlink:from="loc_Pretax" xlink:to="loc_Tax" order="1" weight="1"/>
+    <calculationArc xlink:type="arc" xlink:arcrole="http://www.xbrl.org/2003/arcrole/summation-item" xlink:from="loc_Pretax" xlink:to="loc_ProfitLoss" order="2" weight="1"/>
+  </calculationLink>
+</linkbase>

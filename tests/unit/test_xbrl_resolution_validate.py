@@ -44,6 +44,58 @@ def _margin_catalog() -> list:
     ]
 
 
+def test_validator_rejects_pretax_when_net_income_available_in_catalog() -> None:
+    intent = MetricIntent(metric_type="ratio", metric_label="Net profit margin", periods_needed=1)
+    catalog = _margin_catalog()
+    resolution = XbrlFactResolutionResult(
+        selected_chunk_ids=["pretax", "rev"],
+        sufficient=True,
+    )
+    validated = validate_xbrl_resolution(
+        resolution,
+        catalog,
+        "What was net profit margin for fiscal year 2025?",
+        metric_intent=intent,
+    )
+    assert validated.resolution.sufficient is False
+    assert any("net income alternative" in r.lower() for r in validated.validation_rejections)
+
+
+def test_validator_rejects_pretax_with_calc_child_net_income() -> None:
+    intent = MetricIntent(metric_type="ratio", metric_label="Net profit margin", periods_needed=1)
+    pretax = enrich_catalog_entry(
+        XbrlFactCatalogEntry(
+            chunk_id="pretax",
+            concept="IncomeLossFromContinuingOperationsBeforeIncomeTaxes",
+            value_display="$36.55 billion",
+            period_end="2025-12-31",
+            is_annual=True,
+        )
+    )
+    pretax = pretax.model_copy(update={"calc_children": ["ProfitLoss", "IncomeTaxExpenseBenefit"]})
+    rev = enrich_catalog_entry(
+        XbrlFactCatalogEntry(
+            chunk_id="rev",
+            concept="TotalRevenuesAndOtherIncome",
+            value_display="$326.00 billion",
+            period_end="2025-12-31",
+            is_annual=True,
+        )
+    )
+    resolution = XbrlFactResolutionResult(
+        selected_chunk_ids=["pretax", "rev"],
+        sufficient=True,
+    )
+    validated = validate_xbrl_resolution(
+        resolution,
+        [pretax, rev],
+        "Net profit margin FY2025",
+        metric_intent=intent,
+    )
+    assert validated.resolution.sufficient is False
+    assert any("calc_children" in r for r in validated.validation_rejections)
+
+
 def test_validator_rejects_pretax_margin_numerator() -> None:
     intent = MetricIntent(metric_type="ratio", metric_label="Net profit margin", periods_needed=1)
     resolution = XbrlFactResolutionResult(

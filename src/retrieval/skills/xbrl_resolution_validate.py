@@ -108,10 +108,40 @@ def validate_xbrl_resolution(
                 f"Ratio facts use different periods ({num.period_end} vs {den.period_end})."
             )
         if guard_family == "margin":
-            if "net_income" not in num.metric_roles and "pretax_income" in num.metric_roles:
-                rejections.append(
-                    f"Margin numerator {num.concept} is pretax; use net_income role instead."
-                )
+            num_roles = set(num.metric_roles)
+            if "net_income" not in num_roles:
+                if "pretax_income" in num_roles:
+                    rejections.append(
+                        f"Margin numerator {num.concept} is pretax; use net_income role instead."
+                    )
+                elif any(
+                    token in (num.standard_label or "").lower()
+                    for token in ("before income tax", "pretax", "pre-tax")
+                ):
+                    rejections.append(
+                        f"Margin numerator {num.concept} label indicates pretax income."
+                    )
+                net_alts = [
+                    entry
+                    for entry in catalog
+                    if entry.chunk_id not in selected
+                    and entry.period_end == num.period_end
+                    and entry.is_annual == num.is_annual
+                    and "net_income" in _as_v2(entry).metric_roles
+                ]
+                if net_alts:
+                    rejections.append(
+                        f"Margin numerator {num.concept} lacks net_income; "
+                        f"catalog has net income alternative for period {num.period_end}."
+                    )
+                if num.calc_children and any(
+                    child.startswith(("ProfitLoss", "NetIncome"))
+                    for child in num.calc_children
+                ):
+                    rejections.append(
+                        f"Margin numerator {num.concept} calc_children include net income; "
+                        "use net income fact instead."
+                    )
             if not any(
                 role in den.metric_roles for role in ("revenue", "total_revenue", "margin_denominator")
             ):

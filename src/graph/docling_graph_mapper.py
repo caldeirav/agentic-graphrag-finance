@@ -17,6 +17,7 @@ from models.graph import GraphEdge, GraphNode
 from models.graph_audit import FilingMaterializationResult, FilingMaterializationStatus
 from models.parsing import ParsedDocument
 from parsing.xbrl_facts import consolidate_xbrl_fact_rows, fact_to_excerpt
+from parsing.xbrl_taxonomy_index import XbrlConceptMeta, taxonomy_properties_for_node
 
 DOCLING_GRAPH_MAPPER_VERSION = "docling-graph-mapper-1.0.0"
 
@@ -192,16 +193,27 @@ def map_filing(
                 period_key = fields.get("period", "")
                 h = hashlib.sha256(f"{concept}|{period_key}".encode()).hexdigest()[:12]
                 fact_id = f"{doc_id}-xbrl-{h}"
+                fact_props: dict = {
+                    "xbrl_concept": concept,
+                    "period": period_key,
+                    "currency": fields.get("currency", ""),
+                }
+                taxonomy_raw = (doc.xbrl_taxonomy_index or {}).get(concept)
+                if taxonomy_raw is None:
+                    local = concept.split(":")[-1]
+                    taxonomy_raw = (doc.xbrl_taxonomy_index or {}).get(local)
+                if taxonomy_raw:
+                    meta = XbrlConceptMeta.model_validate(taxonomy_raw)
+                    fact_props.update(taxonomy_properties_for_node(meta))
+                    node_label = (meta.standard_label or concept)[:80]
+                else:
+                    node_label = concept[:80]
                 nodes.append(
                     GraphNode(
                         node_id=fact_id,
                         node_type=GraphNodeType.CHUNK_XBRL_FACT,
-                        label=concept[:80],
-                        properties={
-                            "xbrl_concept": concept,
-                            "period": period_key,
-                            "currency": fields.get("currency", ""),
-                        },
+                        label=node_label,
+                        properties=fact_props,
                         source_ref=excerpt,
                     )
                 )

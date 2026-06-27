@@ -10,7 +10,7 @@ from models.filing import FilingRef
 from models.graph import GraphEdge, GraphManifest, GraphNode, GraphSnapshot
 from models.query import EvidenceChunk
 from retrieval.skills.metric_intent import MetricIntent
-from retrieval.skills.xbrl_graph_chunks import collect_filing_xbrl_chunks
+from retrieval.skills.xbrl_graph_chunks import collect_filing_xbrl_chunks, collect_filing_xbrl_taxonomy_lookup
 from retrieval.skills.xbrl_taxonomy_catalog import build_taxonomy_catalog
 
 ACCESSION = "0000320193-25-000123"
@@ -29,8 +29,13 @@ def _snapshot(extra_nodes: list[GraphNode] | None = None) -> GraphSnapshot:
         GraphNode(
             node_id=f"{DOC}-xbrl-ni",
             node_type=GraphNodeType.CHUNK_XBRL_FACT,
-            label="NetIncomeLoss",
-            properties={"xbrl_concept": "NetIncomeLoss"},
+            label="Net income (loss)",
+            properties={
+                "xbrl_concept": "NetIncomeLoss",
+                "xbrl_standard_label": "Net income (loss)",
+                "xbrl_metric_roles": "net_income,margin_numerator",
+                "xbrl_statement_role": "income_statement",
+            },
             source_ref="XBRL NetIncomeLoss: $36.00 billion USD for period 2025-01-01 - 2025-12-31",
         ),
         GraphNode(
@@ -135,3 +140,22 @@ def test_margin_catalog_prefers_net_income_over_pretax_in_trimmed_set() -> None:
     income_rows = [e for e in catalog.entries if "net_income" in e.metric_roles]
     assert income_rows
     assert income_rows[0].concept == "NetIncomeLoss"
+
+
+def test_taxonomy_lookup_from_graph_properties_enriches_catalog() -> None:
+    snap = _snapshot()
+    api = InMemoryGraphQueryAPI(snap)
+    filing = snap.manifest.filing_refs[0]
+    lookup = collect_filing_xbrl_taxonomy_lookup(api, snap.snapshot_id, [filing])
+    assert lookup["NetIncomeLoss"].standard_label == "Net income (loss)"
+    catalog = build_taxonomy_catalog(
+        [],
+        "Net profit margin FY2025",
+        [filing],
+        metric_intent=MetricIntent(metric_type="ratio", metric_label="Net profit margin", periods_needed=1),
+        graph_api=api,
+        snapshot_id=snap.snapshot_id,
+    )
+    ni = next(e for e in catalog.entries if e.concept == "NetIncomeLoss")
+    assert ni.standard_label == "Net income (loss)"
+    assert "net_income" in ni.metric_roles

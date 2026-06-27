@@ -162,7 +162,7 @@ def test_taxonomy_catalog_json_matches_contract_shape() -> None:
         [_filing()],
     )
     payload = json.loads(catalog.model_dump_json())
-    assert payload["schema_version"] == "2.0.0"
+    assert payload["schema_version"] == "3.0.0"
     assert payload["entries"]
     assert payload["entries"][0]["metric_roles"]
     assert len(catalog.entries) == len(base)

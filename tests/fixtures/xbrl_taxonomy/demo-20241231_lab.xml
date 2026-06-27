@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<linkbase xmlns="http://www.xbrl.org/2003/linkbase"
+          xmlns:xlink="http://www.w3.org/1999/xlink"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <labelLink xlink:type="extended" xlink:role="http://www.xbrl.org/2003/role/link">
+    <loc xlink:type="locator" xlink:href="demo-20241231.xsd#demo_ProfitLoss" xlink:label="loc_ProfitLoss"/>
+    <loc xlink:type="locator" xlink:href="demo-20241231.xsd#demo_Revenues" xlink:label="loc_Revenues"/>
+    <loc xlink:type="locator" xlink:href="demo-20241231.xsd#demo_IncomeLossFromContinuingOperationsBeforeIncomeTaxes" xlink:label="loc_Pretax"/>
+    <label xlink:type="resource" xlink:label="lab_ProfitLoss" xlink:role="http://www.xbrl.org/2003/role/label" xml:lang="en-US">Net income (loss)</label>
+    <label xlink:type="resource" xlink:label="lab_Revenues" xlink:role="http://www.xbrl.org/2003/role/label" xml:lang="en-US">Revenues</label>
+    <label xlink:type="resource" xlink:label="lab_Pretax" xlink:role="http://www.xbrl.org/2003/role/label" xml:lang="en-US">Income before income taxes</label>
+    <labelArc xlink:type="arc" xlink:arcrole="http://www.xbrl.org/2003/arcrole/concept-label" xlink:from="loc_ProfitLoss" xlink:to="lab_ProfitLoss"/>
+    <labelArc xlink:type="arc" xlink:arcrole="http://www.xbrl.org/2003/arcrole/concept-label" xlink:from="loc_Revenues" xlink:to="lab_Revenues"/>
+    <labelArc xlink:type="arc" xlink:arcrole="http://www.xbrl.org/2003/arcrole/concept-label" xlink:from="loc_Pretax" xlink:to="lab_Pretax"/>
+  </labelLink>
+</linkbase>
