@@ -19,12 +19,13 @@
 
 ## Feature Readiness
 
-- [x] tasks.md covers M1–M3 with tests + cohort gates
+- [x] tasks.md covers M1–M4b with tests + cohort gates
 - [x] plan.md Complexity Tracking documents exceptions
-- [x] contracts define numeric path policy
+- [x] contracts define numeric path policy + xbrl-catalog-v3
 - [x] constitution-vii.md checklist included
 
 ## Notes
 
 - Implementation MUST NOT proceed without M1 telemetry (SC-004) — otherwise gates are unmeasurable.
 - SC-003 (zero LLM fallback) is stricter than SC-001 (outcome_gt0) and runs first.
+- **2026-06-27**: M4b cohort (`reports/cohort-023-m4b`) — SC-002 still **0/26**; validation layer blocks bad margin (0548); correct FY binding remains open (see research.md).

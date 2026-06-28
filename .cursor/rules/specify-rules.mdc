@@ -12,6 +12,6 @@ Quick reference:
 - **Stack**: uv, custom-judge v2.0.1 draft, judge v3.1 VA-only task_success, **paper-v1.1** cohort-gated
 - **Layers**: LLM `resolve_xbrl_facts` + Python compute; **no** live 022 heuristics; repro slice expansion retained
 - **CLI**: `repro cohort-debug` → judge-batch → `specs/023-capability-realignment/scripts/audit_cohort_synthesis_paths.py`
-- **Focus**: Principle VII realignment — single numeric path, retrieval enrichment, telemetry fix
-- **Docs**: `specs/023-capability-realignment/quickstart.md`, baseline `reports/cohort-022-phase-e`
+- **Focus**: Principle VII realignment — single numeric path, filing catalog, taxonomy index, role-aware validation
+- **Docs**: `specs/023-capability-realignment/quickstart.md`, baseline `reports/cohort-022-phase-e`, latest `reports/cohort-023-m4b`
 <!-- SPECKIT END -->

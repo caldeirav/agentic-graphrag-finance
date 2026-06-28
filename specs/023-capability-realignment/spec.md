@@ -4,7 +4,9 @@
 
 **Created**: 2026-06-24
 
-**Status**: Draft
+**Status**: Implemented on branch; **cohort gates SC-001/SC-002 not met** (see [research.md](./research.md))
+
+**Latest cohort** (`graph-full`, `reports/cohort-023-m4b`): **0/26** `outcome_gt0`; **22** abstain / **3** computed / **1** live_llm (0600). Primary regression **0548** now abstains (no longer emits wrong 137.55% pretax margin).
 
 **Depends on**: `022-outcome-score-ladder` (shipped `8e802e7`), `021-xbrl-numeric-binding`, `020-agent-capability-first`, Constitution **Principle VII**
 

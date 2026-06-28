@@ -33,8 +33,8 @@
 
 ### Cohort gate M1
 
-- [ ] T013 [US1] Cohort re-run → `reports/cohort-023-m1` + judge-batch
-- [ ] T014 [US1] Run path audit script (T015) — confirm SC-003/SC-004
+- [x] T013 [US1] Cohort re-run → `reports/cohort-023-m1` + judge-batch
+- [x] T014 [US1] Run path audit script (T015) — confirm SC-003/SC-004
 
 ---
 
@@ -103,7 +103,7 @@
 - [x] T039 [US6] Remove live imports: `point_fact_selection`, `html_table_fallback` from synthesis
 - [x] T040 [US6] Mark modules deprecated in docstrings; keep for mock/CI if needed
 - [x] T041 [P] [US6] `tests/regression/failure_modes/test_no_live_heuristic_imports.py`
-- [ ] T042 [US6] Update 022 research.md cross-link — superseded by 023
+- [x] T042 [US6] Update 022 research.md cross-link — superseded by 023 (see research.md cohort ladder)
 
 ### Tests
 
@@ -111,25 +111,60 @@
 
 ---
 
-## Phase 6: Polish
+## Phase 6: Filing-level catalog (M3b)
 
-- [ ] T044 [P] Add `scripts/audit_cohort_synthesis_paths.py` — SC-003 classifier
-- [ ] T045 Update `specs/023-capability-realignment/checklists/requirements.md`
-- [ ] T046 Record final metrics in `research.md`
-- [ ] T047 Run pytest suite for 023 modules
+- [x] T047 [P] Add `xbrl_graph_chunks.py` — filing-level XBRL index from graph
+- [x] T048 [P] Wire `build_taxonomy_catalog` to merge micro + filing index
+- [x] T049 [P] `tests/unit/test_xbrl_filing_index_catalog.py`
+- [x] T050 Cohort → `reports/cohort-023-m3b` — **0/26** outcome_gt0
+
+---
+
+## Phase 7: Taxonomy linkbase index (M4)
+
+- [x] T051 [P] Add `src/parsing/xbrl_taxonomy_index.py` — label/presentation/calculation linkbases
+- [x] T052 [P] Attach `xbrl_taxonomy_index` on `ParsedDocument`; enrich graph XBRL fact nodes
+- [x] T053 [P] Catalog v3 (`xbrl-catalog-v3.schema.json`); `load_filing_taxonomy_from_packages` fallback
+- [x] T054 [P] Calc-aware margin validation; linkbase labels in resolution prompt
+- [x] T055 [P] `tests/unit/test_xbrl_taxonomy_index.py`
+- [x] T056 Cohort → `reports/cohort-023-m4` — **0/26**; 0548 still computed wrong
+
+---
+
+## Phase 8: Role-aware ratio + fiscal guard (M4b)
+
+- [x] T057 [P] Add `ratio_entry_roles.py` — assign num/den by metric_roles
+- [x] T058 [P] Wire validator + `compute_numeric_answer`; tighten `xbrl_period_matches_intent` (Jan-end FY)
+- [x] T059 [P] `tests/unit/test_ratio_entry_roles.py`; extend validate/compute/temporal tests
+- [x] T060 Cohort → `reports/cohort-023-m4b` — **0/26**; **0548 abstains** (blocks 137.55% pretax)
+
+---
+
+## Phase 9: Polish / open gates
+
+- [x] T044 [P] Add `scripts/audit_cohort_synthesis_paths.py` — SC-003 classifier
+- [x] T046 Record cohort ladder metrics in `research.md`
+- [x] T047 Run pytest suite for 023 modules
+- [ ] T045 Update `specs/023-capability-realignment/checklists/requirements.md` (post-merge)
+- [ ] T061 Macro FY bind for 0600; issuer-aware period matching for margin (SC-002)
+- [ ] T062 Graph rematerialization with taxonomy node props (optional uplift)
 
 ---
 
 ## Dependencies
 
 ```text
-T001–T003 → T004–T014 (M1) → T016–T024 (M2 LLM) → T025–T031 (M2 enrich) → T032–T038 (M3) → T039–T043 (retire)
+T001–T003 → T004–T014 (M1) → T016–T024 (M2 LLM) → T025–T031 (M2 enrich)
+  → T032–T038 (M3) → T039–T043 (retire) → T047–T050 (M3b) → T051–T056 (M4) → T057–T060 (M4b) → T061+ (gates)
 ```
 
 ## Validation summary
 
-| Milestone | Tests | Cohort | Gate |
-|-----------|-------|--------|------|
-| M1 | policy, no fallback, telemetry | cohort-023-m1 | SC-003, SC-004 |
-| M2 | resolution pair, enrichment | cohort-023-m2 | SC-001 ≥2 |
-| M3 | post-validate | cohort-023-m3 | SC-002 ≥5 |
+| Milestone | Tests | Cohort | Gate | outcome_gt0 |
+|-----------|-------|--------|------|-------------|
+| M1 | policy, no fallback, telemetry | cohort-023-m1 | SC-003, SC-004 | — |
+| M2 | resolution pair, enrichment | cohort-023-m2 | SC-001 ≥2 | **0/26** |
+| M3 | post-validate | cohort-023-m3 | SC-002 ≥5 | **0/26** |
+| M3b | filing index | cohort-023-m3b | — | **0/26** |
+| M4 | taxonomy index v3 | cohort-023-m4 | — | **0/26** |
+| M4b | role-aware ratio | cohort-023-m4b | SC-002 ≥5 | **0/26** (0548 fixed) |

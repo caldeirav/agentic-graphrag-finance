@@ -2,7 +2,8 @@
 
 ## Prerequisites
 
-- 022-E baseline understood: `reports/cohort-022-phase-e` (0/26)
+- 022-E baseline: `reports/cohort-022-phase-e` (0/26)
+- Latest validation baseline: `reports/cohort-023-m4b` (0/26 outcome_gt0; 0548 abstains)
 - `export OFFLINE_BENCHMARK=1`
 - Live LLM + judge keys configured (same as cohort-debug)
 
@@ -52,15 +53,65 @@ uv run python specs/022-outcome-score-ladder/scripts/check_phase_gate.py \
 
 **Pass**: ≥2/26 outcome_gt0.
 
-### M3 — Post-validation + retirement
+### M3 — Post-validation + heuristic retirement
 
 ```bash
 uv run pytest tests/unit/test_xbrl_resolution_validate.py \
   tests/regression/failure_modes/test_no_live_heuristic_imports.py -q
 
 # cohort → reports/cohort-023-m3
-# floor ≥5 cumulative outcome_gt0
+uv run python specs/022-outcome-score-ladder/scripts/check_phase_gate.py \
+  --report reports/cohort-023-m3 --phase C
 ```
+
+**Pass**: floor ≥5 cumulative outcome_gt0 (not yet met).
+
+### M3b — Filing-level XBRL catalog index
+
+```bash
+uv run pytest tests/unit/test_xbrl_filing_index_catalog.py \
+  tests/regression/failure_modes/test_no_live_heuristic_imports.py -q
+
+# cohort → reports/cohort-023-m3b
+```
+
+**Shipped**: `collect_filing_xbrl_chunks`, live `point_fact_selection` / `html_table_fallback` removed from synthesis.
+
+### M4 — Taxonomy linkbase index (catalog v3)
+
+```bash
+uv run pytest tests/unit/test_xbrl_taxonomy_index.py \
+  tests/unit/test_xbrl_taxonomy_catalog.py \
+  tests/unit/test_xbrl_resolution_validate.py -q
+
+# cohort → reports/cohort-023-m4
+```
+
+**Shipped**: `xbrl_taxonomy_index.py` (label/presentation/calculation), `ParsedDocument.xbrl_taxonomy_index`, graph node props, catalog schema v3, package fallback for existing snapshots.
+
+### M4b — Role-aware ratio validation + fiscal period guard
+
+```bash
+uv run pytest tests/unit/test_ratio_entry_roles.py \
+  tests/unit/test_xbrl_resolution_validate.py \
+  tests/unit/test_temporal_scope.py \
+  tests/unit/test_numeric_computation.py -q
+
+uv run agent-query repro cohort-debug \
+  --manifest releases/paper-v1.1/manifest.yaml \
+  --cohort specs/020-agent-capability-first/fixtures/xbrl_numeric_cohort.json \
+  --variant graph-full \
+  --output reports/cohort-023-m4b \
+  --no-resume
+
+uv run python specs/023-capability-realignment/scripts/audit_cohort_synthesis_paths.py \
+  --report reports/cohort-023-m4b
+
+uv run python specs/022-outcome-score-ladder/scripts/check_phase_gate.py \
+  --report reports/cohort-023-m4b --phase C
+```
+
+**Pass (partial)**: 0548 abstains instead of wrong pretax margin; SC-002 still **0/26** outcome_gt0.
 
 ## Path audit classes
 
@@ -80,5 +131,6 @@ Complete [checklists/constitution-vii.md](./checklists/constitution-vii.md) befo
 
 - [spec.md](./spec.md)
 - [plan.md](./plan.md)
+- [research.md](./research.md) — cohort ladder table
 - `.specify/memory/constitution.md` Principle VII
 - `specs/020-agent-capability-first/spec.md`

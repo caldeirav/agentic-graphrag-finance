@@ -8,6 +8,48 @@
 | allowed_paths | list[string] | `computed_numeric`, `numeric_abstain` |
 | mock_only_modules | list[string] | Retired 022 heuristics |
 
+## XbrlTaxonomyCatalog (v3, M4)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| schema_version | string | `3.0.0` |
+| entries | list[XbrlFactCatalogEntryV2] | Period-filtered + taxonomy metadata |
+| filing_accessions | list[string] | Bound filings in index |
+
+## XbrlFactCatalogEntryV2 (extends v1)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| standard_label | string | From linkbase or concept role registry |
+| metric_roles | list[string] | e.g. net_income, pretax_income, revenue |
+| statement_role | string | income_statement / balance_sheet / … |
+| calc_parents | list[string] | Calculation linkbase parents |
+| calc_children | list[string] | Calculation linkbase children |
+| accession | string | Filing accession for audit |
+
+Contract: `contracts/xbrl-catalog-v3.schema.json`
+
+## XbrlConceptMeta (parse/index, M4)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| concept | string | Local concept name |
+| standard_label | string | Label linkbase |
+| metric_roles | list[string] | Inferred from label text + roles |
+| statement_role | string | From presentation linkbase |
+| calc_parents / calc_children | list[string] | Calculation linkbase |
+
+Stored on `ParsedDocument.xbrl_taxonomy_index` and graph `CHUNK_XBRL_FACT` node properties.
+
+## RatioPairRoleAssignment (M4b)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| numerator | XbrlFactCatalogEntryV2 | Assigned by metric_roles, not list order |
+| denominator | XbrlFactCatalogEntryV2 | Assigned by metric_roles |
+
+Module: `ratio_entry_roles.py`; used in `validate_xbrl_resolution` and `compute_numeric_answer`.
+
 ## XbrlResolutionRequest (extends 021)
 
 | Field | Type | Description |
