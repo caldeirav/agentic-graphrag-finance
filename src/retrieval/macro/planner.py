@@ -12,7 +12,7 @@ from models.enums import ComparisonMode
 from models.graph import GraphSnapshot
 from retrieval.macro.llm_json import extract_json_from_llm, parse_comparison_mode
 from retrieval.macro.models import MacroBindingProposal, ProposalSource
-from retrieval.macro.pairing import detect_quarterly_metric_cue
+from retrieval.macro.pairing import detect_quarterly_metric_cue, infer_anchor_from_query
 from retrieval.orchestration.llm import create_chat_llm
 from tracing.console_trace.llm import traced_llm_invoke
 
@@ -65,6 +65,9 @@ def _apply_metric_cue(proposal: MacroBindingProposal, query: str) -> MacroBindin
 def plan_macro_binding(
     query: str,
     snapshot: GraphSnapshot,
+    *,
+    temporal_anchor: str = "",
+    fiscal_period_labels: list[str] | None = None,
 ) -> tuple[MacroBindingProposal, dict]:
     """Return proposal and optional trace patch from LLM invoke."""
     if os.environ.get("USE_MOCK_LLM", "0") == "1":
@@ -73,11 +76,17 @@ def plan_macro_binding(
             return _apply_metric_cue(mock, query), {}
         refs = list(snapshot.manifest.filing_refs or [])
         forms = {r.form_type.upper() for r in refs}
-        anchor = "latest_quarter"
-        if forms == {"10-K"} or (forms and "10-Q" not in forms):
+        inferred = infer_anchor_from_query(query)
+        if inferred:
+            anchor = inferred
+        elif forms == {"10-K"} or (forms and "10-Q" not in forms):
             anchor = "latest_annual"
+        elif detect_quarterly_metric_cue(query) and "10-Q" in forms:
+            anchor = "latest_quarter"
         elif len(refs) == 1:
             anchor = None
+        else:
+            anchor = "latest_quarter"
         mock = MacroBindingProposal(
             intent_summary=query[:200],
             anchor=anchor,
@@ -91,8 +100,19 @@ def plan_macro_binding(
 
     llm = create_chat_llm()
     manifest_json = _manifest_summary(snapshot)
+    temporal_line = ""
+    if temporal_anchor.strip():
+        temporal_line = f"Benchmark temporal anchor: {temporal_anchor.strip()}.\n"
+    fiscal_line = ""
+    if fiscal_period_labels:
+        fiscal_line = (
+            "Benchmark fiscal periods (prefer filings whose period_end matches): "
+            f"{', '.join(fiscal_period_labels)}.\n"
+        )
     prompt = (
         f"Question: {query}\n"
+        f"{temporal_line}"
+        f"{fiscal_line}"
         f"Available filings: {manifest_json}\n"
         "Return JSON with intent_summary, comparison_mode (none|yoy|qoq|sequential), "
         "anchor (latest_quarter|prior_quarter|latest_annual|null), period_labels, "

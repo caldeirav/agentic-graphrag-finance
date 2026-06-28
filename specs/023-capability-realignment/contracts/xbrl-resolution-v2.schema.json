@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "XbrlResolutionResultV2",
+  "description": "LLM-guided selection with post-validation (023)",
+  "type": "object",
+  "required": ["selected_chunk_ids", "sufficient"],
+  "properties": {
+    "selected_chunk_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "maxItems": 2
+    },
+    "selected_concepts": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "rationale": { "type": "string" },
+    "sufficient": { "type": "boolean" },
+    "abstain_reason": { "type": "string" },
+    "validation_rejections": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "min_facts_required": { "type": "integer", "minimum": 1, "maximum": 2 }
+  },
+  "additionalProperties": false
+}

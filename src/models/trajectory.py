@@ -16,6 +16,9 @@ class SynthesisPath(StrEnum):
     LIVE_LLM = "live_llm"
     DETERMINISTIC_FALLBACK = "deterministic_fallback"
     TEMPLATE = "template"
+    COMPUTED_NUMERIC = "computed_numeric"
+    NUMERIC_ABSTAIN = "numeric_abstain"
+    STRUCTURED_LLM = "structured_llm"
 
 
 class StageDecision(BaseModel):

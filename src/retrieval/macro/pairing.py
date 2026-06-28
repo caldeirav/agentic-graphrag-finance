@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import yaml
@@ -33,16 +34,64 @@ def infer_anchor_from_query(query: str) -> str | None:
     q = query.lower()
     if any(k in q for k in ("quarter over quarter", "qoq", "sequential quarter")):
         return None
-    if "prior quarter" in q or "previous quarter" in q:
-        return "prior_quarter"
-    if "latest quarter" in q or "this quarter" in q or "most recent quarter" in q:
+    quarterly_cues = (
+        "prior quarter",
+        "previous quarter",
+        "latest quarter",
+        "this quarter",
+        "most recent quarter",
+        "most recent quarterly",
+        "quarterly filing",
+        "recent 10-q",
+        "recent 10 q",
+        "10-q",
+        "10 q",
+    )
+    if any(k in q for k in quarterly_cues):
+        if "prior quarter" in q or "previous quarter" in q:
+            return "prior_quarter"
         return "latest_quarter"
-    if any(k in q for k in ("annual report", "latest 10-k", "10-k", "risk factor")):
+    if any(k in q for k in ("annual report", "latest 10-k", "10-k", "10k", "fiscal year")):
+        if not any(k in q for k in ("quarter", "10-q", "10 q")):
+            return "latest_annual"
+    if "risk factor" in q and "quarter" not in q:
         return "latest_annual"
     return None
 
 
+def infer_form_type_preference(query: str) -> str | None:
+    """Prefer 10-Q vs 10-K when the question names a form type explicitly."""
+    q = query.lower()
+    if any(k in q for k in ("10-q", "10 q", "quarterly filing", "quarterly report")):
+        return "10-Q"
+    if any(k in q for k in ("10-k", "10 k", "annual report")) and "quarter" not in q:
+        return "10-K"
+    return None
+
+
+_QUARTER_RE = re.compile(r"\b(q[1-4]|quarter|10-q|10 q)\b", re.I)
+_FY_LABEL_RE = re.compile(r"\bFY(20\d{2})\b", re.I)
+_YEAR_RE = re.compile(r"\b(20\d{2})\b")
+
+
+def annual_fiscal_year_requested(query: str) -> bool:
+    q = query.lower()
+    if _QUARTER_RE.search(q):
+        return False
+    if re.search(r"fiscal year\s+20\d{2}", q):
+        return True
+    if _FY_LABEL_RE.search(query):
+        return True
+    if "fiscal year" in q and _YEAR_RE.search(q):
+        return True
+    if re.search(r"for the fiscal year", q) and _YEAR_RE.search(q):
+        return True
+    return False
+
+
 def detect_quarterly_metric_cue(query: str) -> bool:
+    if annual_fiscal_year_requested(query):
+        return False
     q = query.lower()
     tokens = _load_phrases().get("quarterly_metric_tokens") or [
         "revenue",
@@ -135,10 +184,39 @@ def materialize_proposal_filings(
     if proposal.proposed_accessions:
         acc_set = set(proposal.proposed_accessions)
         refs = [r for r in snapshot.manifest.filing_refs if r.accession in acc_set]
-        return refs if len(refs) == len(acc_set) else None
+        if len(refs) != len(acc_set):
+            return None
+        form_pref = infer_form_type_preference(query)
+        if form_pref and len(refs) == 1 and refs[0].form_type != form_pref:
+            by_form = _filings_by_form(snapshot).get(form_pref, [])
+            anchor = proposal.anchor or infer_anchor_from_query(query)
+            if anchor and by_form:
+                anchored = pair_single_anchor(snapshot, anchor)
+                anchored = [r for r in anchored if r.form_type == form_pref]
+                if anchored:
+                    return anchored
+            if by_form:
+                return [by_form[0]]
+        return refs
 
     mode = proposal.comparison_mode
     quarterly = proposal.quarterly_metric_cue or detect_quarterly_metric_cue(query)
+
+    inferred_anchor = infer_anchor_from_query(query)
+    if (
+        not proposal.is_comparison
+        and mode in (None, ComparisonMode.YOY)
+        and inferred_anchor
+        and not proposal.period_labels
+    ):
+        refs = pair_single_anchor(snapshot, inferred_anchor)
+        if refs:
+            form_pref = infer_form_type_preference(query)
+            if form_pref:
+                filtered = [r for r in refs if r.form_type == form_pref]
+                if filtered:
+                    return filtered
+            return refs
 
     if mode == ComparisonMode.YOY or (
         proposal.is_comparison and mode in (None, ComparisonMode.YOY)
@@ -170,6 +248,10 @@ def materialize_proposal_filings(
         return refs or None
 
     if "latest quarter" in q or "this quarter" in q:
+        refs = pair_single_anchor(snapshot, "latest_quarter")
+        return refs or None
+
+    if quarterly and not proposal.is_comparison:
         refs = pair_single_anchor(snapshot, "latest_quarter")
         return refs or None
 

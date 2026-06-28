@@ -338,4 +338,15 @@ def parse_xbrl_instance(
         raise ParseError(
             f"Docling XBRL low confidence ({parsed.parse_confidence:.2f}) for {instance_path}"
         )
+    from parsing.xbrl_taxonomy_index import build_taxonomy_index
+
+    taxonomy_index = build_taxonomy_index(taxonomy_dir)
+    if taxonomy_index:
+        parsed = parsed.model_copy(
+            update={
+                "xbrl_taxonomy_index": {
+                    concept: meta.model_dump() for concept, meta in taxonomy_index.items()
+                }
+            }
+        )
     return parsed

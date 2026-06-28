@@ -14,6 +14,7 @@ import mlflow
 
 from contracts.query import QueryRequest
 from evaluation.datasets.custom_judge import CustomJudgeDataset
+from evaluation.generation.review._paths import resolve_release_bundle
 from evaluation.judges.gemini_panel import GeminiJudgePanel
 from evaluation.judges.outcome_scoring import compute_outcome_scores
 from evaluation.metrics.ranking import compute_ranking_metrics
@@ -145,7 +146,11 @@ class ReproRunner:
         return self._manifest
 
     def _bundle_root(self) -> Path:
-        return self._repo_root / self._manifest.custom_judge_bundle_path
+        return resolve_release_bundle(
+            self._repo_root,
+            bundle_rel_path=self._manifest.custom_judge_bundle_path,
+            version=self._manifest.custom_judge_version,
+        )
 
     def _accession_index_for_bundle(self) -> AccessionIndex:
         if self._accession_index is None:
@@ -200,10 +205,28 @@ class ReproRunner:
             accessions = list(item.expected_bindings.accessions)
         if not accessions:
             raise MissingBindingsError(item.item_id)
+        index = self._accession_index_for_bundle()
+        from evaluation.reproduction.slice_expansion import expand_slice_accessions
+        from retrieval.skills.metric_intent import heuristic_metric_intent
+        from retrieval.skills.temporal_scope import infer_temporal_scope_intent
+
+        temporal = infer_temporal_scope_intent(
+            item.question,
+            fiscal_period_labels=list(item.expected_bindings.fiscal_periods or [])
+            if item.expected_bindings
+            else None,
+        )
+        metric = heuristic_metric_intent(item.question)
+        accessions = expand_slice_accessions(
+            accessions,
+            index,
+            query=item.question,
+            temporal_intent=temporal,
+            metric_intent=metric,
+        )
         key = frozenset(accessions)
         if key in self._slice_cache:
             return self._slice_cache[key]
-        index = self._accession_index_for_bundle()
         slice_id, snapshot = load_item_subgraph(
             bundle_root,
             accessions,
@@ -388,6 +411,20 @@ class ReproRunner:
                     if repro is not None:
                         repro.items_completed[variant.variant_id] = len(results)
                         self._save_repro_run(output_dir, repro)
+                    from evaluation.reproduction.investigation.taxonomy import (
+                        _synthesis_path,
+                        extract_weakest_judge_criterion,
+                    )
+
+                    syn_path = _synthesis_path(scored)
+                    cite_n = len(scored.answer.citations) if scored.answer else 0
+                    weakest = extract_weakest_judge_criterion(scored)
+                    outcome_val = float(scored.outcome_score or 0.0)
+                    _progress(
+                        f"[item={item.item_id} variant={variant.variant_id} "
+                        f"synthesis_path={syn_path} citations={cite_n} "
+                        f"outcome={outcome_val:.3f} weakest={weakest}]"
+                    )
                     _progress(f"    done in {time.perf_counter() - item_started:.0f}s")
 
         if self.defer_config.enabled and self.defer_config.judge_after == "each_variant":
@@ -514,6 +551,11 @@ class ReproRunner:
             "variant_xbrl_only": str(caps.xbrl_only).lower(),
             "cli_prebound": "true" if pre_bound else "false",
             "temporal_anchor": temporal_anchor,
+            "fiscal_period_labels": json.dumps(
+                list(item.expected_bindings.fiscal_periods or [])
+                if item.expected_bindings
+                else []
+            ),
             "trace_level": "quiet",
             "defer_judge": "true" if self.defer_config.enabled else "false",
             "suppress_benchmark_path_injection": (
@@ -578,6 +620,7 @@ class ReproRunner:
             trajectory_fidelity=traj_score,
             ranking_metrics=ranking,
             judge_verdict=verdict,
+            trajectory_snapshot=resp.trajectory_snapshot,
         )
 
     def run_all(
@@ -722,24 +765,30 @@ class ReproRunner:
         if self.defer_config.enabled and self.defer_config.judge_after == "all_variants":
             _progress("Judge batch (all variants)...")
             self.run_judge_batch_phase(output_dir, max_items=max_items)
-            summaries = []
-            for variant in variants:
-                results_path = output_dir / variant.variant_id / "results.json"
-                if not results_path.is_file():
-                    continue
-                results = [
-                    BenchmarkResult.model_validate(row)
-                    for row in json.loads(results_path.read_text(encoding="utf-8"))
-                ]
-                summaries.append(
-                    build_variant_summary(
-                        variant.variant_id,
-                        results,
-                        profiles,
-                        rel,
-                        gt,
-                    )
+        elif not self.defer_config.enabled:
+            _progress(
+                "Judge batch (Gemini panel for value_alignment on answer-GT items)..."
+            )
+            self.run_judge_batch_phase(output_dir, max_items=max_items)
+
+        summaries = []
+        for variant in variants:
+            results_path = output_dir / variant.variant_id / "results.json"
+            if not results_path.is_file():
+                continue
+            results = [
+                BenchmarkResult.model_validate(row)
+                for row in json.loads(results_path.read_text(encoding="utf-8"))
+            ]
+            summaries.append(
+                build_variant_summary(
+                    variant.variant_id,
+                    results,
+                    profiles,
+                    rel,
+                    gt,
                 )
+            )
 
         if not summaries:
             for variant in variants:

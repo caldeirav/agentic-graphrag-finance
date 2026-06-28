@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TemporalScopeIntent",
+  "type": "object",
+  "required": ["form_preference"],
+  "properties": {
+    "anchor": {
+      "type": ["string", "null"],
+      "enum": ["latest_annual", "latest_quarter", "prior_quarter", null]
+    },
+    "target_fiscal_year": { "type": ["integer", "null"], "minimum": 2000, "maximum": 2100 },
+    "form_preference": { "type": "string", "enum": ["10-K", "10-Q", ""] },
+    "comparison_mode": {
+      "type": ["string", "null"],
+      "enum": ["yoy", "qoq", "sequential", null]
+    },
+    "period_labels": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "rationale": { "type": "string" }
+  },
+  "additionalProperties": false
+}

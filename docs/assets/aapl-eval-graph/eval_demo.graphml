@@ -3,141 +3,450 @@
 <key id="d13" for="edge" attr.name="label" attr.type="string"/>
 <key id="d12" for="edge" attr.name="edge_type" attr.type="string"/>
 <key id="d11" for="node" attr.name="prop_sec_source" attr.type="string"/>
-<key id="d10" for="node" attr.name="eval_profiles" attr.type="string"/>
-<key id="d9" for="node" attr.name="prop_period" attr.type="string"/>
-<key id="d8" for="node" attr.name="prop_xbrl_concept" attr.type="string"/>
-<key id="d7" for="node" attr.name="prop_text" attr.type="string"/>
-<key id="d6" for="node" attr.name="section_path" attr.type="string"/>
-<key id="d5" for="node" attr.name="period_end" attr.type="string"/>
-<key id="d4" for="node" attr.name="form_type" attr.type="string"/>
-<key id="d3" for="node" attr.name="accession" attr.type="string"/>
-<key id="d2" for="node" attr.name="display_label" attr.type="string"/>
+<key id="d10" for="node" attr.name="prop_text" attr.type="string"/>
+<key id="d9" for="node" attr.name="section_path" attr.type="string"/>
+<key id="d8" for="node" attr.name="materialized_json" attr.type="string"/>
+<key id="d7" for="node" attr.name="edgar_url" attr.type="string"/>
+<key id="d6" for="node" attr.name="period_end" attr.type="string"/>
+<key id="d5" for="node" attr.name="form_type" attr.type="string"/>
+<key id="d4" for="node" attr.name="accession" attr.type="string"/>
+<key id="d3" for="node" attr.name="display_label" attr.type="string"/>
+<key id="d2" for="node" attr.name="demo_role" attr.type="string"/>
 <key id="d1" for="node" attr.name="label" attr.type="string"/>
 <key id="d0" for="node" attr.name="node_type" attr.type="string"/>
-<graph edgedefault="directed"><node id="doc-0000320193-24-000123">
+<graph edgedefault="directed"><node id="doc-0000018230-26-000021">
   <data key="d0">DOCUMENT</data>
-  <data key="d1">Apple 10-K FY2024</data>
-  <data key="d2">FY2024
+  <data key="d1">CATERPILLAR INC 10-K FY2026</data>
+  <data key="d2">path</data>
+  <data key="d3">FY2026
 10-K</data>
-  <data key="d3">0000320193-24-000123</data>
-  <data key="d4">10-K</data>
-  <data key="d5">2024-09-28</data>
+  <data key="d4">0000018230-26-000021</data>
+  <data key="d5">10-K</data>
+  <data key="d6">2026-03-31</data>
+  <data key="d7">https://www.sec.gov/Archives/edgar/data/18230/000001823026000021/0000018230-26-000021-index.htm</data>
+  <data key="d8">{
+  "node_id": "doc-0000018230-26-000021",
+  "node_type": "DOCUMENT",
+  "label": "CATERPILLAR INC 10-K FY2026",
+  "properties": {
+    "accession": "0000018230-26-000021",
+    "form_type": "10-K",
+    "period_end": "2026-03-31",
+    "cik": "0000018230"
+  },
+  "edgar_url": "https://www.sec.gov/Archives/edgar/data/18230/000001823026000021/0000018230-26-000021-index.htm"
+}</data>
 </node>
-<node id="doc-0000320193-24-000076">
-  <data key="d0">DOCUMENT</data>
-  <data key="d1">Apple 10-K FY2023</data>
-  <data key="d2">FY2023
-10-K</data>
-  <data key="d3">0000320193-24-000076</data>
-  <data key="d4">10-K</data>
-  <data key="d5">2023-09-30</data>
-</node>
-<node id="0000320193-24-000123/Item7">
+<node id="doc-0000018230-26-000021-html-md_and_a-2">
   <data key="d0">SECTION</data>
-  <data key="d1">Item 7 MD&amp;A</data>
-  <data key="d2">Item 7
-MD&amp;A</data>
-  <data key="d6">0000320193-24-000123/Item7</data>
+  <data key="d1">Item 7. </data>
+  <data key="d2">context</data>
+  <data key="d9">0000018230-26-000021/html-md_and_a-2</data>
+  <data key="d3">Item 7.</data>
+  <data key="d8">{
+  "node_id": "doc-0000018230-26-000021-html-md_and_a-2",
+  "node_type": "SECTION",
+  "label": "Item 7.",
+  "section_path": "0000018230-26-000021/html-md_and_a-2",
+  "child_node_count": 6,
+  "properties": {
+    "level": "1",
+    "section_id": "html-md_and_a-2",
+    "source_type": "HTML",
+    "narrative_kind": "md_and_a",
+    "item_number": "7"
+  },
+  "bindings": {
+    "accession": "0000018230-26-000021",
+    "form_type": "10-K",
+    "section_path": "0000018230-26-000021/html-md_and_a-2",
+    "cik": "0000018230"
+  }
+}</data>
 </node>
-<node id="0000320193-24-000123/Item1A">
+<node id="doc-0000018230-26-000021-html-risk_factors-1">
   <data key="d0">SECTION</data>
-  <data key="d1">Item 1A Risk Factors</data>
-  <data key="d2">Item 1A
+  <data key="d1">Item 1A. Risk Factors</data>
+  <data key="d2">path</data>
+  <data key="d9">0000018230-26-000021/html-risk_factors-1</data>
+  <data key="d3">Item 1A.
 Risk Factors</data>
-  <data key="d6">0000320193-24-000123/Item1A</data>
+  <data key="d8">{
+  "node_id": "doc-0000018230-26-000021-html-risk_factors-1",
+  "node_type": "SECTION",
+  "label": "Item 1A. Risk Factors",
+  "section_path": "0000018230-26-000021/html-risk_factors-1",
+  "child_node_count": 9,
+  "properties": {
+    "level": "1",
+    "section_id": "html-risk_factors-1",
+    "source_type": "HTML",
+    "narrative_kind": "risk_factors",
+    "item_number": "1A"
+  },
+  "bindings": {
+    "accession": "0000018230-26-000021",
+    "form_type": "10-K",
+    "section_path": "0000018230-26-000021/html-risk_factors-1",
+    "cik": "0000018230"
+  }
+}</data>
 </node>
-<node id="0000320193-24-000076/Item7">
-  <data key="d0">SECTION</data>
-  <data key="d1">Item 7 MD&amp;A (prior year)</data>
-  <data key="d2">Item 7
-MD&amp;A (prior)</data>
-  <data key="d6">0000320193-24-000076/Item7</data>
-</node>
-<node id="chunk-xbrl-net-sales-fy2024">
-  <data key="d0">CHUNK_XBRL_FACT</data>
-  <data key="d1">Net sales (XBRL fact)</data>
-  <data key="d2">Net sales
-(XBRL)</data>
-  <data key="d7">391,035 (USD millions, FY2024)</data>
-  <data key="d8">RevenueFromContractWithCustomerExcludingAssessedTax</data>
-  <data key="d9">FY2024</data>
-  <data key="d10">financebench</data>
-</node>
-<node id="chunk-item7-p1">
+<node id="doc-0000018230-26-000021-html-risk_factors-1-body-7">
   <data key="d0">CHUNK_PARAGRAPH</data>
-  <data key="d1">Net sales narrative</data>
-  <data key="d2">Net sales
-narrative</data>
-  <data key="d7">Net sales were $391.0 billion in fiscal 2024.</data>
-  <data key="d11">XBRL</data>
-  <data key="d10">financebench,finagentbench</data>
-</node>
-<node id="chunk-item1a-p1">
-  <data key="d0">CHUNK_PARAGRAPH</data>
-  <data key="d1">Supply chain risks</data>
-  <data key="d2">Supply chain
-risks</data>
-  <data key="d7">The Company depends on single or limited sources for many components.</data>
+  <data key="d1">Item 1A. Risk Factors</data>
+  <data key="d2">path</data>
+  <data key="d3">Paragraph
+chunk</data>
+  <data key="d10">ng income taxes, interest expense and net gain (loss) from interest rate derivatives to (2) interest expense calculated …</data>
   <data key="d11">HTML</data>
-  <data key="d10">finder</data>
+  <data key="d8">{
+  "node_id": "doc-0000018230-26-000021-html-risk_factors-1-body-7",
+  "node_type": "CHUNK_PARAGRAPH",
+  "label": "Item 1A. Risk Factors",
+  "source_ref": "ng income taxes, interest expense and net gain (loss) from interest rate derivatives to (2) interest expense calculated at the end of each fiscal quarter for the prior four consecutive fiscal quarter periods, required by the Credit Facility.\nIn addition, at March\u00a031, 2026, Cat Financial\u2019s six-month covenant leverage ratio was 8.03 to 1. This was below the maximum ratio of debt to net worth of 10 to 1, calculated (1) on a monthly basis as the average of the leverage ratios determined on the last day of each of the six preceding calendar months and (2) at each December 31, required by the Credit Facility.\nIn the event Caterpillar or Cat Financial does not meet one or more of their respective financial covenants under the Credit Facility in the future (and are unable to obtain a consent or waiver), the syndicate of banks may terminate the commitments allocated to the party that does not meet its covenants. Additionally, in such event, certain of Cat Financial\u2019s other lenders under other loan agreements where similar financial covenants or cross default provisions are applicable may, at their election, choose to pursue remedies under those loan agreements, including accelerating the re\u2026",
+  "source_ref_truncated": true,
+  "source_ref_total_chars": 6000,
+  "properties": {
+    "section_id": "html-risk_factors-1",
+    "source_type": "HTML",
+    "window_index": "7"
+  },
+  "bindings": {
+    "accession": "0000018230-26-000021",
+    "form_type": "10-K",
+    "section_path": "0000018230-26-000021/html-risk_factors-1",
+    "cik": "0000018230"
+  }
+}</data>
 </node>
-<node id="chunk-item7-old-p1">
+<node id="doc-0000034088-26-000045">
+  <data key="d0">DOCUMENT</data>
+  <data key="d1">0000034088-26-000045 10-K FY2025</data>
+  <data key="d2">temporal</data>
+  <data key="d3">FY2025
+10-K</data>
+  <data key="d4">0000034088-26-000045</data>
+  <data key="d5">10-K</data>
+  <data key="d6">2025-12-31</data>
+  <data key="d7">https://www.sec.gov/Archives/edgar/data/34088/000003408826000045/0000034088-26-000045-index.htm</data>
+  <data key="d8">{
+  "node_id": "doc-0000034088-26-000045",
+  "node_type": "DOCUMENT",
+  "label": "0000034088-26-000045 10-K FY2025",
+  "properties": {
+    "accession": "0000034088-26-000045",
+    "form_type": "10-K",
+    "period_end": "2025-12-31",
+    "cik": "0000034088"
+  },
+  "edgar_url": "https://www.sec.gov/Archives/edgar/data/34088/000003408826000045/0000034088-26-000045-index.htm"
+}</data>
+</node>
+<node id="doc-0000034088-26-000067">
+  <data key="d0">DOCUMENT</data>
+  <data key="d1">Exxon Mobil Corporation 10-K FY2026</data>
+  <data key="d2">path</data>
+  <data key="d3">FY2026
+10-K</data>
+  <data key="d4">0000034088-26-000067</data>
+  <data key="d5">10-K</data>
+  <data key="d6">2026-03-31</data>
+  <data key="d7">https://www.sec.gov/Archives/edgar/data/34088/000003408826000067/0000034088-26-000067-index.htm</data>
+  <data key="d8">{
+  "node_id": "doc-0000034088-26-000067",
+  "node_type": "DOCUMENT",
+  "label": "Exxon Mobil Corporation 10-K FY2026",
+  "properties": {
+    "accession": "0000034088-26-000067",
+    "form_type": "10-K",
+    "period_end": "2026-03-31",
+    "cik": "0000034088"
+  },
+  "edgar_url": "https://www.sec.gov/Archives/edgar/data/34088/000003408826000067/0000034088-26-000067-index.htm"
+}</data>
+</node>
+<node id="doc-0000034088-26-000067-html-business_description-45">
+  <data key="d0">SECTION</data>
+  <data key="d1">$ 1.1 billion from its divestment activities. This included the sale of the Singapore retail fuels business, Mobil Argentina S.A.,</data>
+  <data key="d2">path</data>
+  <data key="d9">0000034088-26-000067/html-business_description-45</data>
+  <data key="d3">Item 1.
+Business</data>
+  <data key="d8">{
+  "node_id": "doc-0000034088-26-000067-html-business_description-45",
+  "node_type": "SECTION",
+  "label": "Item 1. Business",
+  "section_path": "0000034088-26-000067/html-business_description-45",
+  "child_node_count": 2,
+  "properties": {
+    "level": "1",
+    "section_id": "html-business_description-45",
+    "source_type": "HTML",
+    "narrative_kind": "business_description",
+    "item_number": "1"
+  },
+  "bindings": {
+    "accession": "0000034088-26-000067",
+    "form_type": "10-K",
+    "section_path": "0000034088-26-000067/html-business_description-45",
+    "cik": "0000034088"
+  }
+}</data>
+</node>
+<node id="doc-0000034088-26-000067-html-business_description-45-body">
   <data key="d0">CHUNK_PARAGRAPH</data>
-  <data key="d1">Prior-year net sales</data>
-  <data key="d2">Prior-year
-net sales</data>
-  <data key="d7">Net sales were $383.3 billion in fiscal 2023.</data>
-  <data key="d11">XBRL</data>
-  <data key="d10">finagentbench</data>
+  <data key="d1">$ 1.1 billion from its divestment activities. This included the sale of the Sing</data>
+  <data key="d2">path</data>
+  <data key="d3">Paragraph
+chunk</data>
+  <data key="d10">$ 1.1 billion from its divestment activities. This included the sale of the Singapore retail fuels business, Mobil Argen…</data>
+  <data key="d11">HTML</data>
+  <data key="d8">{
+  "node_id": "doc-0000034088-26-000067-html-business_description-45-body",
+  "node_type": "CHUNK_PARAGRAPH",
+  "label": "$ 1.1 billion from its divestment activities. This included the sale of the Sing",
+  "source_ref": "$ 1.1 billion from its divestment activities. This included the sale of the Singapore retail fuels business, Mobil Argentina S.A., Product Solutions affiliates in France, certain conventional and unconventional assets in the United States, and other smaller divestments. 15 Table of Contents ITEM 2. MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS Due to rounding, numbers presented may not add up precisely to the totals indicated. FORWARD-LOOKING STATEMENTS Statements related to future events; projections; descriptions of strategic, operating, and financial plans and objectives; statements of future ambitions and plans; future earnings power; potential addressable markets; and other statements of future events or conditions are forward-looking statements. Similarly, discussion of future plans related to carbon capture, transportation and storage, lower-emission fuels, hydrogen and ammonia, direct air capture, Proxxima TM systems, carbon materials, lithium, low-carbon data centers, and other future plans to reduce emissions and emission intensity of ExxonMobil, its affiliates, and third parties are dependent on future market factors, such as conti\u2026",
+  "source_ref_truncated": true,
+  "source_ref_total_chars": 6000,
+  "properties": {
+    "section_id": "html-business_description-45",
+    "source_type": "HTML",
+    "window_index": "0"
+  },
+  "bindings": {
+    "accession": "0000034088-26-000067",
+    "form_type": "10-K",
+    "section_path": "0000034088-26-000067/html-business_description-45",
+    "cik": "0000034088"
+  }
+}</data>
 </node>
-<edge source="doc-0000320193-24-000123" target="0000320193-24-000123/Item7">
+<node id="doc-0000034088-26-000067-html-business_description-46">
+  <data key="d0">SECTION</data>
+  <data key="d1">from its divestment activities. This included the sale of the Singapore retail fuels business, Mobil Argentina S.A.,</data>
+  <data key="d2">path</data>
+  <data key="d9">0000034088-26-000067/html-business_description-46</data>
+  <data key="d3">Item 1.
+Business</data>
+  <data key="d8">{
+  "node_id": "doc-0000034088-26-000067-html-business_description-46",
+  "node_type": "SECTION",
+  "label": "Item 1. Business",
+  "section_path": "0000034088-26-000067/html-business_description-46",
+  "child_node_count": 2,
+  "properties": {
+    "level": "1",
+    "section_id": "html-business_description-46",
+    "source_type": "HTML",
+    "narrative_kind": "business_description",
+    "item_number": "1"
+  },
+  "bindings": {
+    "accession": "0000034088-26-000067",
+    "form_type": "10-K",
+    "section_path": "0000034088-26-000067/html-business_description-46",
+    "cik": "0000034088"
+  }
+}</data>
+</node>
+<node id="doc-0000034088-26-000067-html-business_description-46-body">
+  <data key="d0">CHUNK_PARAGRAPH</data>
+  <data key="d1">from its divestment activities. This included the sale of the Singapore retail f</data>
+  <data key="d2">path</data>
+  <data key="d3">Paragraph
+chunk</data>
+  <data key="d10">from its divestment activities. This included the sale of the Singapore retail fuels business, Mobil Argentina S.A., Pro…</data>
+  <data key="d11">HTML</data>
+  <data key="d8">{
+  "node_id": "doc-0000034088-26-000067-html-business_description-46-body",
+  "node_type": "CHUNK_PARAGRAPH",
+  "label": "from its divestment activities. This included the sale of the Singapore retail f",
+  "source_ref": "from its divestment activities. This included the sale of the Singapore retail fuels business, Mobil Argentina S.A., Product Solutions affiliates in France, certain conventional and unconventional assets in the United States, and other smaller divestments. 15 Table of Contents ITEM 2. MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS Due to rounding, numbers presented may not add up precisely to the totals indicated. FORWARD-LOOKING STATEMENTS Statements related to future events; projections; descriptions of strategic, operating, and financial plans and objectives; statements of future ambitions and plans; future earnings power; potential addressable markets; and other statements of future events or conditions are forward-looking statements. Similarly, discussion of future plans related to carbon capture, transportation and storage, lower-emission fuels, hydrogen and ammonia, direct air capture, Proxxima TM systems, carbon materials, lithium, low-carbon data centers, and other future plans to reduce emissions and emission intensity of ExxonMobil, its affiliates, and third parties are dependent on future market factors, such as continued technolog\u2026",
+  "source_ref_truncated": true,
+  "source_ref_total_chars": 6000,
+  "properties": {
+    "section_id": "html-business_description-46",
+    "source_type": "HTML",
+    "window_index": "0"
+  },
+  "bindings": {
+    "accession": "0000034088-26-000067",
+    "form_type": "10-K",
+    "section_path": "0000034088-26-000067/html-business_description-46",
+    "cik": "0000034088"
+  }
+}</data>
+</node>
+<node id="doc-0000034088-26-000067-html-md_and_a-4">
+  <data key="d0">SECTION</data>
+  <data key="d1">Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations</data>
+  <data key="d2">path</data>
+  <data key="d9">0000034088-26-000067/html-md_and_a-4</data>
+  <data key="d3">Item 7.
+Management's Dis…</data>
+  <data key="d8">{
+  "node_id": "doc-0000034088-26-000067-html-md_and_a-4",
+  "node_type": "SECTION",
+  "label": "Item 7. Management's Discussion and Analysis",
+  "section_path": "0000034088-26-000067/html-md_and_a-4",
+  "child_node_count": 2,
+  "properties": {
+    "level": "1",
+    "section_id": "html-md_and_a-4",
+    "source_type": "HTML",
+    "narrative_kind": "md_and_a",
+    "item_number": "7"
+  },
+  "bindings": {
+    "accession": "0000034088-26-000067",
+    "form_type": "10-K",
+    "section_path": "0000034088-26-000067/html-md_and_a-4",
+    "cik": "0000034088"
+  }
+}</data>
+</node>
+<node id="doc-0000034088-26-000067-html-risk_factors-59">
+  <data key="d0">SECTION</data>
+  <data key="d1">ability to bring new technologies to commercial scale on a cost-competitive basis; and other factors discussed under "Item 1A.</data>
+  <data key="d2">path</data>
+  <data key="d9">0000034088-26-000067/html-risk_factors-59</data>
+  <data key="d3">Item 1A.
+Risk Factors</data>
+  <data key="d8">{
+  "node_id": "doc-0000034088-26-000067-html-risk_factors-59",
+  "node_type": "SECTION",
+  "label": "Item 1A. Risk Factors",
+  "section_path": "0000034088-26-000067/html-risk_factors-59",
+  "child_node_count": 2,
+  "properties": {
+    "level": "1",
+    "section_id": "html-risk_factors-59",
+    "source_type": "HTML",
+    "narrative_kind": "risk_factors",
+    "item_number": "1A"
+  },
+  "bindings": {
+    "accession": "0000034088-26-000067",
+    "form_type": "10-K",
+    "section_path": "0000034088-26-000067/html-risk_factors-59",
+    "cik": "0000034088"
+  }
+}</data>
+</node>
+<node id="doc-0000034088-26-000067-html-risk_factors-59-body">
+  <data key="d0">CHUNK_PARAGRAPH</data>
+  <data key="d1">ability to bring new technologies to commercial scale on a cost-competitive basi</data>
+  <data key="d2">path</data>
+  <data key="d3">Paragraph
+chunk</data>
+  <data key="d10">ability to bring new technologies to commercial scale on a cost-competitive basis; and other factors discussed under "It…</data>
+  <data key="d11">HTML</data>
+  <data key="d8">{
+  "node_id": "doc-0000034088-26-000067-html-risk_factors-59-body",
+  "node_type": "CHUNK_PARAGRAPH",
+  "label": "ability to bring new technologies to commercial scale on a cost-competitive basi",
+  "source_ref": "ability to bring new technologies to commercial scale on a cost-competitive basis; and other factors discussed under \"Item 1A. Risk Factors\" of ExxonMobil\u2019s 2025 Form 10-K. Forward-looking and other statements regarding environmental and other sustainability efforts and aspirations are not an indication that these statements are material to investors or require disclosure in our filing with the SEC or any other regulatory authority. In addition, historical, current, and forward-looking environmental and other sustainability-related statements may be based on standards for measuring progress that are still developing, internal controls and processes that continue to evolve, and assumptions that are subject to change in the future, including future rule-making. Actions needed to advance ExxonMobil\u2019s 2030 greenhouse gas emission-reductions plans are incorporated into its medium term business plans, which are updated annually. The reference case for planning beyond 2030 is based on ExxonMobil\u2019s Global Outlook (Outlook) research and publication. The Outlook is reflective of the existing global policy environment and an assumption of increasing policy stringency and technology improvemen\u2026",
+  "source_ref_truncated": true,
+  "source_ref_total_chars": 6000,
+  "properties": {
+    "section_id": "html-risk_factors-59",
+    "source_type": "HTML",
+    "window_index": "0"
+  },
+  "bindings": {
+    "accession": "0000034088-26-000067",
+    "form_type": "10-K",
+    "section_path": "0000034088-26-000067/html-risk_factors-59",
+    "cik": "0000034088"
+  }
+}</data>
+</node>
+<node id="doc-0000034088-26-000067-xbrl-facts">
+  <data key="d0">SECTION</data>
+  <data key="d1">XBRL Financial Facts</data>
+  <data key="d2">context</data>
+  <data key="d9">0000034088-26-000067/xbrl-facts</data>
+  <data key="d3">xbrl-facts</data>
+  <data key="d8">{
+  "node_id": "doc-0000034088-26-000067-xbrl-facts",
+  "node_type": "SECTION",
+  "label": "XBRL Financial Facts",
+  "section_path": "0000034088-26-000067/xbrl-facts",
+  "child_node_count": 284,
+  "properties": {
+    "level": "0",
+    "section_id": "xbrl-facts",
+    "source_type": "XBRL",
+    "narrative_kind": "xbrl_bucket",
+    "xbrl": "True"
+  },
+  "bindings": {
+    "accession": "0000034088-26-000067",
+    "form_type": "10-K",
+    "section_path": "0000034088-26-000067/xbrl-facts",
+    "cik": "0000034088"
+  }
+}</data>
+</node>
+<edge source="doc-0000018230-26-000021" target="doc-0000018230-26-000021-html-risk_factors-1">
   <data key="d12">CONTAINS</data>
   <data key="d13">CONTAINS</data>
-  <data key="d14">e1</data>
+  <data key="d14">e-17</data>
 </edge>
-<edge source="doc-0000320193-24-000123" target="0000320193-24-000123/Item1A">
+<edge source="doc-0000018230-26-000021" target="doc-0000018230-26-000021-html-md_and_a-2">
   <data key="d12">CONTAINS</data>
   <data key="d13">CONTAINS</data>
-  <data key="d14">e2</data>
+  <data key="d14">e-28</data>
 </edge>
-<edge source="doc-0000320193-24-000123" target="doc-0000320193-24-000076">
+<edge source="doc-0000018230-26-000021-html-risk_factors-1" target="doc-0000018230-26-000021-html-risk_factors-1-body-7">
+  <data key="d12">CONTAINS</data>
+  <data key="d13">CONTAINS</data>
+  <data key="d14">e-26</data>
+</edge>
+<edge source="doc-0000034088-26-000045" target="doc-0000034088-26-000067">
   <data key="d12">TEMPORAL_TRANSITION</data>
   <data key="d13">TEMPORAL_TRANSITION</data>
-  <data key="d14">e10</data>
+  <data key="d14">e-6851</data>
 </edge>
-<edge source="doc-0000320193-24-000076" target="0000320193-24-000076/Item7">
+<edge source="doc-0000034088-26-000067" target="doc-0000034088-26-000067-html-md_and_a-4">
   <data key="d12">CONTAINS</data>
   <data key="d13">CONTAINS</data>
-  <data key="d14">e3</data>
+  <data key="d14">e-19</data>
 </edge>
-<edge source="0000320193-24-000123/Item7" target="chunk-xbrl-net-sales-fy2024">
+<edge source="doc-0000034088-26-000067" target="doc-0000034088-26-000067-html-business_description-45">
   <data key="d12">CONTAINS</data>
   <data key="d13">CONTAINS</data>
-  <data key="d14">e4</data>
+  <data key="d14">e-183</data>
 </edge>
-<edge source="0000320193-24-000123/Item7" target="chunk-item7-p1">
+<edge source="doc-0000034088-26-000067" target="doc-0000034088-26-000067-html-business_description-46">
   <data key="d12">CONTAINS</data>
   <data key="d13">CONTAINS</data>
-  <data key="d14">e5</data>
+  <data key="d14">e-187</data>
 </edge>
-<edge source="0000320193-24-000123/Item1A" target="chunk-item1a-p1">
+<edge source="doc-0000034088-26-000067" target="doc-0000034088-26-000067-html-risk_factors-59">
   <data key="d12">CONTAINS</data>
   <data key="d13">CONTAINS</data>
-  <data key="d14">e6</data>
+  <data key="d14">e-239</data>
 </edge>
-<edge source="0000320193-24-000076/Item7" target="chunk-item7-old-p1">
+<edge source="doc-0000034088-26-000067" target="doc-0000034088-26-000067-xbrl-facts">
   <data key="d12">CONTAINS</data>
   <data key="d13">CONTAINS</data>
-  <data key="d14">e7</data>
+  <data key="d14">e-375</data>
 </edge>
-<edge source="chunk-xbrl-net-sales-fy2024" target="chunk-item7-p1">
-  <data key="d12">NEXT</data>
-  <data key="d13">NEXT</data>
-  <data key="d14">e8</data>
+<edge source="doc-0000034088-26-000067-html-business_description-45" target="doc-0000034088-26-000067-html-business_description-45-body">
+  <data key="d12">CONTAINS</data>
+  <data key="d13">CONTAINS</data>
+  <data key="d14">e-185</data>
 </edge>
-<edge source="chunk-item7-old-p1" target="chunk-item7-p1">
-  <data key="d12">REFERENCES</data>
-  <data key="d13">REFERENCES</data>
-  <data key="d14">e9</data>
+<edge source="doc-0000034088-26-000067-html-business_description-46" target="doc-0000034088-26-000067-html-business_description-46-body">
+  <data key="d12">CONTAINS</data>
+  <data key="d13">CONTAINS</data>
+  <data key="d14">e-189</data>
+</edge>
+<edge source="doc-0000034088-26-000067-html-risk_factors-59" target="doc-0000034088-26-000067-html-risk_factors-59-body">
+  <data key="d12">CONTAINS</data>
+  <data key="d13">CONTAINS</data>
+  <data key="d14">e-241</data>
 </edge>
 </graph></graphml>

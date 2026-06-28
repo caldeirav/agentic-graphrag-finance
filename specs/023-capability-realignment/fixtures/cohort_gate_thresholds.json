@@ -1,0 +1,19 @@
+{
+  "m1_telemetry": {
+    "min_synthesis_path_populated": 26,
+    "max_numeric_live_llm": 0,
+    "max_numeric_structured_llm": 0
+  },
+  "m2_ratio": {
+    "gate_outcome_gt0_floor": 2,
+    "primary_item_ids": [
+      "v2-financebench-0548",
+      "v2-financebench-0667",
+      "v2-financebench-0666",
+      "v2-financebench-0592"
+    ]
+  },
+  "m3_cumulative": {
+    "gate_outcome_gt0_floor": 5
+  }
+}

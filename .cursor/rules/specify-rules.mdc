@@ -6,13 +6,12 @@ alwaysApply: true
 For additional context about technologies, project structure, shell commands, and
 pipeline segments, read the current implementation plan:
 
-**Plan**: `specs/018-eval-dataset-quality/plan.md` (active) | Shipped: `specs/017-custom-judge-v2/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
+**Plan**: `specs/023-capability-realignment/plan.md` (active) | Shipped: `specs/022-outcome-score-ladder/plan.md` | Base: `specs/001-sec-disclosure-rag/plan.md`
 
 Quick reference:
-- **Stack**: uv, custom-judge bundle v2.0.0 → **v2.0.1 quality pass**, judge v3.1 VA-only task_success, **paper-v1.0** (immutable) / **paper-v1.1** (quality adoption)
-- **Layers**: `src/evaluation/generation/review/` (queue, annotations, overrides), `src/evaluation/generation/` (boilerplate gate, diversity), `src/evaluation/reproduction/` (selective re-judge)
-- **CLI**: `benchmark-dataset review export-queue|export-pack|annotate|apply-overrides` → `regenerate-item` → `publish --version 2.0.1` → `repro judge-batch --bundle-override`
-- **Storage**: bundle `data/benchmarks/custom-judge/v2.0.0/` (frozen); draft `drafts/quality-v2.0.1/`; sidecar `annotations.jsonl`; release `releases/paper-v1.1/`
-- **Focus**: In-place patch 200 items; repro-driven triage (MRR≥0.5/nDCG≥0.3 + VA=0); comparison boilerplate gate; <15% dataset-caused zero-score
-- **Docs**: `specs/018-eval-dataset-quality/quickstart.md`, `docs/custom-judge-dataset-generation.md`, `docs/research-reproduction.md`
+- **Stack**: uv, custom-judge v2.0.1 draft, judge v3.1 VA-only task_success, **paper-v1.1** cohort-gated
+- **Layers**: LLM `resolve_xbrl_facts` + Python compute; **no** live 022 heuristics; repro slice expansion retained
+- **CLI**: `repro cohort-debug` → judge-batch → `specs/023-capability-realignment/scripts/audit_cohort_synthesis_paths.py`
+- **Focus**: Principle VII realignment — single numeric path, filing catalog, taxonomy index, role-aware validation
+- **Docs**: `specs/023-capability-realignment/quickstart.md`, baseline `reports/cohort-022-phase-e`, latest `reports/cohort-023-m4b`
 <!-- SPECKIT END -->

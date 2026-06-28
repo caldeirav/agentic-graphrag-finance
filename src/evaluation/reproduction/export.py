@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from evaluation.generation.bundle_version import is_v2_or_later
+from evaluation.generation.review._paths import resolve_release_bundle
 from evaluation.judges.outcome_scoring import is_abstention_answer
 from evaluation.reproduction.stratum import assign_primary_evidence_source
 from models.evaluation import BenchmarkResult, RankingMetrics
@@ -605,7 +606,11 @@ def export_tables_from_disk(
     ground_truth_by_item: dict[str, dict] = {}
     if manifest is not None:
         root = repo_root or Path.cwd()
-        bundle_root = root / manifest.custom_judge_bundle_path
+        bundle_root = resolve_release_bundle(
+            root,
+            bundle_rel_path=manifest.custom_judge_bundle_path,
+            version=manifest.custom_judge_version,
+        )
         contexts = load_item_contexts(bundle_root, manifest.eval_split)
         profiles_by_item, relevance_by_item, ground_truth_by_item = item_context_lookup_maps(
             contexts

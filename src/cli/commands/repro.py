@@ -8,9 +8,18 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+import yaml
 
+from evaluation.generation.review._paths import resolve_release_bundle
 from evaluation.reproduction.defer_config import resolve_defer_config
 from evaluation.reproduction.export import export_tables_from_disk, write_paper_tables
+from evaluation.reproduction.investigation.cohort import freeze_tier1_cohort, load_tier1_cohort
+from evaluation.reproduction.investigation.cohort_debug import run_cohort_debug_replay
+from evaluation.reproduction.investigation.cohort_gate import (
+    append_cohort_gate_override,
+    build_cohort_validation_report,
+    check_cohort_gate_for_run_all,
+)
 from evaluation.reproduction.judge_batch import run_judge_batch
 from evaluation.reproduction.manifest import (
     load_expected_checksums,
@@ -57,6 +66,15 @@ def _manifest_path(manifest: Path | None, release: str | None) -> Path:
 def _require_offline() -> None:
     if os.environ.get("OFFLINE_BENCHMARK", "").strip() not in {"1", "true", "yes"}:
         raise typer.BadParameter("Set OFFLINE_BENCHMARK=1 for reproduction commands")
+
+
+def _resolve_bundle(rel, draft: Path | None = None) -> Path:
+    return resolve_release_bundle(
+        REPO_ROOT,
+        bundle_rel_path=rel.custom_judge_bundle_path,
+        version=rel.custom_judge_version,
+        draft=draft,
+    )
 
 
 def _runner(manifest: Path, *, defer_judge: bool | None = None) -> ReproRunner:
@@ -149,7 +167,11 @@ def judge_batch_cmd(
     """Run deferred judge batch on pending items in results.json."""
     _require_offline()
     rel = load_release_manifest(manifest)
-    bundle = REPO_ROOT / rel.custom_judge_bundle_path
+    bundle = resolve_release_bundle(
+        REPO_ROOT,
+        bundle_rel_path=rel.custom_judge_bundle_path,
+        version=rel.custom_judge_version,
+    )
 
     def _progress(msg: str) -> None:
         if quiet and " item=" in msg:
@@ -246,6 +268,16 @@ def run_all(
     judge_only: bool = typer.Option(False, "--judge-only"),
     export_only: bool = typer.Option(False, "--export-only"),
     allow_pending_export: bool = typer.Option(False, "--allow-pending-export"),
+    cohort_report: Path | None = typer.Option(
+        None,
+        "--cohort-report",
+        help="Path to cohort_validation_report.json for paper-v1.1 gate",
+    ),
+    force_cohort_gate: str | None = typer.Option(
+        None,
+        "--force-cohort-gate",
+        help="Override failed cohort gate with audited rationale",
+    ),
 ) -> None:
     """Full reproduction: verify corpus, relevance gate, all variants, export tables."""
     _require_offline()
@@ -253,6 +285,25 @@ def run_all(
         os.environ["REPRO_ALLOW_PENDING_EXPORT"] = "1"
     rel = load_release_manifest(_manifest_path(manifest, release))
     out = output or Path(f"reports/repro-{rel.release_tag}")
+    if rel.release_tag == "paper-v1.1" and not export_only and not judge_only:
+        raw_manifest = yaml.safe_load(_manifest_path(manifest, release).read_text(encoding="utf-8"))
+        try:
+            check_cohort_gate_for_run_all(raw_manifest, cohort_report_path=cohort_report)
+        except (FileNotFoundError, RuntimeError) as exc:
+            if not force_cohort_gate:
+                typer.echo(str(exc), err=True)
+                typer.echo("Pass --force-cohort-gate \"rationale\" to override.", err=True)
+                raise typer.Exit(code=1) from exc
+            failed: list[str] = []
+            if isinstance(exc, RuntimeError):
+                failed = [str(exc)]
+            append_cohort_gate_override(
+                out,
+                manifest_tag=rel.release_tag,
+                failed_thresholds=failed,
+                rationale=force_cohort_gate,
+            )
+            typer.echo(f"Cohort gate override recorded for {out}", err=True)
     item_ids = _load_item_ids_file(item_ids_file) if item_ids_file else None
     runner = _runner(_manifest_path(manifest, release), defer_judge=defer_judge)
     repro = runner.run_all(
@@ -287,6 +338,17 @@ def report_cmd(
     ),
     manifest: Path | None = typer.Option(None, "--manifest", help="Release manifest path"),
     delta_threshold: float = typer.Option(DEFAULT_DELTA_THRESHOLD, "--delta-threshold"),
+    with_investigation: bool = typer.Option(
+        False,
+        "--with-investigation",
+        help="Embed failure-investigation fields in item drill-down",
+    ),
+    draft: Path | None = typer.Option(
+        None,
+        "--draft",
+        help="Draft bundle for investigation pack (required with --with-investigation)",
+    ),
+    queue_file: Path | None = typer.Option(None, "--queue-file", exists=True),
 ) -> None:
     """Generate static HTML report or LaTeX table snippets from repro artifacts."""
     try:
@@ -311,6 +373,25 @@ def report_cmd(
         typer.echo(f"Unsupported --format {format!r}; use html or latex-only", err=True)
         raise typer.Exit(code=2)
 
+    investigation_rows = None
+    if with_investigation:
+        if draft is None:
+            typer.echo("--draft is required with --with-investigation", err=True)
+            raise typer.Exit(code=2)
+        from evaluation.reproduction.investigation.pack import (
+            build_failure_investigation_rows,
+            failure_investigation_fields_for_row,
+        )
+
+        rows = build_failure_investigation_rows(
+            draft,
+            repro_input=input_dir,
+            queue_file=queue_file,
+        )
+        investigation_rows = {
+            row.item_id: failure_investigation_fields_for_row(row) for row in rows
+        }
+
     out_path = output or (input_dir / "report.html")
     try:
         artifact = render_html_report(
@@ -319,6 +400,7 @@ def report_cmd(
             table_ids=table_ids,
             max_item_rows=max_item_rows,
             delta_threshold=delta_threshold,
+            investigation_by_item=investigation_rows,
         )
     except ReportRenderError as exc:
         typer.echo(str(exc), err=True)
@@ -480,3 +562,88 @@ def smoke_gate_cmd(
     typer.echo(format_smoke_report(result, item_ids=item_ids))
     if fail and not result.ok:
         raise typer.Exit(code=1)
+
+
+@app.command("cohort-freeze")
+def cohort_freeze_cmd(
+    queue: Path = typer.Option(..., "--queue", exists=True),
+    output: Path = typer.Option(..., "--output"),
+) -> None:
+    """Freeze tier-1 review queue items into tier1_cohort.json."""
+    cohort = freeze_tier1_cohort(queue, output)
+    typer.echo(f"Frozen {len(cohort.item_ids)} tier-1 items -> {output}")
+
+
+@app.command("cohort-validate")
+def cohort_validate_cmd(
+    cohort: Path = typer.Option(..., "--cohort", exists=True),
+    manifest: Path = typer.Option(..., "--manifest", exists=True),
+    output: Path = typer.Option(..., "--output"),
+    baseline: Path | None = typer.Option(None, "--baseline", exists=True),
+    draft: Path | None = typer.Option(None, "--draft", help="Draft bundle root"),
+    skip_regression: bool = typer.Option(False, "--skip-regression"),
+) -> None:
+    """Run cohort validation metrics and write cohort_validation_report.json."""
+    rel = load_release_manifest(manifest)
+    raw_manifest = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+    cohort_file = load_tier1_cohort(cohort)
+    bundle = _resolve_bundle(rel, draft)
+    repro_input = output
+    if not (repro_input / "graph-full" / "results.json").is_file():
+        typer.echo(
+            "Note: no graph-full/results.json in output yet; metrics use empty repro results",
+            err=True,
+        )
+    report = build_cohort_validation_report(
+        cohort=cohort_file,
+        cohort_path=cohort,
+        output_dir=output,
+        manifest=raw_manifest,
+        draft=bundle,
+        repro_input=repro_input,
+        baseline_report_path=baseline,
+        skip_regression_check=skip_regression,
+    )
+    status = "PASSED" if report.passed else "FAILED"
+    typer.echo(f"Cohort validation {status}: {output / 'cohort_validation_report.json'}")
+    if not report.passed:
+        for item in report.failed_thresholds:
+            typer.echo(f"  - {item}", err=True)
+        raise typer.Exit(code=1)
+
+
+@app.command("cohort-debug")
+def cohort_debug_cmd(
+    cohort: Path = typer.Option(..., "--cohort", exists=True),
+    manifest: Path = typer.Option(..., "--manifest", exists=True),
+    output: Path = typer.Option(..., "--output"),
+    draft: Path | None = typer.Option(None, "--draft"),
+    replay_input: Path | None = typer.Option(None, "--replay-input", exists=True),
+    variant: str = typer.Option("graph-full", "--variant"),
+    resume: bool = typer.Option(True, "--resume/--no-resume"),
+) -> None:
+    """Debug cohort items (replay checkpoints by default when --replay-input set)."""
+    rel = load_release_manifest(manifest)
+    bundle = _resolve_bundle(rel, draft)
+    cohort_file = load_tier1_cohort(cohort)
+    replay_source = replay_input
+    if replay_source is None:
+        typer.echo(f"Cohort debug re-run: {len(cohort_file.item_ids)} items -> {output}")
+        runner = _runner(manifest, defer_judge=False)
+        runner.run_all(
+            output_dir=output,
+            item_ids=cohort_file.item_ids,
+            skip_relevance=True,
+            resume=resume,
+        )
+        replay_source = output
+    summaries = run_cohort_debug_replay(
+        draft=bundle,
+        replay_input=replay_source,
+        cohort_path=cohort,
+        output_dir=output,
+        variant=variant,
+        resume=resume,
+        progress=typer.echo,
+    )
+    typer.echo(f"Cohort debug summaries: {len(summaries)} -> {output / 'cohort_debug'}")

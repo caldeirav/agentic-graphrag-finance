@@ -78,6 +78,9 @@ uv run agent-query repro run-all \
   --manifest releases/paper-v1.0/manifest.yaml \
   --output reports/repro-paper-v1.0 \
   --defer-judge --no-resume
+```
+
+Use `--defer-judge` for the recommended workflow (batched Gemini judging). If you omit it, `run-all` still runs a **final Gemini judge batch** after all variants so `value_alignment` is scored for answer-GT items; inline ask-audit only covers trajectory criteria.
 
 # 3. Verify tables against frozen baseline
 uv run agent-query repro verify-tables \
@@ -171,6 +174,92 @@ Quickstart: [014](../specs/014-repro-results-viewer/quickstart.md)
 3. **Judge only:** `repro run-all ... --judge-only` or `repro judge-batch --input reports/repro-paper-v1.0`
 4. **Export only:** `repro run-all ... --export-only`
 5. **Fresh run:** `--no-resume` on a new `--output` directory
+
+---
+
+## Agent failure investigation and paper-v1.1 cohort gate (019)
+
+After tier-1 GT quality review, use the investigation workflow before committing to a full **paper-v1.1** reproduction.
+
+**Spec:** [019](../specs/019-agent-failure-investigation/spec.md) · **Quickstart:** [019 quickstart](../specs/019-agent-failure-investigation/quickstart.md)
+
+### Investigation pack (offline triage)
+
+Merge repro results, draft GT, annotations, EDGAR links, corpus excerpts, and auto-suggested engineering failure taxonomy:
+
+```bash
+uv run agent-query benchmark-dataset review export-investigation \
+  --draft data/benchmarks/custom-judge/drafts/quality-v2.0.1 \
+  --queue-file data/benchmarks/custom-judge/drafts/quality-v2.0.1/review_queue.json \
+  --repro-input reports/repro-paper-v1.0 \
+  --output reports/repro-paper-v1.0/investigation
+```
+
+Embed the same fields in the repro HTML drill-down:
+
+```bash
+uv run agent-query repro report \
+  --input reports/repro-paper-v1.0 \
+  --manifest releases/paper-v1.0/manifest.yaml \
+  --with-investigation \
+  --draft data/benchmarks/custom-judge/drafts/quality-v2.0.1 \
+  --queue-file data/benchmarks/custom-judge/drafts/quality-v2.0.1/review_queue.json
+```
+
+### Cohort debug (targeted iteration)
+
+Freeze the full tier-1 queue (~84 items), replay checkpoints for fast summaries, or re-run agent+judge on the cohort:
+
+```bash
+uv run agent-query repro cohort-freeze \
+  --queue data/benchmarks/custom-judge/drafts/quality-v2.0.1/review_queue.json \
+  --output data/benchmarks/custom-judge/drafts/quality-v2.0.1/tier1_cohort.json
+
+# Replay from existing repro (no agent re-exec)
+uv run agent-query repro cohort-debug \
+  --cohort data/benchmarks/custom-judge/drafts/quality-v2.0.1/tier1_cohort.json \
+  --manifest releases/paper-v1.1/manifest.yaml \
+  --replay-input reports/repro-paper-v1.0 \
+  --output reports/repro-cohort-debug/replay-001
+
+# Re-run agent+judge on cohort (default when --replay-input omitted)
+uv run agent-query repro cohort-debug \
+  --cohort data/benchmarks/custom-judge/drafts/quality-v2.0.1/tier1_cohort.json \
+  --manifest releases/paper-v1.1/manifest.yaml \
+  --output reports/repro-cohort-debug/post-fix-001
+```
+
+### Cohort gate (required before paper-v1.1 full repro)
+
+Validate agent fixes on the frozen tier-1 cohort. **Full paper-v1.1 `run-all` is hard-blocked** until `cohort_validation_report.json` passes (or `--force-cohort-gate` override is audited).
+
+```bash
+uv run pytest tests/regression/failure_modes -q
+
+uv run agent-query repro cohort-validate \
+  --cohort data/benchmarks/custom-judge/drafts/quality-v2.0.1/tier1_cohort.json \
+  --manifest releases/paper-v1.1/manifest.yaml \
+  --output reports/repro-cohort-validate/post-fix-001 \
+  --draft data/benchmarks/custom-judge/drafts/quality-v2.0.1 \
+  --baseline reports/repro-paper-v1.0/cohort_validation_report.json \
+  --skip-regression
+```
+
+Only after the cohort gate passes:
+
+```bash
+uv run agent-query repro run-all \
+  --manifest releases/paper-v1.1/manifest.yaml \
+  --output reports/repro-paper-v1.1
+```
+
+| Command | Purpose |
+|---------|---------|
+| `review export-investigation` | Unified failure-investigation HTML + CSV |
+| `repro cohort-freeze` | Freeze tier-1 cohort from review queue |
+| `repro cohort-debug` | Per-item debug summaries (replay or re-run) |
+| `repro cohort-validate` | Pre-repro gate metrics + pass/fail report |
+| `repro run-all` (paper-v1.1) | Blocked until cohort gate passes |
 
 ---
 

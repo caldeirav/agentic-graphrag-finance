@@ -1,0 +1,20 @@
+{
+  "retire_from_live_synthesis": [
+    "src/retrieval/skills/ratio_pair_resolution.py",
+    "src/retrieval/skills/point_fact_selection.py",
+    "src/retrieval/skills/html_table_fallback.py"
+  ],
+  "retain_mock_or_eval": [
+    "src/evaluation/reproduction/slice_expansion.py"
+  ],
+  "retain_refactor": [
+    "src/retrieval/skills/xbrl_concept_guards.py",
+    "src/retrieval/skills/numeric_computation.py",
+    "src/retrieval/skills/xbrl_fact_resolution.py",
+    "src/retrieval/skills/xbrl_fact_catalog.py"
+  ],
+  "new_modules": [
+    "src/retrieval/skills/xbrl_resolution_validate.py",
+    "src/retrieval/skills/numeric_evidence_enrichment.py"
+  ]
+}

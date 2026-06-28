@@ -1,0 +1,16 @@
+[
+  {
+    "chunk_id": "new",
+    "concept": "NetIncome",
+    "value_display": "$110.00 billion",
+    "period_end": "2025-12-31",
+    "is_annual": true
+  },
+  {
+    "chunk_id": "old",
+    "concept": "NetIncome",
+    "value_display": "$100.00 billion",
+    "period_end": "2024-12-31",
+    "is_annual": true
+  }
+]

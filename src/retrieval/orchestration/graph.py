@@ -115,7 +115,7 @@ def build_agent_graph(
             _traced_node(micro_extractor, "micro_extractor", graph_api=graph_api),
         )
 
-    g.add_node("synthesize", _traced_node(synthesize, "synthesize"))
+    g.add_node("synthesize", _traced_node(synthesize, "synthesize", graph_api=graph_api))
 
     def _route_after_macro(state: AgentState) -> str:
         if state.get("macro_binding_failed"):

@@ -141,6 +141,27 @@ reproducible from locked dependencies, pinned judge versions, and recorded MLflo
 reasoning paths. Modular benchmarks keep the project aligned with evolving SOTA while
 preserving separation from production retrieval.
 
+### VII. Capability-First Agent Design (NON-NEGOTIABLE)
+
+Agentic retrieval improvements MUST prefer **prompts, structured output contracts,
+tools, and LLM skills** over expanding keyword-based deterministic handlers.
+
+When retrieval succeeds but synthesis or binding fails (high MRR, zero value alignment),
+the default remediation order is:
+
+1. Structured answer contracts and output guards (no evidence chunk dumps in live paths)
+2. Temporal and benchmark metadata in planner/synthesis prompts
+3. LLM-guided disambiguation skills (e.g., XBRL fact resolution)
+4. Cohort-scoped evaluation before full reproduction
+
+Deterministic `_try_synthesize_*` shortcuts MAY remain **only** for `USE_MOCK_LLM=1`
+(CI/fixtures) or documented ADR exceptions. New keyword routers require plan Complexity
+Tracking justification and a sunset path.
+
+**Rationale**: Keyword handlers do not generalize across financebench metrics; capability
+investments compound while brittle routing creates maintenance debt and false confidence
+when retrieval already ranks correct evidence.
+
 ## System Architecture Constraints
 
 Layer layout MUST map to deployable or testable packages/modules (names illustrative):
@@ -214,4 +235,4 @@ violations as CRITICAL.
 Runtime feature guidance lives in feature `plan.md` files and `.cursor/rules/specify-rules.mdc`
 (synchronized from the active plan).
 
-**Version**: 1.2.1 | **Ratified**: 2026-05-18 | **Last Amended**: 2026-05-24
+**Version**: 1.3.0 | **Ratified**: 2026-05-18 | **Last Amended**: 2026-06-22

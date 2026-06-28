@@ -8,6 +8,8 @@ from pathlib import Path
 from evaluation.generation.review.annotations import latest_annotations_by_item
 from evaluation.generation.review.overrides import _load_changelog
 from evaluation.generation.review.queue import assign_priority_tier, build_review_queue
+from evaluation.reproduction.investigation.pack import build_failure_investigation_rows
+from evaluation.reproduction.investigation.taxonomy import rollup_engineering_counts
 from models.benchmark_generation import FailureClass, QualityPassSummary
 
 
@@ -67,11 +69,29 @@ def build_quality_pass_summary(
             {entry.item_id for entry in changelog if entry.validation_outcome == "accepted"},
         )
 
+    engineering_counts: dict[str, int] = {}
+    cohort_status = ""
+    if repro_input is not None:
+        rows = build_failure_investigation_rows(
+            bundle_root,
+            repro_input=repro_input,
+            variant=variant,
+        )
+        engineering_counts = rollup_engineering_counts(
+            [row.suggested_failure_class for row in rows]
+        )
+        report_path = repro_input / "cohort_validation_report.json"
+        if report_path.is_file():
+            payload = json.loads(report_path.read_text(encoding="utf-8"))
+            cohort_status = "passed" if payload.get("passed") else "failed"
+
     return QualityPassSummary(
         items_reviewed=len(latest),
         items_fixed_override=fixed_override,
         items_fixed_regenerate=fixed_regenerate,
         failure_class_counts=failure_counts,
+        engineering_failure_counts=engineering_counts,
+        cohort_validation_status=cohort_status,
         dataset_caused_zero_score_count=dataset_caused,
         dataset_caused_zero_score_rate=dataset_rate,
         rejudge_improved_count=improved,

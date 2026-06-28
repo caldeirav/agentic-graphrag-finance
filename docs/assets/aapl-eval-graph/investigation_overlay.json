@@ -1,0 +1,195 @@
+[
+  {
+    "scenario_id": "v2-financebench-0594",
+    "question_type_tag": "domain-relevant",
+    "expected_answer": "1.1",
+    "expected_rubric": null,
+    "expected_bindings": {
+      "accessions": [
+        "0000034088-26-000067"
+      ],
+      "fiscal_periods": [
+        "2025-FY"
+      ]
+    },
+    "multi_filing_required": false,
+    "validation_status": "accepted",
+    "inspiration_profile": "financebench",
+    "question": "What were the total proceeds, in billions of U.S. dollars, from ExxonMobil's divestment activities, which included the sale of its Singapore retail fuels business and Mobil Argentina S.A., as reported in their 2025 annual filing?",
+    "expected_section_paths": [
+      "0000034088-26-000067/ITEM 7. MANAGEMENT'S DISCUSSION"
+    ],
+    "visited_section_paths": [
+      "0000034088-26-000067/ITEM 7. MANAGEMENT'S DISCUSSION"
+    ],
+    "cited_chunk_node_ids": [
+      "doc-0000034088-26-000067-html-business_description-45-body",
+      "doc-0000034088-26-000067-html-business_description-46-body"
+    ],
+    "synthesis_path": "numeric_xbrl_deterministic",
+    "suggested_failure_class": null,
+    "binding_miss": false,
+    "highlight_nodes": [
+      "doc-0000034088-26-000067",
+      "doc-0000034088-26-000067-html-business_description-45",
+      "doc-0000034088-26-000067-html-business_description-45-body",
+      "doc-0000034088-26-000067-html-business_description-46",
+      "doc-0000034088-26-000067-html-business_description-46-body",
+      "doc-0000034088-26-000067-html-md_and_a-4"
+    ],
+    "visited_nodes": [
+      "doc-0000034088-26-000067",
+      "doc-0000034088-26-000067-html-business_description-45",
+      "doc-0000034088-26-000067-html-business_description-45-body",
+      "doc-0000034088-26-000067-html-business_description-46",
+      "doc-0000034088-26-000067-html-business_description-46-body",
+      "doc-0000034088-26-000067-html-md_and_a-4"
+    ],
+    "cited_nodes": [
+      "doc-0000034088-26-000067-html-business_description-45-body",
+      "doc-0000034088-26-000067-html-business_description-46-body"
+    ],
+    "context_nodes": [
+      "doc-0000034088-26-000067-html-risk_factors-59"
+    ],
+    "missing_nodes": [],
+    "edgar_links": [
+      {
+        "accession": "0000034088-26-000067",
+        "form_type": "10-K",
+        "url": "https://www.sec.gov/Archives/edgar/data/34088/000003408826000067/0000034088-26-000067-index.htm"
+      }
+    ]
+  },
+  {
+    "scenario_id": "v2-finder-0002",
+    "question_type_tag": "retrieval-qa",
+    "expected_answer": "ExxonMobil's $1.1 billion from divestment activities included the sale of the Singapore retail fuels business and Mobil Argentina S.A.",
+    "expected_rubric": "A correct answer must identify both the sale of the Singapore retail fuels business and Mobil Argentina S.A. as part of the divestment activities. Partial credit may be awarded for identifying only one of the two entities.",
+    "expected_bindings": {
+      "accessions": [
+        "0000034088-26-000067"
+      ],
+      "fiscal_periods": [
+        "FY2025"
+      ]
+    },
+    "multi_filing_required": false,
+    "validation_status": "accepted",
+    "inspiration_profile": "finder",
+    "question": "According to its 2025 annual report, what specific business sales were part of ExxonMobil's $1.1 billion in divestment activities?",
+    "expected_section_paths": [
+      "0000034088-26-000067/ITEM 7. MANAGEMENT'S DISCUSSION"
+    ],
+    "visited_section_paths": [
+      "0000034088-26-000067/ITEM 7. MANAGEMENT'S DISCUSSION"
+    ],
+    "cited_chunk_node_ids": [
+      "doc-0000034088-26-000067-html-business_description-45-body",
+      "doc-0000034088-26-000067-html-business_description-46-body"
+    ],
+    "synthesis_path": "live_llm",
+    "suggested_failure_class": null,
+    "binding_miss": false,
+    "highlight_nodes": [
+      "doc-0000034088-26-000067",
+      "doc-0000034088-26-000067-html-business_description-45",
+      "doc-0000034088-26-000067-html-business_description-45-body",
+      "doc-0000034088-26-000067-html-business_description-46",
+      "doc-0000034088-26-000067-html-business_description-46-body",
+      "doc-0000034088-26-000067-html-md_and_a-4"
+    ],
+    "visited_nodes": [
+      "doc-0000034088-26-000067",
+      "doc-0000034088-26-000067-html-business_description-45",
+      "doc-0000034088-26-000067-html-business_description-45-body",
+      "doc-0000034088-26-000067-html-business_description-46",
+      "doc-0000034088-26-000067-html-business_description-46-body",
+      "doc-0000034088-26-000067-html-md_and_a-4"
+    ],
+    "cited_nodes": [
+      "doc-0000034088-26-000067-html-business_description-45-body",
+      "doc-0000034088-26-000067-html-business_description-46-body"
+    ],
+    "context_nodes": [
+      "doc-0000034088-26-000067-html-risk_factors-59"
+    ],
+    "missing_nodes": [],
+    "edgar_links": [
+      {
+        "accession": "0000034088-26-000067",
+        "form_type": "10-K",
+        "url": "https://www.sec.gov/Archives/edgar/data/34088/000003408826000067/0000034088-26-000067-index.htm"
+      }
+    ]
+  },
+  {
+    "scenario_id": "v2-finagentbench-0095",
+    "question_type_tag": "cross-filing-comparison",
+    "expected_answer": "Both Caterpillar and Exxon Mobil discuss geopolitical risks in the 'Risk Factors' section.",
+    "expected_rubric": null,
+    "expected_bindings": {
+      "accessions": [
+        "0000018230-26-000021",
+        "0000034088-26-000067"
+      ],
+      "fiscal_periods": []
+    },
+    "multi_filing_required": true,
+    "validation_status": "accepted",
+    "inspiration_profile": "finagentbench",
+    "question": "Compare how Caterpillar and Exxon Mobil discuss risks related to international trade policies and geopolitical conflicts in their recent filings. In which section of their reports do both companies primarily address these concerns?",
+    "expected_section_paths": [
+      "0000018230-26-000021/Item 1A. Risk Factors",
+      "0000034088-26-000067/ITEM 1A. RISK FACTORS"
+    ],
+    "visited_section_paths": [
+      "0000018230-26-000021/Item 1A. Risk Factors",
+      "0000034088-26-000067/ITEM 1A. RISK FACTORS"
+    ],
+    "cited_chunk_node_ids": [
+      "doc-0000018230-26-000021-html-risk_factors-1-body-7",
+      "doc-0000034088-26-000067-html-risk_factors-59-body"
+    ],
+    "synthesis_path": "comparison_narrative_deterministic",
+    "suggested_failure_class": null,
+    "binding_miss": false,
+    "highlight_nodes": [
+      "doc-0000018230-26-000021",
+      "doc-0000018230-26-000021-html-risk_factors-1",
+      "doc-0000018230-26-000021-html-risk_factors-1-body-7",
+      "doc-0000034088-26-000067",
+      "doc-0000034088-26-000067-html-risk_factors-59",
+      "doc-0000034088-26-000067-html-risk_factors-59-body"
+    ],
+    "visited_nodes": [
+      "doc-0000018230-26-000021",
+      "doc-0000018230-26-000021-html-risk_factors-1",
+      "doc-0000018230-26-000021-html-risk_factors-1-body-7",
+      "doc-0000034088-26-000067",
+      "doc-0000034088-26-000067-html-risk_factors-59",
+      "doc-0000034088-26-000067-html-risk_factors-59-body"
+    ],
+    "cited_nodes": [
+      "doc-0000018230-26-000021-html-risk_factors-1-body-7",
+      "doc-0000034088-26-000067-html-risk_factors-59-body"
+    ],
+    "context_nodes": [
+      "doc-0000018230-26-000021-html-md_and_a-2",
+      "doc-0000034088-26-000067-html-md_and_a-4"
+    ],
+    "missing_nodes": [],
+    "edgar_links": [
+      {
+        "accession": "0000018230-26-000021",
+        "form_type": "10-K",
+        "url": "https://www.sec.gov/Archives/edgar/data/18230/000001823026000021/0000018230-26-000021-index.htm"
+      },
+      {
+        "accession": "0000034088-26-000067",
+        "form_type": "10-K",
+        "url": "https://www.sec.gov/Archives/edgar/data/34088/000003408826000067/0000034088-26-000067-index.htm"
+      }
+    ]
+  }
+]

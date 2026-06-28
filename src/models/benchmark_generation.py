@@ -298,6 +298,8 @@ class QualityPassSummary(BaseModel):
     items_fixed_override: int = 0
     items_fixed_regenerate: int = 0
     failure_class_counts: dict[str, int] = Field(default_factory=dict)
+    engineering_failure_counts: dict[str, int] = Field(default_factory=dict)
+    cohort_validation_status: str = ""
     dataset_caused_zero_score_count: int = 0
     dataset_caused_zero_score_rate: float = 0.0
     rejudge_improved_count: int = 0

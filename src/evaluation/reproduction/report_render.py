@@ -24,6 +24,7 @@ from evaluation.reproduction.report_models import (
     SMOKE_ITEM_THRESHOLD,
     STANDARD_VARIANTS,
     AggregatedInvestigationNote,
+    FailureInvestigationFields,
     ItemResultRecord,
     PaperTableId,
     PaperTableView,
@@ -908,7 +909,10 @@ def _render_rubric_scores_html(scores: dict[str, float]) -> str:
     return f"<ul class='score-list'>{''.join(parts)}</ul>"
 
 
-def _render_variant_detail_panel(record: ItemResultRecord | None, variant_id: str) -> str:
+def _render_variant_detail_panel(
+    record: ItemResultRecord | None,
+    variant_id: str,
+) -> str:
     if record is None:
         return (
             f"<div class='variant-panel missing' data-variant='{html.escape(variant_id)}'>"
@@ -929,6 +933,26 @@ def _render_variant_detail_panel(record: ItemResultRecord | None, variant_id: st
     if record.failure_reason:
         failure = f"<p><strong>Failure:</strong> {html.escape(record.failure_reason)}</p>"
     answer_body = record.answer_text or record.answer_excerpt or "—"
+    investigation_html = ""
+    if record.investigation is not None:
+        inv = record.investigation
+        graph_link = ""
+        if inv.graph_context_href:
+            graph_link = (
+                f"<p><a href='{html.escape(inv.graph_context_href)}'>Graph context</a></p>"
+            )
+        investigation_html = (
+            "<div class='investigation-panel'>"
+            f"<p><strong>Suggested failure:</strong> {html.escape(inv.suggested_failure_class)} "
+            f"— {html.escape(inv.suggested_failure_detail)}</p>"
+            f"<p><strong>Human class:</strong> {html.escape(inv.human_failure_class)}</p>"
+            f"<p><strong>Synthesis path:</strong> {html.escape(inv.synthesis_path)}</p>"
+            f"<p><strong>EDGAR:</strong> {inv.edgar_links_html}</p>"
+            f"<p><strong>Corpus:</strong> {inv.corpus_excerpts_html}</p>"
+            f"<p><strong>Materialization:</strong> {html.escape(inv.materialization_audit_html)}</p>"
+            f"{graph_link}"
+            "</div>"
+        )
     return (
         f"<div class='variant-panel {_status_class(record.judge_status)}' "
         f"data-variant='{html.escape(variant_id)}'>"
@@ -940,7 +964,7 @@ def _render_variant_detail_panel(record: ItemResultRecord | None, variant_id: st
         f"<p><strong>Ranking:</strong> {ranking} · "
         f"<strong>Citations:</strong> {record.citation_count} · "
         f"<strong>Flags:</strong> {html.escape(flags_txt)}</p>"
-        f"{structural}{failure}"
+        f"{structural}{failure}{investigation_html}"
         f"<p><strong>Agent answer:</strong></p>"
         f"<pre class='answer-block'>{html.escape(answer_body)}</pre>"
         f"<p><strong>Judge scores:</strong></p>"
@@ -977,6 +1001,7 @@ def _render_drilldown_html(
     bundle: ReproOutputBundle,
     *,
     max_item_rows: int = 0,
+    investigation_by_item: dict[str, FailureInvestigationFields] | None = None,
 ) -> str:
     if not bundle.variant_results:
         return ""
@@ -1046,6 +1071,9 @@ def _render_drilldown_html(
         row_count += 1
         recs = by_item[item_id]
         sample = next(iter(recs.values()))
+        if investigation_by_item and item_id in investigation_by_item:
+            for rec in recs.values():
+                rec.investigation = investigation_by_item[item_id]
         meta = bundle.item_metadata.get(item_id, {})
         profile = sample.inspiration_profile or meta.get("inspiration_profile", "") or "—"
         question = sample.question or meta.get("question", "") or "—"
@@ -1101,6 +1129,7 @@ def render_html_report(
     table_ids: list[PaperTableId] | None = None,
     max_item_rows: int = 0,
     delta_threshold: float = DEFAULT_DELTA_THRESHOLD,
+    investigation_by_item: dict[str, FailureInvestigationFields] | None = None,
 ) -> ReportArtifact:
     compute_investigation_flags(bundle, delta_threshold=delta_threshold)
 
@@ -1127,7 +1156,11 @@ def render_html_report(
         .replace("{{STRATIFIED}}", "")
         .replace("{{ANOMALIES}}", _render_aggregated_notes_html(aggregated_notes))
         .replace("{{TABLES}}", _render_tables_html(all_views, bundle))
-        .replace("{{DRILLDOWN}}", _render_drilldown_html(bundle, max_item_rows=max_item_rows))
+        .replace("{{DRILLDOWN}}", _render_drilldown_html(
+            bundle,
+            max_item_rows=max_item_rows,
+            investigation_by_item=investigation_by_item,
+        ))
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)

@@ -8,6 +8,7 @@ from pathlib import Path
 
 from evaluation.datasets.custom_judge import CustomJudgeDataset
 from evaluation.generation.bundle import items_hash
+from evaluation.generation.review._paths import resolve_release_bundle
 from evaluation.reproduction.manifest import sha256_file
 from models.benchmark_generation import DatasetManifest
 from models.reproduction import ReleaseManifest
@@ -71,6 +72,14 @@ def _is_pinned_hash(value: str) -> bool:
     return value.strip() not in _TBD_HASH_VALUES
 
 
+def _bundle_root(manifest: ReleaseManifest, *, repo_root: Path) -> Path:
+    return resolve_release_bundle(
+        repo_root,
+        bundle_rel_path=manifest.custom_judge_bundle_path,
+        version=manifest.custom_judge_version,
+    )
+
+
 def verify_bundle_pins(
     manifest: ReleaseManifest,
     *,
@@ -78,7 +87,7 @@ def verify_bundle_pins(
 ) -> BundlePinResult:
     """Verify eval items and relevance labels match release manifest pins."""
     root = repo_root or Path.cwd()
-    bundle_root = root / manifest.custom_judge_bundle_path
+    bundle_root = _bundle_root(manifest, repo_root=root)
     mismatched: list[str] = []
 
     if _is_pinned_hash(manifest.items_hash):
@@ -132,7 +141,7 @@ def verify_corpus_hashes(
     repo_root: Path | None = None,
 ) -> CorpusVerifyResult:
     root = repo_root or Path.cwd()
-    bundle_root = root / manifest.custom_judge_bundle_path
+    bundle_root = _bundle_root(manifest, repo_root=root)
     corpus_hashes = resolve_corpus_hashes(manifest, bundle_root)
     if not corpus_hashes:
         msg = (
@@ -165,7 +174,7 @@ def verify_corpus_hashes(
 def dry_run_registry_check(manifest: ReleaseManifest, *, repo_root: Path | None = None) -> None:
     """Load custom-judge split header without running eval items."""
     root = repo_root or Path.cwd()
-    bundle = root / manifest.custom_judge_bundle_path
+    bundle = _bundle_root(manifest, repo_root=root)
     ds = CustomJudgeDataset(version=manifest.custom_judge_version, bundle_root=bundle)
     ds.manifest()
     split_path = bundle / "items" / f"{manifest.eval_split}.jsonl"

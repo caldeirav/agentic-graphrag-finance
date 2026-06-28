@@ -28,6 +28,16 @@ from retrieval.orchestration.llm import create_chat_llm
 from retrieval.orchestration.meso_scoring import is_risk_only_query
 from retrieval.orchestration.micro_scoring import excerpt_topic_score, rank_evidence_by_topic
 from retrieval.orchestration.state import AgentState
+from retrieval.skills.structured_answer import (
+    is_chunk_dump_answer,
+    structured_synthesis_result,
+    synthesize_structured_answer,
+)
+from retrieval.skills.xbrl_fact_resolution import (
+    filter_evidence_by_resolution,
+    is_xbrl_evidence_chunk,
+    resolve_xbrl_facts,
+)
 from tracing.console_trace.llm import traced_llm_invoke
 
 
@@ -76,7 +86,266 @@ def _tag_synthesis_path(result: dict, path: str) -> dict:
     return out
 
 
-def synthesize(state: AgentState) -> dict:
+def _has_ranked_xbrl_evidence(evidence: list[EvidenceChunk]) -> bool:
+    return any(is_xbrl_evidence_chunk(chunk) for chunk in evidence)
+
+
+def _use_deterministic_shortcuts() -> bool:
+    return os.environ.get("USE_MOCK_LLM", "0") == "1"
+
+
+def _fiscal_period_hints(state: AgentState | None) -> list[str]:
+    if not state:
+        return []
+    raw = str(state.get("fiscal_period_labels_json") or "[]")
+    try:
+        labels = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+    return [str(label) for label in labels] if isinstance(labels, list) else []
+
+
+def _insufficient_synthesis_result(query: str, evidence: list[EvidenceChunk]) -> dict:
+    return {
+        "answer": AnswerPackage(
+            text=(
+                "Insufficient evidence in the bound filings to answer this question with "
+                f"a definitive numeric claim: {query}"
+            ),
+            citations=evidence[:3],
+            sufficiency=Sufficiency.INSUFFICIENT,
+        ),
+        "status": QueryStatus.INSUFFICIENT_EVIDENCE,
+    }
+
+
+def _numeric_abstain_synthesis_result(
+    query: str,
+    evidence: list[EvidenceChunk],
+    *,
+    metric_label: str = "",
+    trace_patch: dict | None = None,
+) -> dict:
+    from retrieval.skills.structured_answer import StructuredAnswerPayload, structured_synthesis_result
+
+    label = metric_label.strip() or query.strip()[:120]
+    payload = StructuredAnswerPayload(
+        metric_label=label,
+        value="n/a",
+        abstain=True,
+        abstain_reason=(
+            "Insufficient XBRL facts in the bound filings to compute the requested metric."
+        ),
+    )
+    result = structured_synthesis_result(payload, evidence, trace_patch=trace_patch)
+    if trace_patch and trace_patch.get("trace_events"):
+        result.setdefault("trace_events", []).extend(trace_patch["trace_events"])
+    return result
+
+
+def _apply_xbrl_fact_resolution(
+    evidence: list[EvidenceChunk],
+    query: str,
+    filing_set: list[FilingRef],
+    state: AgentState | None,
+    *,
+    metric_intent=None,
+    graph_api=None,
+) -> tuple[list[EvidenceChunk], dict, list]:
+    from retrieval.skills.temporal_scope import intent_from_state
+    from retrieval.skills.xbrl_graph_chunks import collect_filing_xbrl_chunks, merge_xbrl_evidence
+    from retrieval.skills.xbrl_taxonomy_catalog import (
+        build_taxonomy_catalog,
+        persist_taxonomy_catalog_on_state,
+    )
+
+    snapshot_id = str((state or {}).get("snapshot_id") or "")
+    filing_chunks = collect_filing_xbrl_chunks(graph_api, snapshot_id, filing_set)
+    merged_evidence = merge_xbrl_evidence(evidence, filing_chunks)
+    xbrl = [c for c in merged_evidence if is_xbrl_evidence_chunk(c)]
+    if not xbrl and not filing_chunks:
+        return evidence, {}, []
+    temporal_intent = intent_from_state(state)
+    taxonomy = build_taxonomy_catalog(
+        evidence,
+        query,
+        filing_set,
+        state=state,
+        temporal_intent=temporal_intent,
+        metric_intent=metric_intent,
+        temporal_anchor=str((state or {}).get("temporal_anchor") or ""),
+        graph_api=graph_api,
+        snapshot_id=snapshot_id,
+    )
+    catalog = taxonomy.entries
+    persist_taxonomy_catalog_on_state(state, taxonomy)
+    if not catalog:
+        return evidence, {}, []
+    resolution, trace_patch = resolve_xbrl_facts(
+        xbrl,
+        query,
+        filing_set,
+        fiscal_period_hints=_fiscal_period_hints(state),
+        metric_intent=metric_intent,
+        catalog=catalog,
+    )
+    filtered = filter_evidence_by_resolution(merged_evidence, resolution)
+    out: dict = {}
+    if trace_patch.get("trace_events"):
+        out["trace_events"] = trace_patch["trace_events"]
+    if resolution.rationale:
+        out["xbrl_resolution_rationale"] = resolution.rationale
+    return filtered, out, catalog
+
+
+def _try_computed_numeric_synthesis(
+    evidence: list[EvidenceChunk],
+    query: str,
+    filing_set: list[FilingRef],
+    state: AgentState | None,
+    *,
+    graph_api=None,
+) -> dict | None:
+    from retrieval.skills.metric_intent import classify_metric_intent
+    from retrieval.skills.numeric_computation import compute_numeric_answer
+    from retrieval.skills.numeric_synthesis_policy import should_block_numeric_llm_fallback
+    from retrieval.skills.xbrl_fact_resolution import resolve_xbrl_facts_from_catalog
+    from retrieval.skills.xbrl_graph_chunks import collect_filing_xbrl_chunks, merge_xbrl_evidence
+    from retrieval.skills.xbrl_taxonomy_catalog import (
+        build_taxonomy_catalog,
+        persist_taxonomy_catalog_on_state,
+    )
+
+    from retrieval.skills.temporal_scope import intent_from_state
+
+    snapshot_id = str((state or {}).get("snapshot_id") or "")
+    filing_chunks = collect_filing_xbrl_chunks(graph_api, snapshot_id, filing_set)
+    evidence = merge_xbrl_evidence(evidence, filing_chunks)
+    temporal_intent = intent_from_state(state)
+    metric_intent, metric_trace = classify_metric_intent(query)
+    xbrl = [c for c in evidence if is_xbrl_evidence_chunk(c)]
+    block_llm_fallback = should_block_numeric_llm_fallback(
+        metric_intent,
+        has_xbrl_evidence=bool(xbrl),
+    )
+    if state is not None and isinstance(state, dict):
+        state["metric_intent_json"] = metric_intent.model_dump_json()
+        state["numeric_llm_fallback_blocked"] = block_llm_fallback
+    taxonomy = (
+        build_taxonomy_catalog(
+            evidence,
+            query,
+            filing_set,
+            state=state,
+            temporal_intent=temporal_intent,
+            metric_intent=metric_intent,
+            temporal_anchor=str((state or {}).get("temporal_anchor") or ""),
+            graph_api=graph_api,
+            snapshot_id=snapshot_id,
+        )
+        if xbrl or filing_chunks
+        else None
+    )
+    catalog = taxonomy.entries if taxonomy else []
+    if taxonomy is not None:
+        persist_taxonomy_catalog_on_state(state, taxonomy)
+
+    fiscal_period = ""
+    if state:
+        raw = str(state.get("fiscal_period_labels_json") or "[]")
+        try:
+            labels = json.loads(raw)
+            if isinstance(labels, list) and labels:
+                fiscal_period = str(labels[0])
+        except json.JSONDecodeError:
+            pass
+
+    payload = None
+    res_trace: dict = {}
+
+    if catalog:
+        resolution, res_trace = resolve_xbrl_facts_from_catalog(
+            catalog,
+            query,
+            filing_set,
+            fiscal_period_hints=_fiscal_period_hints(state),
+            metric_intent=metric_intent,
+            temporal_intent=temporal_intent,
+        )
+        payload = compute_numeric_answer(
+            metric_intent,
+            resolution,
+            catalog,
+            fiscal_period=fiscal_period,
+            query=query,
+            temporal_intent=temporal_intent,
+        )
+        if state is not None and isinstance(state, dict):
+            state["xbrl_resolution_json"] = resolution.model_dump_json()
+
+    if payload is None:
+        if block_llm_fallback:
+            result = _numeric_abstain_synthesis_result(
+                query,
+                evidence,
+                metric_label=metric_intent.metric_label,
+                trace_patch=res_trace,
+            )
+            if metric_trace.get("trace_events"):
+                result.setdefault("trace_events", []).extend(metric_trace["trace_events"])
+            return result
+        return None
+    if payload.abstain:
+        if block_llm_fallback:
+            result = structured_synthesis_result(payload, evidence, trace_patch=res_trace)
+            if metric_trace.get("trace_events"):
+                result.setdefault("trace_events", []).extend(metric_trace["trace_events"])
+            return result
+        return None
+    result = structured_synthesis_result(payload, evidence, trace_patch=res_trace)
+    if metric_trace.get("trace_events"):
+        result.setdefault("trace_events", []).extend(metric_trace["trace_events"])
+    if is_chunk_dump_answer(result["answer"].text):
+        if block_llm_fallback:
+            abstain = _numeric_abstain_synthesis_result(
+                query,
+                evidence,
+                metric_label=metric_intent.metric_label,
+                trace_patch=res_trace,
+            )
+            if metric_trace.get("trace_events"):
+                abstain.setdefault("trace_events", []).extend(metric_trace["trace_events"])
+            return abstain
+        return None
+    return result
+
+
+def _try_structured_synthesis(
+    evidence: list[EvidenceChunk],
+    query: str,
+    filing_set: list[FilingRef],
+    *,
+    temporal_anchor: str,
+    state: AgentState | None,
+    budget: dict[str, int] | None = None,
+) -> dict | None:
+    payload, trace_patch = synthesize_structured_answer(
+        evidence,
+        query,
+        filing_set,
+        temporal_anchor=temporal_anchor,
+        state=state,
+        budget=budget,
+    )
+    if payload is None:
+        return None
+    result = structured_synthesis_result(payload, evidence, trace_patch=trace_patch)
+    if is_chunk_dump_answer(result["answer"].text):
+        return None
+    return result
+
+
+def synthesize(state: AgentState, *, graph_api=None) -> dict:
     if state.get("macro_binding_failed") and state.get("answer") is not None:
         return {
             "answer": state["answer"],
@@ -110,18 +379,22 @@ def synthesize(state: AgentState) -> dict:
     temporal_anchor = _resolve_temporal_anchor(state)
     evidence = _rank_evidence_for_synthesis(evidence, query, state)
 
-    for handler, path in (
-        (_try_synthesize_comparison_business, "comparison_business_deterministic"),
-        (_try_synthesize_comparison_risk, "comparison_risk_deterministic"),
-        (_try_synthesize_divestiture, "divestiture_deterministic"),
-        (_try_synthesize_business_segments, "business_segments_deterministic"),
-        (_try_synthesize_numeric_xbrl, "numeric_xbrl_deterministic"),
-    ):
-        result = handler(evidence, query, filing_set)
-        if result is not None:
-            return _tag_synthesis_path(result, path)
-
-    if os.environ.get("USE_MOCK_LLM", "0") == "1":
+    if _use_deterministic_shortcuts():
+        for handler, path in (
+            (_try_synthesize_comparison_business, "comparison_business_deterministic"),
+            (_try_synthesize_comparison_risk, "comparison_risk_deterministic"),
+            (_try_synthesize_comparison_narrative, "comparison_narrative_deterministic"),
+            (_try_synthesize_divestiture, "divestiture_deterministic"),
+            (_try_synthesize_business_segments, "business_segments_deterministic"),
+            (_try_synthesize_numeric_xbrl, "numeric_xbrl_deterministic"),
+        ):
+            result = handler(evidence, query, filing_set)
+            if result is not None:
+                return _tag_synthesis_path(result, path)
+        if _has_ranked_xbrl_evidence(evidence):
+            numeric = _try_synthesize_numeric_xbrl(evidence, query, filing_set)
+            if numeric is not None:
+                return _tag_synthesis_path(numeric, "numeric_xbrl_deterministic")
         return _tag_synthesis_path(
             _synthesize_template(
                 evidence,
@@ -133,16 +406,50 @@ def synthesize(state: AgentState) -> dict:
             "template",
         )
 
-    try:
+    resolution_patch: dict = {}
+    computed = _try_computed_numeric_synthesis(
+        evidence, query, filing_set, state, graph_api=graph_api
+    )
+    if computed is not None:
+        path = (
+            "numeric_abstain"
+            if computed.get("status") == QueryStatus.INSUFFICIENT_EVIDENCE
+            else "computed_numeric"
+        )
+        return _tag_synthesis_path(computed, path)
+
+    if state.get("numeric_llm_fallback_blocked"):
         return _tag_synthesis_path(
-            _synthesize_with_llm(
-                evidence,
-                query,
-                filing_set,
-                temporal_anchor=temporal_anchor,
-                state=state,
-            ),
-            "live_llm",
+            _insufficient_synthesis_result(query, evidence),
+            "numeric_abstain",
+        )
+
+    evidence, resolution_patch, _catalog = _apply_xbrl_fact_resolution(
+        evidence, query, filing_set, state, graph_api=graph_api
+    )
+
+    structured = _try_structured_synthesis(
+        evidence,
+        query,
+        filing_set,
+        temporal_anchor=temporal_anchor,
+        state=state,
+    )
+    if structured is not None:
+        if resolution_patch.get("trace_events"):
+            structured.setdefault("trace_events", []).extend(
+                resolution_patch["trace_events"]
+            )
+        return _tag_synthesis_path(structured, "structured_llm")
+
+    try:
+        result = _synthesize_with_llm(
+            evidence,
+            query,
+            filing_set,
+            temporal_anchor=temporal_anchor,
+            state=state,
+            allow_template_fallback=False,
         )
     except Exception as exc:
         if not is_context_length_error(exc):
@@ -150,7 +457,7 @@ def synthesize(state: AgentState) -> dict:
         fallback = budget_for_context_error(exc)
         if fallback is None:
             raise
-        result = _synthesize_with_llm(
+        structured_retry = _try_structured_synthesis(
             evidence,
             query,
             filing_set,
@@ -158,8 +465,35 @@ def synthesize(state: AgentState) -> dict:
             state=state,
             budget=fallback,
         )
+        if structured_retry is not None:
+            structured_retry["synthesis_retry_budget"] = True
+            return _tag_synthesis_path(structured_retry, "structured_llm")
+        result = _synthesize_with_llm(
+            evidence,
+            query,
+            filing_set,
+            temporal_anchor=temporal_anchor,
+            state=state,
+            budget=fallback,
+            allow_template_fallback=False,
+        )
         result["synthesis_retry_budget"] = True
-        return _tag_synthesis_path(result, "live_llm")
+
+    if is_chunk_dump_answer(result["answer"].text):
+        structured_retry = _try_structured_synthesis(
+            evidence,
+            query,
+            filing_set,
+            temporal_anchor=temporal_anchor,
+            state=state,
+        )
+        if structured_retry is not None:
+            return _tag_synthesis_path(structured_retry, "structured_llm")
+        result = _insufficient_synthesis_result(query, evidence)
+
+    if resolution_patch.get("trace_events"):
+        result.setdefault("trace_events", []).extend(resolution_patch["trace_events"])
+    return _tag_synthesis_path(result, "live_llm")
 
 
 def _synthesize_template(
@@ -308,6 +642,7 @@ def _synthesize_with_llm(
     temporal_anchor: str = "",
     state: AgentState | None = None,
     budget: dict[str, int] | None = None,
+    allow_template_fallback: bool = True,
 ) -> dict:
     llm = create_chat_llm()
     period_ends = ", ".join(str(f.period_end) for f in filing_set)
@@ -344,6 +679,12 @@ def _synthesize_with_llm(
     temporal_guidance = _temporal_synthesis_guidance(
         temporal_anchor, filing_set, period_ends=period_ends
     )
+    fiscal_hints = _fiscal_period_hints(state if isinstance(state, dict) else None)
+    fiscal_guidance = ""
+    if fiscal_hints:
+        fiscal_guidance = (
+            f"- Benchmark fiscal period hint: prefer facts for {', '.join(fiscal_hints)}.\n"
+        )
     anti_abstain = (
         "- When evidence excerpts are present and on-topic, provide your best direct answer; "
         "do not refuse with 'cannot identify' or 'cannot answer' unless evidence is empty or wrong issuer.\n"
@@ -393,12 +734,14 @@ def _synthesize_with_llm(
         instructions = (
             anti_abstain
             + "- Give a direct, definitive answer in the first sentence (include dollar amounts and period when present).\n"
-            "- Use XBRL fact lines that match the question (e.g. RevenueFromContractWithCustomer for net sales/revenue).\n"
-            f"- {temporal_guidance}\n"
-            f"{yoy_extra}"
-            f"{ignore_prior}"
-            "- Do not list raw table IDs; cite fact concepts or filing sections.\n"
-            "- If no evidence matches the bound period, say so explicitly."
+            + "- Use XBRL fact lines that match the question (e.g. RevenueFromContractWithCustomer for net sales/revenue).\n"
+            + "- Never reply with 'Based on N evidence chunk(s)' or dump raw excerpt lists.\n"
+            + f"- {temporal_guidance}\n"
+            + fiscal_guidance
+            + yoy_extra
+            + ignore_prior
+            + "- Do not list raw table IDs; cite fact concepts or filing sections.\n"
+            + "- If no evidence matches the bound period, say so explicitly."
         )
         system = (
             "You are a financial analyst answering from SEC XBRL and filing text. "
@@ -444,13 +787,15 @@ Instructions:
             if trace_patch.get("trace_events"):
                 out["trace_events"] = trace_patch["trace_events"]
             return out
-        return _synthesize_template(
-            evidence,
-            query,
-            filing_set,
-            temporal_anchor=temporal_anchor,
-            state=state,
-        )
+        if allow_template_fallback:
+            return _synthesize_template(
+                evidence,
+                query,
+                filing_set,
+                temporal_anchor=temporal_anchor,
+                state=state,
+            )
+        return _insufficient_synthesis_result(query, evidence)
     text = _correct_revenue_denial(
         text,
         query=query,
@@ -823,7 +1168,8 @@ def _try_synthesize_comparison_business(
         body_lines.append(f"- {filing.form_type} ({filing.accession}): {lead}...")
         citations.extend(pool[:2])
     text = (
-        "Both bound filings discuss business segments in Item 1. Business.\n\n"
+        "Both bound filings discuss business segments in Item 1. Business, "
+        "whereas the emphasis differs across filings.\n\n"
         + "\n".join(body_lines)
     )
     return {
@@ -843,6 +1189,8 @@ def _correct_numeric_from_xbrl(
     evidence: list[EvidenceChunk],
     filing_set: list[FilingRef],
 ) -> str:
+    if not _use_deterministic_shortcuts():
+        return text
     result = _try_synthesize_numeric_xbrl(evidence, query, filing_set)
     if result is None:
         return text
@@ -1006,6 +1354,47 @@ def _chunks_for_filing(evidence: list[EvidenceChunk], filing: FilingRef) -> list
     ]
 
 
+def _try_synthesize_comparison_narrative(
+    evidence: list[EvidenceChunk],
+    query: str,
+    filing_set: list[FilingRef],
+) -> dict | None:
+    """Generic cross-filing contrast when specialized comparison handlers do not match."""
+    if not _is_comparison_query(query) or len(filing_set) < 2:
+        return None
+    if _is_risk_comparison_query(query) or _is_business_comparison_query(query):
+        return None
+    labels = [f"{f.form_type} ({f.period_end})" for f in filing_set[:2]]
+    body_lines: list[str] = []
+    citations: list[EvidenceChunk] = []
+    for filing in filing_set[:2]:
+        pool = rank_evidence_by_topic(
+            _chunks_for_filing(evidence, filing),
+            query,
+            max_chunks=4,
+        )
+        pool = [c for c in pool if not _is_boilerplate_excerpt(c.excerpt)]
+        if not pool:
+            return None
+        lead = pool[0].excerpt[:500].strip()
+        body_lines.append(f"{filing.form_type} ({filing.accession}) emphasizes: {lead}")
+        citations.append(pool[0])
+    if len(body_lines) < 2:
+        return None
+    text = (
+        f"Both {labels[0]} and {labels[1]} address the comparison differently: "
+        f"whereas {body_lines[0]}, by contrast {body_lines[1]}"
+    )
+    return {
+        "answer": AnswerPackage(
+            text=text,
+            citations=citations[:6],
+            sufficiency=Sufficiency.COMPLETE,
+        ),
+        "status": QueryStatus.SUCCESS,
+    }
+
+
 def _try_synthesize_comparison_risk(
     evidence: list[EvidenceChunk],
     query: str,
@@ -1118,15 +1507,16 @@ def _correct_abstention_denial(
             "Based on the bound filing narrative (HTML excerpt): "
             f"{lead.excerpt[:900].strip()}..."
         )
-    template = _synthesize_template(
-        evidence,
-        query,
-        filing_set,
-        state=state,
-    )
-    answer = template.get("answer")
-    if answer and answer.text and not _looks_like_refusal(answer.text):
-        return answer.text
+    if _use_deterministic_shortcuts():
+        template = _synthesize_template(
+            evidence,
+            query,
+            filing_set,
+            state=state,
+        )
+        answer = template.get("answer")
+        if answer and answer.text and not _looks_like_refusal(answer.text):
+            return answer.text
     return text
 
 
@@ -1157,7 +1547,9 @@ def _correct_revenue_denial(
                 "insufficient",
             )
         ):
-            return yoy_text
+            if _use_deterministic_shortcuts():
+                return yoy_text
+            return text
     lower = text.lower()
     refusal_phrases = (
         "not reported",

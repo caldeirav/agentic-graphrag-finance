@@ -13,7 +13,7 @@ def test_message_content_to_text_list_blocks():
     assert _message_content_to_text(content) == "Revenue was $100B."
 
 
-def test_synthesize_falls_back_when_llm_returns_empty(monkeypatch):
+def test_synthesize_abstains_when_llm_empty_no_template_dump(monkeypatch):
     monkeypatch.setenv("USE_MOCK_LLM", "0")
 
     class _EmptyLLM:
@@ -55,3 +55,5 @@ def test_synthesize_falls_back_when_llm_returns_empty(monkeypatch):
     )
     assert out["answer"].text
     assert out["status"] == QueryStatus.SUCCESS
+    assert "Based on" not in out["answer"].text
+    assert out.get("synthesis_path") == "computed_numeric"

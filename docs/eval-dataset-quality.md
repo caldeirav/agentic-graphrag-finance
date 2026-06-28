@@ -73,6 +73,35 @@ v2.0.0 was generated **before** the boilerplate publish gate existed. Fixing all
 | `regenerate-items` | Bulk regen for explicit item-id list |
 | `summary` | Quality pass metrics |
 | `extend-quality` | Extend v2.0.0 draft with sidecars |
+| `export-investigation` | Unified failure-investigation HTML + CSV (019) |
+
+### Dual-layer failure taxonomy (019)
+
+Human annotations from 018 remain authoritative for quality-summary rollups. The investigation workflow adds a separate **engineering failure class** layer for triage and cohort metrics.
+
+| Engineering code | Default human class | Typical signal |
+|------------------|---------------------|----------------|
+| `binding_error` | `agent_failure` | Wrong filing/form/period in macro route |
+| `retrieval_label_mismatch` | `agent_failure` | High MRR but judge `retrieval_fidelity=0` |
+| `synthesis_template_dump` | `agent_failure` | “Based on N evidence chunks” template answer |
+| `numeric_xbrl_miss` | `agent_failure` | Numeric GT + XBRL evidence, ungrounded answer |
+| `comparison_narrative_miss` | `agent_failure` | Comparison item without cross-filing contrast |
+| `abstention` | `agent_failure` | Empty or insufficient-evidence answer |
+| `gt_issue_suspected` | `gt_too_strict` | Scale/strictness heuristics; confirm manually |
+
+Export the investigation pack after repro + review queue export:
+
+```bash
+uv run agent-query benchmark-dataset review export-investigation \
+  --draft data/benchmarks/custom-judge/drafts/quality-v2.0.1 \
+  --queue-file data/benchmarks/custom-judge/drafts/quality-v2.0.1/review_queue.json \
+  --repro-input reports/repro-paper-v1.0 \
+  --output reports/repro-paper-v1.0/investigation
+```
+
+`review summary` now includes `engineering_failure_counts` and `cohort_validation_status` when repro artifacts are present.
+
+**Spec:** [019](../specs/019-agent-failure-investigation/spec.md)
 
 ### Release artifacts
 

@@ -1,3 +1,7 @@
 {
-  "feature_directory": "specs/018-eval-dataset-quality"
+  "feature": "023-capability-realignment",
+  "branch": "019-agent-failure-investigation",
+  "spec_dir": "specs/023-capability-realignment",
+  "status": "draft",
+  "depends_on": "022-outcome-score-ladder"
 }

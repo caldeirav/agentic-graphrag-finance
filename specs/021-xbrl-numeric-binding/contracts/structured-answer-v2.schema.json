@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "StructuredAnswerPayloadV2",
+  "description": "Extends 020 structured answer with computation metadata",
+  "type": "object",
+  "required": [
+    "metric_label",
+    "value",
+    "citation_chunk_ids",
+    "confidence",
+    "abstain",
+    "metric_type"
+  ],
+  "properties": {
+    "metric_label": { "type": "string", "minLength": 1 },
+    "value": { "type": "string", "minLength": 1 },
+    "unit": { "type": "string" },
+    "fiscal_period": { "type": "string" },
+    "concept": { "type": "string" },
+    "citation_chunk_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low"]
+    },
+    "abstain": { "type": "boolean" },
+    "abstain_reason": { "type": "string" },
+    "metric_type": {
+      "type": "string",
+      "enum": ["point", "delta", "ratio", "percent_change"]
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["chunk_id", "value"],
+        "properties": {
+          "chunk_id": { "type": "string" },
+          "concept": { "type": "string" },
+          "period_end": { "type": "string" },
+          "value": { "type": "string" }
+        }
+      }
+    },
+    "formula": { "type": "string" },
+    "computed_value": { "type": "string" }
+  },
+  "additionalProperties": false
+}

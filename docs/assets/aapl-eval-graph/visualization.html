@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AAPL evaluation graph — agentic-graphrag-finance</title>
+  <title>Paper v2 evaluation graph — agentic-graphrag-finance</title>
   <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
   <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
   <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
@@ -15,32 +15,149 @@
       background: #f1f5f9;
       color: #0f172a;
     }
+    #layout { display: flex; min-height: 100vh; }
+    #sidebar {
+      width: 280px;
+      flex-shrink: 0;
+      background: #fff;
+      border-right: 1px solid #cbd5e1;
+      padding: 0.75rem;
+      overflow-y: auto;
+      font-size: 0.8125rem;
+    }
+    #sidebar h1 { margin: 0 0 0.35rem; font-size: 0.95rem; }
+    #sidebar p { margin: 0 0 0.75rem; color: #475569; line-height: 1.4; }
+    .scenario-btn {
+      display: block;
+      width: 100%;
+      text-align: left;
+      margin-bottom: 0.4rem;
+      padding: 0.45rem 0.55rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #f8fafc;
+      cursor: pointer;
+      font-size: 0.75rem;
+    }
+    .scenario-btn.active { border-color: #2563eb; background: #eff6ff; }
+    #investigation-panel {
+      margin-top: 0.75rem;
+      padding: 0.55rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      line-height: 1.45;
+    }
+    #investigation-panel h2 { margin: 0 0 0.35rem; font-size: 0.8rem; }
+    #investigation-panel dl { margin: 0; }
+    #investigation-panel dt { font-weight: 600; margin-top: 0.35rem; }
+    #investigation-panel dd { margin: 0.1rem 0 0 0; color: #334155; }
+    #investigation-panel code { font-size: 0.68rem; word-break: break-all; }
+    #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     header {
-      padding: 0.75rem 1rem;
+      padding: 0.55rem 0.75rem;
       background: #fff;
       border-bottom: 1px solid #cbd5e1;
-      font-size: 0.875rem;
+      font-size: 0.8125rem;
     }
-    header h1 {
-      margin: 0 0 0.25rem;
+    header p { margin: 0; color: #475569; }
+    #cy-wrap { position: relative; flex: 1; }
+    #cy { width: 100%; height: calc(100vh - 44px); background: #f8fafc; }
+    #detail-panel {
+      width: 360px;
+      flex-shrink: 0;
+      background: #fff;
+      border-left: 1px solid #cbd5e1;
+      display: none;
+      flex-direction: column;
+      max-height: 100vh;
+    }
+    #detail-panel.open { display: flex; }
+    .detail-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.65rem 0.75rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .detail-header h2 { margin: 0; font-size: 0.875rem; line-height: 1.35; }
+    .detail-header p { margin: 0.2rem 0 0; font-size: 0.7rem; color: #64748b; }
+    #detail-close {
+      border: none;
+      background: #f1f5f9;
+      border-radius: 4px;
+      width: 1.75rem;
+      height: 1.75rem;
+      cursor: pointer;
       font-size: 1rem;
+      line-height: 1;
+    }
+    .detail-tabs {
+      display: flex;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }
+    .detail-tab {
+      flex: 1;
+      border: none;
+      background: transparent;
+      padding: 0.45rem 0.5rem;
+      font-size: 0.72rem;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .detail-tab.active {
+      background: #fff;
+      border-bottom-color: #2563eb;
       font-weight: 600;
     }
-    header p { margin: 0; color: #475569; font-size: 0.8125rem; }
-    #cy { width: 100%; height: calc(100vh - 56px); background: #f8fafc; }
+    .detail-body {
+      flex: 1;
+      overflow: auto;
+      padding: 0.65rem 0.75rem;
+      font-size: 0.75rem;
+      line-height: 1.45;
+    }
+    .detail-body.hidden { display: none; }
+    .detail-body dl { margin: 0; }
+    .detail-body dt { font-weight: 600; margin-top: 0.45rem; color: #334155; }
+    .detail-body dd { margin: 0.1rem 0 0 0; word-break: break-word; }
+    .detail-body pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.68rem;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 0.55rem;
+    }
+    .detail-excerpt {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 6px;
+      padding: 0.55rem;
+      margin-top: 0.35rem;
+    }
+    .detail-note {
+      margin-top: 0.35rem;
+      color: #64748b;
+      font-size: 0.68rem;
+    }
     #legend {
       position: absolute;
-      top: 64px;
-      right: 12px;
+      top: 8px;
+      right: 8px;
       background: rgba(255, 255, 255, 0.95);
       border: 1px solid #cbd5e1;
       border-radius: 6px;
-      padding: 0.5rem 0.65rem;
-      font-size: 0.6875rem;
-      line-height: 1.5;
+      padding: 0.45rem 0.55rem;
+      font-size: 0.65rem;
+      line-height: 1.45;
       box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
     }
-    #legend strong { display: block; margin-bottom: 0.25rem; font-size: 0.75rem; }
+    #legend strong { display: block; margin-bottom: 0.2rem; font-size: 0.7rem; }
     .swatch {
       display: inline-block;
       width: 10px;
@@ -53,7 +170,7 @@
     #tooltip {
       display: none;
       position: absolute;
-      max-width: 280px;
+      max-width: 300px;
       padding: 0.5rem 0.65rem;
       background: #1e293b;
       color: #f8fafc;
@@ -67,227 +184,559 @@
   </style>
 </head>
 <body>
-  <header>
-    <h1>Apple (AAPL) disclosure graph — evaluation paths</h1>
-    <p>Hover nodes for details · drag to pan · scroll to zoom</p>
-  </header>
-  <div id="legend">
-    <strong>Node types</strong>
-    <div><span class="swatch" style="background:#bfdbfe;border-color:#2563eb"></span>Document</div>
-    <div><span class="swatch" style="background:#a5f3fc;border-color:#0891b2"></span>Section</div>
-    <div><span class="swatch" style="background:#bbf7d0;border-color:#16a34a"></span>XBRL fact</div>
-    <div><span class="swatch" style="background:#e9d5ff;border-color:#9333ea"></span>HTML chunk</div>
-    <div><span class="swatch" style="background:#fde68a;border-color:#ca8a04"></span>XBRL narrative</div>
+  <div id="layout">
+    <aside id="sidebar">
+      <h1>Investigation overlay</h1>
+      <p>Select an evaluation item by id to highlight its path rings. The full union graph stays visible. Click <strong>document</strong>, <strong>section</strong>, or <strong>chunk</strong> nodes for materialized details.</p>
+      <div id="scenario-buttons"></div>
+      <div id="investigation-panel"></div>
+    </aside>
+    <div id="main">
+      <header>
+        <p>Custom-judge v2 disclosure graph (XOM + CAT) — union of three eval paths · TEMPORAL_TRANSITION between XOM filings · click nodes for details</p>
+      </header>
+      <div id="cy-wrap">
+        <div id="legend">
+          <strong>Overlay</strong>
+          <div><span class="swatch" style="background:transparent;border-color:#16a34a;border-width:2px"></span>Expected ring</div>
+          <div><span class="swatch" style="background:transparent;border-color:#2563eb;border-width:2px"></span>Visited ring</div>
+          <div><span class="swatch" style="background:transparent;border-color:#ca8a04;border-width:2px"></span>Cited ring</div>
+          <div><span class="swatch" style="background:transparent;border-color:#dc2626;border-width:2px"></span>Missing ring</div>
+          <div><span class="swatch" style="background:transparent;border-color:#64748b;border-width:2px;border-style:dashed"></span>Context (dimmed)</div>
+          <div><span class="swatch" style="background:#fecaca;border-color:#dc2626"></span>Prior filing (temporal)</div>
+          <strong style="margin-top:0.35rem">Node types</strong>
+          <div><span class="swatch" style="background:#bfdbfe;border-color:#2563eb"></span>Document</div>
+          <div><span class="swatch" style="background:#a5f3fc;border-color:#0891b2"></span>Section</div>
+          <div><span class="swatch" style="background:#bbf7d0;border-color:#16a34a"></span>XBRL fact</div>
+          <div><span class="swatch" style="background:#fde68a;border-color:#ca8a04"></span>Paragraph chunk</div>
+          <div><span class="swatch" style="background:#ddd6fe;border-color:#7c3aed"></span>Table chunk</div>
+          <div><span class="swatch" style="background:#fbcfe8;border-color:#db2777"></span>Table row</div>
+        </div>
+        <div id="tooltip"></div>
+        <div id="cy"></div>
+      </div>
+    </div>
+    <aside id="detail-panel">
+      <div class="detail-header">
+        <div>
+          <h2 id="detail-title">Node detail</h2>
+          <p id="detail-subtitle"></p>
+        </div>
+        <button id="detail-close" type="button" aria-label="Close detail panel">×</button>
+      </div>
+      <div class="detail-tabs">
+        <button type="button" class="detail-tab active" data-tab="materialized">Materialized</button>
+        <button type="button" class="detail-tab" data-tab="json">JSON</button>
+      </div>
+      <div id="detail-materialized" class="detail-body"></div>
+      <div id="detail-json" class="detail-body hidden"><pre id="detail-json-pre"></pre></div>
+    </aside>
   </div>
-  <div id="tooltip"></div>
-  <div id="cy"></div>
   <script>
     const graphElements = {
   "nodes": [
     {
       "data": {
-        "id": "doc-0000320193-24-000123",
+        "id": "doc-0000018230-26-000021",
         "node_type": "DOCUMENT",
-        "label": "Apple 10-K FY2024",
-        "display_label": "FY2024\n10-K",
-        "accession": "0000320193-24-000123",
+        "label": "CATERPILLAR INC 10-K FY2026",
+        "demo_role": "path",
+        "display_label": "FY2026\n10-K",
+        "accession": "0000018230-26-000021",
         "form_type": "10-K",
-        "period_end": "2024-09-28"
+        "period_end": "2026-03-31",
+        "edgar_url": "https://www.sec.gov/Archives/edgar/data/18230/000001823026000021/0000018230-26-000021-index.htm",
+        "materialized_json": "{\n  \"node_id\": \"doc-0000018230-26-000021\",\n  \"node_type\": \"DOCUMENT\",\n  \"label\": \"CATERPILLAR INC 10-K FY2026\",\n  \"properties\": {\n    \"accession\": \"0000018230-26-000021\",\n    \"form_type\": \"10-K\",\n    \"period_end\": \"2026-03-31\",\n    \"cik\": \"0000018230\"\n  },\n  \"edgar_url\": \"https://www.sec.gov/Archives/edgar/data/18230/000001823026000021/0000018230-26-000021-index.htm\"\n}"
       }
     },
     {
       "data": {
-        "id": "doc-0000320193-24-000076",
-        "node_type": "DOCUMENT",
-        "label": "Apple 10-K FY2023",
-        "display_label": "FY2023\n10-K",
-        "accession": "0000320193-24-000076",
-        "form_type": "10-K",
-        "period_end": "2023-09-30"
-      }
-    },
-    {
-      "data": {
-        "id": "0000320193-24-000123/Item7",
+        "id": "doc-0000018230-26-000021-html-md_and_a-2",
         "node_type": "SECTION",
-        "label": "Item 7 MD&A",
-        "display_label": "Item 7\nMD&A",
-        "section_path": "0000320193-24-000123/Item7"
+        "label": "Item 7. ",
+        "demo_role": "context",
+        "section_path": "0000018230-26-000021/html-md_and_a-2",
+        "display_label": "Item 7.",
+        "materialized_json": "{\n  \"node_id\": \"doc-0000018230-26-000021-html-md_and_a-2\",\n  \"node_type\": \"SECTION\",\n  \"label\": \"Item 7.\",\n  \"section_path\": \"0000018230-26-000021/html-md_and_a-2\",\n  \"child_node_count\": 6,\n  \"properties\": {\n    \"level\": \"1\",\n    \"section_id\": \"html-md_and_a-2\",\n    \"source_type\": \"HTML\",\n    \"narrative_kind\": \"md_and_a\",\n    \"item_number\": \"7\"\n  },\n  \"bindings\": {\n    \"accession\": \"0000018230-26-000021\",\n    \"form_type\": \"10-K\",\n    \"section_path\": \"0000018230-26-000021/html-md_and_a-2\",\n    \"cik\": \"0000018230\"\n  }\n}"
       }
     },
     {
       "data": {
-        "id": "0000320193-24-000123/Item1A",
+        "id": "doc-0000018230-26-000021-html-risk_factors-1",
         "node_type": "SECTION",
-        "label": "Item 1A Risk Factors",
-        "display_label": "Item 1A\nRisk Factors",
-        "section_path": "0000320193-24-000123/Item1A"
+        "label": "Item 1A. Risk Factors",
+        "demo_role": "path",
+        "section_path": "0000018230-26-000021/html-risk_factors-1",
+        "display_label": "Item 1A.\nRisk Factors",
+        "materialized_json": "{\n  \"node_id\": \"doc-0000018230-26-000021-html-risk_factors-1\",\n  \"node_type\": \"SECTION\",\n  \"label\": \"Item 1A. Risk Factors\",\n  \"section_path\": \"0000018230-26-000021/html-risk_factors-1\",\n  \"child_node_count\": 9,\n  \"properties\": {\n    \"level\": \"1\",\n    \"section_id\": \"html-risk_factors-1\",\n    \"source_type\": \"HTML\",\n    \"narrative_kind\": \"risk_factors\",\n    \"item_number\": \"1A\"\n  },\n  \"bindings\": {\n    \"accession\": \"0000018230-26-000021\",\n    \"form_type\": \"10-K\",\n    \"section_path\": \"0000018230-26-000021/html-risk_factors-1\",\n    \"cik\": \"0000018230\"\n  }\n}"
       }
     },
     {
       "data": {
-        "id": "0000320193-24-000076/Item7",
-        "node_type": "SECTION",
-        "label": "Item 7 MD&A (prior year)",
-        "display_label": "Item 7\nMD&A (prior)",
-        "section_path": "0000320193-24-000076/Item7"
-      }
-    },
-    {
-      "data": {
-        "id": "chunk-xbrl-net-sales-fy2024",
-        "node_type": "CHUNK_XBRL_FACT",
-        "label": "Net sales (XBRL fact)",
-        "display_label": "Net sales\n(XBRL)",
-        "prop_text": "391,035 (USD millions, FY2024)",
-        "prop_xbrl_concept": "RevenueFromContractWithCustomerExcludingAssessedTax",
-        "prop_period": "FY2024",
-        "eval_profiles": "financebench"
-      }
-    },
-    {
-      "data": {
-        "id": "chunk-item7-p1",
+        "id": "doc-0000018230-26-000021-html-risk_factors-1-body-7",
         "node_type": "CHUNK_PARAGRAPH",
-        "label": "Net sales narrative",
-        "display_label": "Net sales\nnarrative",
-        "prop_text": "Net sales were $391.0 billion in fiscal 2024.",
-        "prop_sec_source": "XBRL",
-        "eval_profiles": "financebench,finagentbench"
-      }
-    },
-    {
-      "data": {
-        "id": "chunk-item1a-p1",
-        "node_type": "CHUNK_PARAGRAPH",
-        "label": "Supply chain risks",
-        "display_label": "Supply chain\nrisks",
-        "prop_text": "The Company depends on single or limited sources for many components.",
+        "label": "Item 1A. Risk Factors",
+        "demo_role": "path",
+        "display_label": "Paragraph\nchunk",
+        "prop_text": "ng income taxes, interest expense and net gain (loss) from interest rate derivatives to (2) interest expense calculated …",
         "prop_sec_source": "HTML",
-        "eval_profiles": "finder"
+        "materialized_json": "{\n  \"node_id\": \"doc-0000018230-26-000021-html-risk_factors-1-body-7\",\n  \"node_type\": \"CHUNK_PARAGRAPH\",\n  \"label\": \"Item 1A. Risk Factors\",\n  \"source_ref\": \"ng income taxes, interest expense and net gain (loss) from interest rate derivatives to (2) interest expense calculated at the end of each fiscal quarter for the prior four consecutive fiscal quarter periods, required by the Credit Facility.\\nIn addition, at March\\u00a031, 2026, Cat Financial\\u2019s six-month covenant leverage ratio was 8.03 to 1. This was below the maximum ratio of debt to net worth of 10 to 1, calculated (1) on a monthly basis as the average of the leverage ratios determined on the last day of each of the six preceding calendar months and (2) at each December 31, required by the Credit Facility.\\nIn the event Caterpillar or Cat Financial does not meet one or more of their respective financial covenants under the Credit Facility in the future (and are unable to obtain a consent or waiver), the syndicate of banks may terminate the commitments allocated to the party that does not meet its covenants. Additionally, in such event, certain of Cat Financial\\u2019s other lenders under other loan agreements where similar financial covenants or cross default provisions are applicable may, at their election, choose to pursue remedies under those loan agreements, including accelerating the re\\u2026\",\n  \"source_ref_truncated\": true,\n  \"source_ref_total_chars\": 6000,\n  \"properties\": {\n    \"section_id\": \"html-risk_factors-1\",\n    \"source_type\": \"HTML\",\n    \"window_index\": \"7\"\n  },\n  \"bindings\": {\n    \"accession\": \"0000018230-26-000021\",\n    \"form_type\": \"10-K\",\n    \"section_path\": \"0000018230-26-000021/html-risk_factors-1\",\n    \"cik\": \"0000018230\"\n  }\n}"
       }
     },
     {
       "data": {
-        "id": "chunk-item7-old-p1",
+        "id": "doc-0000034088-26-000045",
+        "node_type": "DOCUMENT",
+        "label": "0000034088-26-000045 10-K FY2025",
+        "demo_role": "temporal",
+        "display_label": "FY2025\n10-K",
+        "accession": "0000034088-26-000045",
+        "form_type": "10-K",
+        "period_end": "2025-12-31",
+        "edgar_url": "https://www.sec.gov/Archives/edgar/data/34088/000003408826000045/0000034088-26-000045-index.htm",
+        "materialized_json": "{\n  \"node_id\": \"doc-0000034088-26-000045\",\n  \"node_type\": \"DOCUMENT\",\n  \"label\": \"0000034088-26-000045 10-K FY2025\",\n  \"properties\": {\n    \"accession\": \"0000034088-26-000045\",\n    \"form_type\": \"10-K\",\n    \"period_end\": \"2025-12-31\",\n    \"cik\": \"0000034088\"\n  },\n  \"edgar_url\": \"https://www.sec.gov/Archives/edgar/data/34088/000003408826000045/0000034088-26-000045-index.htm\"\n}"
+      }
+    },
+    {
+      "data": {
+        "id": "doc-0000034088-26-000067",
+        "node_type": "DOCUMENT",
+        "label": "Exxon Mobil Corporation 10-K FY2026",
+        "demo_role": "path",
+        "display_label": "FY2026\n10-K",
+        "accession": "0000034088-26-000067",
+        "form_type": "10-K",
+        "period_end": "2026-03-31",
+        "edgar_url": "https://www.sec.gov/Archives/edgar/data/34088/000003408826000067/0000034088-26-000067-index.htm",
+        "materialized_json": "{\n  \"node_id\": \"doc-0000034088-26-000067\",\n  \"node_type\": \"DOCUMENT\",\n  \"label\": \"Exxon Mobil Corporation 10-K FY2026\",\n  \"properties\": {\n    \"accession\": \"0000034088-26-000067\",\n    \"form_type\": \"10-K\",\n    \"period_end\": \"2026-03-31\",\n    \"cik\": \"0000034088\"\n  },\n  \"edgar_url\": \"https://www.sec.gov/Archives/edgar/data/34088/000003408826000067/0000034088-26-000067-index.htm\"\n}"
+      }
+    },
+    {
+      "data": {
+        "id": "doc-0000034088-26-000067-html-business_description-45",
+        "node_type": "SECTION",
+        "label": "$ 1.1 billion from its divestment activities. This included the sale of the Singapore retail fuels business, Mobil Argentina S.A.,",
+        "demo_role": "path",
+        "section_path": "0000034088-26-000067/html-business_description-45",
+        "display_label": "Item 1.\nBusiness",
+        "materialized_json": "{\n  \"node_id\": \"doc-0000034088-26-000067-html-business_description-45\",\n  \"node_type\": \"SECTION\",\n  \"label\": \"Item 1. Business\",\n  \"section_path\": \"0000034088-26-000067/html-business_description-45\",\n  \"child_node_count\": 2,\n  \"properties\": {\n    \"level\": \"1\",\n    \"section_id\": \"html-business_description-45\",\n    \"source_type\": \"HTML\",\n    \"narrative_kind\": \"business_description\",\n    \"item_number\": \"1\"\n  },\n  \"bindings\": {\n    \"accession\": \"0000034088-26-000067\",\n    \"form_type\": \"10-K\",\n    \"section_path\": \"0000034088-26-000067/html-business_description-45\",\n    \"cik\": \"0000034088\"\n  }\n}"
+      }
+    },
+    {
+      "data": {
+        "id": "doc-0000034088-26-000067-html-business_description-45-body",
         "node_type": "CHUNK_PARAGRAPH",
-        "label": "Prior-year net sales",
-        "display_label": "Prior-year\nnet sales",
-        "prop_text": "Net sales were $383.3 billion in fiscal 2023.",
-        "prop_sec_source": "XBRL",
-        "eval_profiles": "finagentbench"
+        "label": "$ 1.1 billion from its divestment activities. This included the sale of the Sing",
+        "demo_role": "path",
+        "display_label": "Paragraph\nchunk",
+        "prop_text": "$ 1.1 billion from its divestment activities. This included the sale of the Singapore retail fuels business, Mobil Argen…",
+        "prop_sec_source": "HTML",
+        "materialized_json": "{\n  \"node_id\": \"doc-0000034088-26-000067-html-business_description-45-body\",\n  \"node_type\": \"CHUNK_PARAGRAPH\",\n  \"label\": \"$ 1.1 billion from its divestment activities. This included the sale of the Sing\",\n  \"source_ref\": \"$ 1.1 billion from its divestment activities. This included the sale of the Singapore retail fuels business, Mobil Argentina S.A., Product Solutions affiliates in France, certain conventional and unconventional assets in the United States, and other smaller divestments. 15 Table of Contents ITEM 2. MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS Due to rounding, numbers presented may not add up precisely to the totals indicated. FORWARD-LOOKING STATEMENTS Statements related to future events; projections; descriptions of strategic, operating, and financial plans and objectives; statements of future ambitions and plans; future earnings power; potential addressable markets; and other statements of future events or conditions are forward-looking statements. Similarly, discussion of future plans related to carbon capture, transportation and storage, lower-emission fuels, hydrogen and ammonia, direct air capture, Proxxima TM systems, carbon materials, lithium, low-carbon data centers, and other future plans to reduce emissions and emission intensity of ExxonMobil, its affiliates, and third parties are dependent on future market factors, such as conti\\u2026\",\n  \"source_ref_truncated\": true,\n  \"source_ref_total_chars\": 6000,\n  \"properties\": {\n    \"section_id\": \"html-business_description-45\",\n    \"source_type\": \"HTML\",\n    \"window_index\": \"0\"\n  },\n  \"bindings\": {\n    \"accession\": \"0000034088-26-000067\",\n    \"form_type\": \"10-K\",\n    \"section_path\": \"0000034088-26-000067/html-business_description-45\",\n    \"cik\": \"0000034088\"\n  }\n}"
+      }
+    },
+    {
+      "data": {
+        "id": "doc-0000034088-26-000067-html-business_description-46",
+        "node_type": "SECTION",
+        "label": "from its divestment activities. This included the sale of the Singapore retail fuels business, Mobil Argentina S.A.,",
+        "demo_role": "path",
+        "section_path": "0000034088-26-000067/html-business_description-46",
+        "display_label": "Item 1.\nBusiness",
+        "materialized_json": "{\n  \"node_id\": \"doc-0000034088-26-000067-html-business_description-46\",\n  \"node_type\": \"SECTION\",\n  \"label\": \"Item 1. Business\",\n  \"section_path\": \"0000034088-26-000067/html-business_description-46\",\n  \"child_node_count\": 2,\n  \"properties\": {\n    \"level\": \"1\",\n    \"section_id\": \"html-business_description-46\",\n    \"source_type\": \"HTML\",\n    \"narrative_kind\": \"business_description\",\n    \"item_number\": \"1\"\n  },\n  \"bindings\": {\n    \"accession\": \"0000034088-26-000067\",\n    \"form_type\": \"10-K\",\n    \"section_path\": \"0000034088-26-000067/html-business_description-46\",\n    \"cik\": \"0000034088\"\n  }\n}"
+      }
+    },
+    {
+      "data": {
+        "id": "doc-0000034088-26-000067-html-business_description-46-body",
+        "node_type": "CHUNK_PARAGRAPH",
+        "label": "from its divestment activities. This included the sale of the Singapore retail f",
+        "demo_role": "path",
+        "display_label": "Paragraph\nchunk",
+        "prop_text": "from its divestment activities. This included the sale of the Singapore retail fuels business, Mobil Argentina S.A., Pro…",
+        "prop_sec_source": "HTML",
+        "materialized_json": "{\n  \"node_id\": \"doc-0000034088-26-000067-html-business_description-46-body\",\n  \"node_type\": \"CHUNK_PARAGRAPH\",\n  \"label\": \"from its divestment activities. This included the sale of the Singapore retail f\",\n  \"source_ref\": \"from its divestment activities. This included the sale of the Singapore retail fuels business, Mobil Argentina S.A., Product Solutions affiliates in France, certain conventional and unconventional assets in the United States, and other smaller divestments. 15 Table of Contents ITEM 2. MANAGEMENT'S DISCUSSION AND ANALYSIS OF FINANCIAL CONDITION AND RESULTS OF OPERATIONS Due to rounding, numbers presented may not add up precisely to the totals indicated. FORWARD-LOOKING STATEMENTS Statements related to future events; projections; descriptions of strategic, operating, and financial plans and objectives; statements of future ambitions and plans; future earnings power; potential addressable markets; and other statements of future events or conditions are forward-looking statements. Similarly, discussion of future plans related to carbon capture, transportation and storage, lower-emission fuels, hydrogen and ammonia, direct air capture, Proxxima TM systems, carbon materials, lithium, low-carbon data centers, and other future plans to reduce emissions and emission intensity of ExxonMobil, its affiliates, and third parties are dependent on future market factors, such as continued technolog\\u2026\",\n  \"source_ref_truncated\": true,\n  \"source_ref_total_chars\": 6000,\n  \"properties\": {\n    \"section_id\": \"html-business_description-46\",\n    \"source_type\": \"HTML\",\n    \"window_index\": \"0\"\n  },\n  \"bindings\": {\n    \"accession\": \"0000034088-26-000067\",\n    \"form_type\": \"10-K\",\n    \"section_path\": \"0000034088-26-000067/html-business_description-46\",\n    \"cik\": \"0000034088\"\n  }\n}"
+      }
+    },
+    {
+      "data": {
+        "id": "doc-0000034088-26-000067-html-md_and_a-4",
+        "node_type": "SECTION",
+        "label": "Item 2. Management's Discussion and Analysis of Financial Condition and Results of Operations",
+        "demo_role": "path",
+        "section_path": "0000034088-26-000067/html-md_and_a-4",
+        "display_label": "Item 7.\nManagement's Dis…",
+        "materialized_json": "{\n  \"node_id\": \"doc-0000034088-26-000067-html-md_and_a-4\",\n  \"node_type\": \"SECTION\",\n  \"label\": \"Item 7. Management's Discussion and Analysis\",\n  \"section_path\": \"0000034088-26-000067/html-md_and_a-4\",\n  \"child_node_count\": 2,\n  \"properties\": {\n    \"level\": \"1\",\n    \"section_id\": \"html-md_and_a-4\",\n    \"source_type\": \"HTML\",\n    \"narrative_kind\": \"md_and_a\",\n    \"item_number\": \"7\"\n  },\n  \"bindings\": {\n    \"accession\": \"0000034088-26-000067\",\n    \"form_type\": \"10-K\",\n    \"section_path\": \"0000034088-26-000067/html-md_and_a-4\",\n    \"cik\": \"0000034088\"\n  }\n}"
+      }
+    },
+    {
+      "data": {
+        "id": "doc-0000034088-26-000067-html-risk_factors-59",
+        "node_type": "SECTION",
+        "label": "ability to bring new technologies to commercial scale on a cost-competitive basis; and other factors discussed under \"Item 1A.",
+        "demo_role": "path",
+        "section_path": "0000034088-26-000067/html-risk_factors-59",
+        "display_label": "Item 1A.\nRisk Factors",
+        "materialized_json": "{\n  \"node_id\": \"doc-0000034088-26-000067-html-risk_factors-59\",\n  \"node_type\": \"SECTION\",\n  \"label\": \"Item 1A. Risk Factors\",\n  \"section_path\": \"0000034088-26-000067/html-risk_factors-59\",\n  \"child_node_count\": 2,\n  \"properties\": {\n    \"level\": \"1\",\n    \"section_id\": \"html-risk_factors-59\",\n    \"source_type\": \"HTML\",\n    \"narrative_kind\": \"risk_factors\",\n    \"item_number\": \"1A\"\n  },\n  \"bindings\": {\n    \"accession\": \"0000034088-26-000067\",\n    \"form_type\": \"10-K\",\n    \"section_path\": \"0000034088-26-000067/html-risk_factors-59\",\n    \"cik\": \"0000034088\"\n  }\n}"
+      }
+    },
+    {
+      "data": {
+        "id": "doc-0000034088-26-000067-html-risk_factors-59-body",
+        "node_type": "CHUNK_PARAGRAPH",
+        "label": "ability to bring new technologies to commercial scale on a cost-competitive basi",
+        "demo_role": "path",
+        "display_label": "Paragraph\nchunk",
+        "prop_text": "ability to bring new technologies to commercial scale on a cost-competitive basis; and other factors discussed under \"It…",
+        "prop_sec_source": "HTML",
+        "materialized_json": "{\n  \"node_id\": \"doc-0000034088-26-000067-html-risk_factors-59-body\",\n  \"node_type\": \"CHUNK_PARAGRAPH\",\n  \"label\": \"ability to bring new technologies to commercial scale on a cost-competitive basi\",\n  \"source_ref\": \"ability to bring new technologies to commercial scale on a cost-competitive basis; and other factors discussed under \\\"Item 1A. Risk Factors\\\" of ExxonMobil\\u2019s 2025 Form 10-K. Forward-looking and other statements regarding environmental and other sustainability efforts and aspirations are not an indication that these statements are material to investors or require disclosure in our filing with the SEC or any other regulatory authority. In addition, historical, current, and forward-looking environmental and other sustainability-related statements may be based on standards for measuring progress that are still developing, internal controls and processes that continue to evolve, and assumptions that are subject to change in the future, including future rule-making. Actions needed to advance ExxonMobil\\u2019s 2030 greenhouse gas emission-reductions plans are incorporated into its medium term business plans, which are updated annually. The reference case for planning beyond 2030 is based on ExxonMobil\\u2019s Global Outlook (Outlook) research and publication. The Outlook is reflective of the existing global policy environment and an assumption of increasing policy stringency and technology improvemen\\u2026\",\n  \"source_ref_truncated\": true,\n  \"source_ref_total_chars\": 6000,\n  \"properties\": {\n    \"section_id\": \"html-risk_factors-59\",\n    \"source_type\": \"HTML\",\n    \"window_index\": \"0\"\n  },\n  \"bindings\": {\n    \"accession\": \"0000034088-26-000067\",\n    \"form_type\": \"10-K\",\n    \"section_path\": \"0000034088-26-000067/html-risk_factors-59\",\n    \"cik\": \"0000034088\"\n  }\n}"
+      }
+    },
+    {
+      "data": {
+        "id": "doc-0000034088-26-000067-xbrl-facts",
+        "node_type": "SECTION",
+        "label": "XBRL Financial Facts",
+        "demo_role": "context",
+        "section_path": "0000034088-26-000067/xbrl-facts",
+        "display_label": "xbrl-facts",
+        "materialized_json": "{\n  \"node_id\": \"doc-0000034088-26-000067-xbrl-facts\",\n  \"node_type\": \"SECTION\",\n  \"label\": \"XBRL Financial Facts\",\n  \"section_path\": \"0000034088-26-000067/xbrl-facts\",\n  \"child_node_count\": 284,\n  \"properties\": {\n    \"level\": \"0\",\n    \"section_id\": \"xbrl-facts\",\n    \"source_type\": \"XBRL\",\n    \"narrative_kind\": \"xbrl_bucket\",\n    \"xbrl\": \"True\"\n  },\n  \"bindings\": {\n    \"accession\": \"0000034088-26-000067\",\n    \"form_type\": \"10-K\",\n    \"section_path\": \"0000034088-26-000067/xbrl-facts\",\n    \"cik\": \"0000034088\"\n  }\n}"
       }
     }
   ],
   "edges": [
     {
       "data": {
-        "source": "doc-0000320193-24-000123",
-        "target": "0000320193-24-000123/Item7",
+        "source": "doc-0000018230-26-000021",
+        "target": "doc-0000018230-26-000021-html-risk_factors-1",
         "edge_type": "CONTAINS",
         "label": "CONTAINS",
-        "edge_id": "e1",
-        "id": "doc-0000320193-24-000123-0000320193-24-000123/Item7-0"
+        "edge_id": "e-17",
+        "id": "doc-0000018230-26-000021-doc-0000018230-26-000021-html-risk_factors-1-0"
       }
     },
     {
       "data": {
-        "source": "doc-0000320193-24-000123",
-        "target": "0000320193-24-000123/Item1A",
+        "source": "doc-0000018230-26-000021",
+        "target": "doc-0000018230-26-000021-html-md_and_a-2",
         "edge_type": "CONTAINS",
         "label": "CONTAINS",
-        "edge_id": "e2",
-        "id": "doc-0000320193-24-000123-0000320193-24-000123/Item1A-1"
+        "edge_id": "e-28",
+        "id": "doc-0000018230-26-000021-doc-0000018230-26-000021-html-md_and_a-2-1"
       }
     },
     {
       "data": {
-        "source": "doc-0000320193-24-000123",
-        "target": "doc-0000320193-24-000076",
+        "source": "doc-0000018230-26-000021-html-risk_factors-1",
+        "target": "doc-0000018230-26-000021-html-risk_factors-1-body-7",
+        "edge_type": "CONTAINS",
+        "label": "CONTAINS",
+        "edge_id": "e-26",
+        "id": "doc-0000018230-26-000021-html-risk_factors-1-doc-0000018230-26-000021-html-risk_factors-1-body-7-2"
+      }
+    },
+    {
+      "data": {
+        "source": "doc-0000034088-26-000045",
+        "target": "doc-0000034088-26-000067",
         "edge_type": "TEMPORAL_TRANSITION",
         "label": "TEMPORAL_TRANSITION",
-        "edge_id": "e10",
-        "id": "doc-0000320193-24-000123-doc-0000320193-24-000076-2"
+        "edge_id": "e-6851",
+        "id": "doc-0000034088-26-000045-doc-0000034088-26-000067-3"
       }
     },
     {
       "data": {
-        "source": "doc-0000320193-24-000076",
-        "target": "0000320193-24-000076/Item7",
+        "source": "doc-0000034088-26-000067",
+        "target": "doc-0000034088-26-000067-html-md_and_a-4",
         "edge_type": "CONTAINS",
         "label": "CONTAINS",
-        "edge_id": "e3",
-        "id": "doc-0000320193-24-000076-0000320193-24-000076/Item7-3"
+        "edge_id": "e-19",
+        "id": "doc-0000034088-26-000067-doc-0000034088-26-000067-html-md_and_a-4-4"
       }
     },
     {
       "data": {
-        "source": "0000320193-24-000123/Item7",
-        "target": "chunk-xbrl-net-sales-fy2024",
+        "source": "doc-0000034088-26-000067",
+        "target": "doc-0000034088-26-000067-html-business_description-45",
         "edge_type": "CONTAINS",
         "label": "CONTAINS",
-        "edge_id": "e4",
-        "id": "0000320193-24-000123/Item7-chunk-xbrl-net-sales-fy2024-4"
+        "edge_id": "e-183",
+        "id": "doc-0000034088-26-000067-doc-0000034088-26-000067-html-business_description-45-5"
       }
     },
     {
       "data": {
-        "source": "0000320193-24-000123/Item7",
-        "target": "chunk-item7-p1",
+        "source": "doc-0000034088-26-000067",
+        "target": "doc-0000034088-26-000067-html-business_description-46",
         "edge_type": "CONTAINS",
         "label": "CONTAINS",
-        "edge_id": "e5",
-        "id": "0000320193-24-000123/Item7-chunk-item7-p1-5"
+        "edge_id": "e-187",
+        "id": "doc-0000034088-26-000067-doc-0000034088-26-000067-html-business_description-46-6"
       }
     },
     {
       "data": {
-        "source": "0000320193-24-000123/Item1A",
-        "target": "chunk-item1a-p1",
+        "source": "doc-0000034088-26-000067",
+        "target": "doc-0000034088-26-000067-html-risk_factors-59",
         "edge_type": "CONTAINS",
         "label": "CONTAINS",
-        "edge_id": "e6",
-        "id": "0000320193-24-000123/Item1A-chunk-item1a-p1-6"
+        "edge_id": "e-239",
+        "id": "doc-0000034088-26-000067-doc-0000034088-26-000067-html-risk_factors-59-7"
       }
     },
     {
       "data": {
-        "source": "0000320193-24-000076/Item7",
-        "target": "chunk-item7-old-p1",
+        "source": "doc-0000034088-26-000067",
+        "target": "doc-0000034088-26-000067-xbrl-facts",
         "edge_type": "CONTAINS",
         "label": "CONTAINS",
-        "edge_id": "e7",
-        "id": "0000320193-24-000076/Item7-chunk-item7-old-p1-7"
+        "edge_id": "e-375",
+        "id": "doc-0000034088-26-000067-doc-0000034088-26-000067-xbrl-facts-8"
       }
     },
     {
       "data": {
-        "source": "chunk-xbrl-net-sales-fy2024",
-        "target": "chunk-item7-p1",
-        "edge_type": "NEXT",
-        "label": "NEXT",
-        "edge_id": "e8",
-        "id": "chunk-xbrl-net-sales-fy2024-chunk-item7-p1-8"
+        "source": "doc-0000034088-26-000067-html-business_description-45",
+        "target": "doc-0000034088-26-000067-html-business_description-45-body",
+        "edge_type": "CONTAINS",
+        "label": "CONTAINS",
+        "edge_id": "e-185",
+        "id": "doc-0000034088-26-000067-html-business_description-45-doc-0000034088-26-000067-html-business_description-45-body-9"
       }
     },
     {
       "data": {
-        "source": "chunk-item7-old-p1",
-        "target": "chunk-item7-p1",
-        "edge_type": "REFERENCES",
-        "label": "REFERENCES",
-        "edge_id": "e9",
-        "id": "chunk-item7-old-p1-chunk-item7-p1-9"
+        "source": "doc-0000034088-26-000067-html-business_description-46",
+        "target": "doc-0000034088-26-000067-html-business_description-46-body",
+        "edge_type": "CONTAINS",
+        "label": "CONTAINS",
+        "edge_id": "e-189",
+        "id": "doc-0000034088-26-000067-html-business_description-46-doc-0000034088-26-000067-html-business_description-46-body-10"
+      }
+    },
+    {
+      "data": {
+        "source": "doc-0000034088-26-000067-html-risk_factors-59",
+        "target": "doc-0000034088-26-000067-html-risk_factors-59-body",
+        "edge_type": "CONTAINS",
+        "label": "CONTAINS",
+        "edge_id": "e-241",
+        "id": "doc-0000034088-26-000067-html-risk_factors-59-doc-0000034088-26-000067-html-risk_factors-59-body-11"
       }
     }
   ]
 };
+    const investigationScenarios = [
+  {
+    "scenario_id": "v2-financebench-0594",
+    "question_type_tag": "domain-relevant",
+    "expected_answer": "1.1",
+    "expected_rubric": null,
+    "expected_bindings": {
+      "accessions": [
+        "0000034088-26-000067"
+      ],
+      "fiscal_periods": [
+        "2025-FY"
+      ]
+    },
+    "multi_filing_required": false,
+    "validation_status": "accepted",
+    "inspiration_profile": "financebench",
+    "question": "What were the total proceeds, in billions of U.S. dollars, from ExxonMobil's divestment activities, which included the sale of its Singapore retail fuels business and Mobil Argentina S.A., as reported in their 2025 annual filing?",
+    "expected_section_paths": [
+      "0000034088-26-000067/ITEM 7. MANAGEMENT'S DISCUSSION"
+    ],
+    "visited_section_paths": [
+      "0000034088-26-000067/ITEM 7. MANAGEMENT'S DISCUSSION"
+    ],
+    "cited_chunk_node_ids": [
+      "doc-0000034088-26-000067-html-business_description-45-body",
+      "doc-0000034088-26-000067-html-business_description-46-body"
+    ],
+    "synthesis_path": "numeric_xbrl_deterministic",
+    "suggested_failure_class": null,
+    "binding_miss": false,
+    "highlight_nodes": [
+      "doc-0000034088-26-000067",
+      "doc-0000034088-26-000067-html-business_description-45",
+      "doc-0000034088-26-000067-html-business_description-45-body",
+      "doc-0000034088-26-000067-html-business_description-46",
+      "doc-0000034088-26-000067-html-business_description-46-body",
+      "doc-0000034088-26-000067-html-md_and_a-4"
+    ],
+    "visited_nodes": [
+      "doc-0000034088-26-000067",
+      "doc-0000034088-26-000067-html-business_description-45",
+      "doc-0000034088-26-000067-html-business_description-45-body",
+      "doc-0000034088-26-000067-html-business_description-46",
+      "doc-0000034088-26-000067-html-business_description-46-body",
+      "doc-0000034088-26-000067-html-md_and_a-4"
+    ],
+    "cited_nodes": [
+      "doc-0000034088-26-000067-html-business_description-45-body",
+      "doc-0000034088-26-000067-html-business_description-46-body"
+    ],
+    "context_nodes": [
+      "doc-0000034088-26-000067-html-risk_factors-59"
+    ],
+    "missing_nodes": [],
+    "edgar_links": [
+      {
+        "accession": "0000034088-26-000067",
+        "form_type": "10-K",
+        "url": "https://www.sec.gov/Archives/edgar/data/34088/000003408826000067/0000034088-26-000067-index.htm"
+      }
+    ]
+  },
+  {
+    "scenario_id": "v2-finder-0002",
+    "question_type_tag": "retrieval-qa",
+    "expected_answer": "ExxonMobil's $1.1 billion from divestment activities included the sale of the Singapore retail fuels business and Mobil Argentina S.A.",
+    "expected_rubric": "A correct answer must identify both the sale of the Singapore retail fuels business and Mobil Argentina S.A. as part of the divestment activities. Partial credit may be awarded for identifying only one of the two entities.",
+    "expected_bindings": {
+      "accessions": [
+        "0000034088-26-000067"
+      ],
+      "fiscal_periods": [
+        "FY2025"
+      ]
+    },
+    "multi_filing_required": false,
+    "validation_status": "accepted",
+    "inspiration_profile": "finder",
+    "question": "According to its 2025 annual report, what specific business sales were part of ExxonMobil's $1.1 billion in divestment activities?",
+    "expected_section_paths": [
+      "0000034088-26-000067/ITEM 7. MANAGEMENT'S DISCUSSION"
+    ],
+    "visited_section_paths": [
+      "0000034088-26-000067/ITEM 7. MANAGEMENT'S DISCUSSION"
+    ],
+    "cited_chunk_node_ids": [
+      "doc-0000034088-26-000067-html-business_description-45-body",
+      "doc-0000034088-26-000067-html-business_description-46-body"
+    ],
+    "synthesis_path": "live_llm",
+    "suggested_failure_class": null,
+    "binding_miss": false,
+    "highlight_nodes": [
+      "doc-0000034088-26-000067",
+      "doc-0000034088-26-000067-html-business_description-45",
+      "doc-0000034088-26-000067-html-business_description-45-body",
+      "doc-0000034088-26-000067-html-business_description-46",
+      "doc-0000034088-26-000067-html-business_description-46-body",
+      "doc-0000034088-26-000067-html-md_and_a-4"
+    ],
+    "visited_nodes": [
+      "doc-0000034088-26-000067",
+      "doc-0000034088-26-000067-html-business_description-45",
+      "doc-0000034088-26-000067-html-business_description-45-body",
+      "doc-0000034088-26-000067-html-business_description-46",
+      "doc-0000034088-26-000067-html-business_description-46-body",
+      "doc-0000034088-26-000067-html-md_and_a-4"
+    ],
+    "cited_nodes": [
+      "doc-0000034088-26-000067-html-business_description-45-body",
+      "doc-0000034088-26-000067-html-business_description-46-body"
+    ],
+    "context_nodes": [
+      "doc-0000034088-26-000067-html-risk_factors-59"
+    ],
+    "missing_nodes": [],
+    "edgar_links": [
+      {
+        "accession": "0000034088-26-000067",
+        "form_type": "10-K",
+        "url": "https://www.sec.gov/Archives/edgar/data/34088/000003408826000067/0000034088-26-000067-index.htm"
+      }
+    ]
+  },
+  {
+    "scenario_id": "v2-finagentbench-0095",
+    "question_type_tag": "cross-filing-comparison",
+    "expected_answer": "Both Caterpillar and Exxon Mobil discuss geopolitical risks in the 'Risk Factors' section.",
+    "expected_rubric": null,
+    "expected_bindings": {
+      "accessions": [
+        "0000018230-26-000021",
+        "0000034088-26-000067"
+      ],
+      "fiscal_periods": []
+    },
+    "multi_filing_required": true,
+    "validation_status": "accepted",
+    "inspiration_profile": "finagentbench",
+    "question": "Compare how Caterpillar and Exxon Mobil discuss risks related to international trade policies and geopolitical conflicts in their recent filings. In which section of their reports do both companies primarily address these concerns?",
+    "expected_section_paths": [
+      "0000018230-26-000021/Item 1A. Risk Factors",
+      "0000034088-26-000067/ITEM 1A. RISK FACTORS"
+    ],
+    "visited_section_paths": [
+      "0000018230-26-000021/Item 1A. Risk Factors",
+      "0000034088-26-000067/ITEM 1A. RISK FACTORS"
+    ],
+    "cited_chunk_node_ids": [
+      "doc-0000018230-26-000021-html-risk_factors-1-body-7",
+      "doc-0000034088-26-000067-html-risk_factors-59-body"
+    ],
+    "synthesis_path": "comparison_narrative_deterministic",
+    "suggested_failure_class": null,
+    "binding_miss": false,
+    "highlight_nodes": [
+      "doc-0000018230-26-000021",
+      "doc-0000018230-26-000021-html-risk_factors-1",
+      "doc-0000018230-26-000021-html-risk_factors-1-body-7",
+      "doc-0000034088-26-000067",
+      "doc-0000034088-26-000067-html-risk_factors-59",
+      "doc-0000034088-26-000067-html-risk_factors-59-body"
+    ],
+    "visited_nodes": [
+      "doc-0000018230-26-000021",
+      "doc-0000018230-26-000021-html-risk_factors-1",
+      "doc-0000018230-26-000021-html-risk_factors-1-body-7",
+      "doc-0000034088-26-000067",
+      "doc-0000034088-26-000067-html-risk_factors-59",
+      "doc-0000034088-26-000067-html-risk_factors-59-body"
+    ],
+    "cited_nodes": [
+      "doc-0000018230-26-000021-html-risk_factors-1-body-7",
+      "doc-0000034088-26-000067-html-risk_factors-59-body"
+    ],
+    "context_nodes": [
+      "doc-0000018230-26-000021-html-md_and_a-2",
+      "doc-0000034088-26-000067-html-md_and_a-4"
+    ],
+    "missing_nodes": [],
+    "edgar_links": [
+      {
+        "accession": "0000018230-26-000021",
+        "form_type": "10-K",
+        "url": "https://www.sec.gov/Archives/edgar/data/18230/000001823026000021/0000018230-26-000021-index.htm"
+      },
+      {
+        "accession": "0000034088-26-000067",
+        "form_type": "10-K",
+        "url": "https://www.sec.gov/Archives/edgar/data/34088/000003408826000067/0000034088-26-000067-index.htm"
+      }
+    ]
+  }
+];
+    const nodeTypeColors = {"DOCUMENT": ["#bfdbfe", "#2563eb"], "SECTION": ["#a5f3fc", "#0891b2"], "CHUNK_XBRL_FACT": ["#bbf7d0", "#16a34a"], "CHUNK_PARAGRAPH": ["#fde68a", "#ca8a04"], "CHUNK_TABLE": ["#ddd6fe", "#7c3aed"], "CHUNK_ROW": ["#fbcfe8", "#db2777"]};
+    const maxExcerptChars = 1200;
     cytoscape.use(cytoscapeDagre);
+
+    const baseNodeStyles = Object.entries(nodeTypeColors).map(([nodeType, colors]) => ({
+      selector: `node[node_type = "${nodeType}"]`,
+      style: {
+        'background-color': colors[0],
+        'border-color': colors[1],
+      },
+    }));
 
     const cy = cytoscape({
       container: document.getElementById('cy'),
       elements: [...graphElements.nodes, ...graphElements.edges],
-      minZoom: 0.4,
+      minZoom: 0.35,
       maxZoom: 2.5,
       wheelSensitivity: 0.2,
       style: [
@@ -309,34 +758,53 @@
             'background-color': '#e2e8f0',
             'border-width': 1.5,
             'border-color': '#64748b',
+            'opacity': 1,
           },
         },
         {
-          selector: 'node[node_type = "DOCUMENT"]',
-          style: { 'background-color': '#bfdbfe', 'border-color': '#2563eb' },
+          selector: 'node[demo_role = "context"]',
+          style: { 'opacity': 0.55, 'border-style': 'dashed' },
         },
         {
-          selector: 'node[node_type = "SECTION"]',
-          style: { 'background-color': '#a5f3fc', 'border-color': '#0891b2' },
+          selector: 'node[demo_role = "temporal"]',
+          style: { 'opacity': 0.85, 'border-style': 'dotted', 'border-color': '#dc2626' },
+        },
+        ...baseNodeStyles,
+        {
+          selector: 'node[node_type = "DOCUMENT"], node[node_type = "SECTION"], node[node_type = "CHUNK_PARAGRAPH"], node[node_type = "CHUNK_XBRL_FACT"], node[node_type = "CHUNK_TABLE"], node[node_type = "CHUNK_ROW"]',
+          style: { 'cursor': 'pointer' },
         },
         {
-          selector: 'node[node_type = "CHUNK_XBRL_FACT"]',
-          style: { 'background-color': '#bbf7d0', 'border-color': '#16a34a' },
+          selector: 'node.overlay-expected',
+          style: { 'opacity': 1, 'border-width': 3, 'border-color': '#16a34a' },
         },
         {
-          selector: 'node[node_type = "CHUNK_PARAGRAPH"][prop_sec_source = "HTML"]',
-          style: { 'background-color': '#e9d5ff', 'border-color': '#9333ea' },
+          selector: 'node.overlay-visited',
+          style: { 'opacity': 1, 'border-width': 2.5, 'border-color': '#2563eb' },
         },
         {
-          selector: 'node[node_type = "CHUNK_PARAGRAPH"][prop_sec_source = "XBRL"]',
-          style: { 'background-color': '#fde68a', 'border-color': '#ca8a04' },
+          selector: 'node.overlay-cited',
+          style: { 'opacity': 1, 'border-width': 3.5, 'border-color': '#ca8a04' },
+        },
+        {
+          selector: 'node.overlay-missing',
+          style: {
+            'opacity': 1,
+            'border-width': 3,
+            'border-color': '#dc2626',
+            'border-style': 'dashed',
+          },
+        },
+        {
+          selector: 'node.node-focused',
+          style: { 'border-width': 4, 'border-color': '#0f172a' },
         },
         {
           selector: 'edge',
           style: {
             'width': 1.5,
-            'line-color': '#64748b',
-            'target-arrow-color': '#64748b',
+            'line-color': '#94a3b8',
+            'target-arrow-color': '#94a3b8',
             'target-arrow-shape': 'triangle',
             'curve-style': 'bezier',
             'label': 'data(label)',
@@ -346,7 +814,12 @@
             'text-background-opacity': 0.85,
             'text-background-padding': '2px',
             'text-rotation': 'autorotate',
+            'opacity': 0.65,
           },
+        },
+        {
+          selector: 'edge.overlay-active',
+          style: { 'opacity': 1, 'line-color': '#64748b', 'target-arrow-color': '#64748b' },
         },
         {
           selector: 'edge[edge_type = "TEMPORAL_TRANSITION"]',
@@ -354,33 +827,273 @@
             'line-color': '#dc2626',
             'target-arrow-color': '#dc2626',
             'line-style': 'dashed',
+            'width': 2.5,
+            'opacity': 1,
           },
-        },
-        {
-          selector: 'node:selected',
-          style: { 'border-width': 3, 'border-color': '#0f172a' },
         },
       ],
       layout: {
         name: 'dagre',
         rankDir: 'TB',
-        nodeSep: 36,
-        rankSep: 52,
-        edgeSep: 12,
-        animate: true,
-        animationDuration: 400,
+        nodeSep: 48,
+        rankSep: 64,
+        edgeSep: 16,
+        animate: false,
       },
     });
 
+    cy.ready(() => {
+      cy.fit(undefined, 48);
+    });
+
+    const detailPanel = document.getElementById('detail-panel');
+    const detailTitle = document.getElementById('detail-title');
+    const detailSubtitle = document.getElementById('detail-subtitle');
+    const detailMaterialized = document.getElementById('detail-materialized');
+    const detailJsonPre = document.getElementById('detail-json-pre');
+    let focusedNode = null;
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function renderDocumentView(payload) {
+      const props = payload.properties || {};
+      const url = payload.edgar_url || '';
+      const propRows = Object.entries(props).map(
+        ([key, value]) => `<dt>${escapeHtml(key)}</dt><dd>${escapeHtml(value)}</dd>`
+      ).join('');
+      const edgarRow = url
+        ? `<dt>EDGAR filing</dt><dd><a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a></dd>`
+        : '';
+      return `
+        <dl>
+          <dt>node_id</dt><dd><code>${escapeHtml(payload.node_id || '')}</code></dd>
+          <dt>node_type</dt><dd><code>${escapeHtml(payload.node_type || '')}</code></dd>
+          <dt>label</dt><dd>${escapeHtml(payload.label || '')}</dd>
+        </dl>
+        <h3 style="font-size:0.78rem;margin:0.75rem 0 0.25rem">properties</h3>
+        <dl>${propRows || '<dd><em>none</em></dd>'}${edgarRow}</dl>`;
+    }
+
+    function renderSectionView(payload) {
+      const props = payload.properties || {};
+      const bindings = payload.bindings || {};
+      const propRows = Object.entries(props).map(
+        ([key, value]) => `<dt>${escapeHtml(key)}</dt><dd>${escapeHtml(value)}</dd>`
+      ).join('');
+      const bindingRows = Object.entries(bindings).map(
+        ([key, value]) => `<dt>${escapeHtml(key)}</dt><dd><code>${escapeHtml(value)}</code></dd>`
+      ).join('');
+      return `
+        <dl>
+          <dt>node_id</dt><dd><code>${escapeHtml(payload.node_id || '')}</code></dd>
+          <dt>node_type</dt><dd><code>${escapeHtml(payload.node_type || '')}</code></dd>
+          <dt>label</dt><dd>${escapeHtml(payload.label || '')}</dd>
+          <dt>section_path</dt><dd><code>${escapeHtml(payload.section_path || '')}</code></dd>
+          <dt>child nodes</dt><dd>${escapeHtml(String(payload.child_node_count ?? ''))} direct CONTAINS children</dd>
+        </dl>
+        <h3 style="font-size:0.78rem;margin:0.75rem 0 0.25rem">properties</h3>
+        <dl>${propRows || '<dd><em>none</em></dd>'}</dl>
+        <h3 style="font-size:0.78rem;margin:0.75rem 0 0.25rem">bindings</h3>
+        <dl>${bindingRows || '<dd><em>none</em></dd>'}</dl>`;
+    }
+
+    function renderMaterializedView(payload) {
+      const props = payload.properties || {};
+      const bindings = payload.bindings || {};
+      const propRows = Object.entries(props).map(
+        ([key, value]) => `<dt>${escapeHtml(key)}</dt><dd>${escapeHtml(value)}</dd>`
+      ).join('');
+      const bindingRows = Object.entries(bindings).map(
+        ([key, value]) => `<dt>${escapeHtml(key)}</dt><dd><code>${escapeHtml(value)}</code></dd>`
+      ).join('');
+      const truncatedNote = payload.source_ref_truncated
+        ? `<p class="detail-note">Excerpt truncated to ${maxExcerptChars} characters (${payload.source_ref_total_chars} in graph).</p>`
+        : '';
+      return `
+        <dl>
+          <dt>node_id</dt><dd><code>${escapeHtml(payload.node_id || '')}</code></dd>
+          <dt>node_type</dt><dd><code>${escapeHtml(payload.node_type || '')}</code></dd>
+          <dt>label</dt><dd>${escapeHtml(payload.label || '')}</dd>
+          <dt>source_ref (excerpt)</dt>
+          <dd><div class="detail-excerpt">${escapeHtml(payload.source_ref || '')}</div>${truncatedNote}</dd>
+        </dl>
+        <h3 style="font-size:0.78rem;margin:0.75rem 0 0.25rem">properties</h3>
+        <dl>${propRows || '<dd><em>none</em></dd>'}</dl>
+        <h3 style="font-size:0.78rem;margin:0.75rem 0 0.25rem">bindings</h3>
+        <dl>${bindingRows || '<dd><em>none</em></dd>'}</dl>`;
+    }
+
+    function parseNodePayload(nodeData) {
+      const raw = nodeData.materialized_json;
+      if (raw) {
+        try {
+          return { payload: JSON.parse(raw), raw };
+        } catch (err) {
+          return {
+            payload: { node_id: nodeData.id, parse_error: String(err), raw },
+            raw,
+          };
+        }
+      }
+      if (nodeData.node_type === 'DOCUMENT') {
+        const payload = {
+          node_id: nodeData.id,
+          node_type: 'DOCUMENT',
+          label: nodeData.label,
+          properties: {
+            accession: nodeData.accession,
+            form_type: nodeData.form_type,
+            period_end: nodeData.period_end,
+          },
+          edgar_url: nodeData.edgar_url,
+        };
+        return { payload, raw: JSON.stringify(payload, null, 2) };
+      }
+      return { payload: { node_id: nodeData.id }, raw: '{}' };
+    }
+
+    function showDetailPanel(nodeData) {
+      const { payload, raw } = parseNodePayload(nodeData);
+      detailTitle.textContent = nodeData.display_label || nodeData.label || nodeData.id;
+      detailSubtitle.textContent = nodeData.node_type || '';
+      if (payload.node_type === 'DOCUMENT') {
+        detailMaterialized.innerHTML = renderDocumentView(payload);
+      } else if (payload.node_type === 'SECTION') {
+        detailMaterialized.innerHTML = renderSectionView(payload);
+      } else {
+        detailMaterialized.innerHTML = renderMaterializedView(payload);
+      }
+      detailJsonPre.textContent = raw;
+      detailPanel.classList.add('open');
+      document.querySelectorAll('.detail-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.tab === 'materialized');
+      });
+      document.getElementById('detail-materialized').classList.remove('hidden');
+      document.getElementById('detail-json').classList.add('hidden');
+    }
+
+    function closeDetailPanel() {
+      detailPanel.classList.remove('open');
+      if (focusedNode) {
+        focusedNode.removeClass('node-focused');
+        focusedNode = null;
+      }
+    }
+
+    document.getElementById('detail-close').onclick = closeDetailPanel;
+    document.querySelectorAll('.detail-tab').forEach(tab => {
+      tab.onclick = () => {
+        document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const name = tab.dataset.tab;
+        document.getElementById('detail-materialized').classList.toggle('hidden', name !== 'materialized');
+        document.getElementById('detail-json').classList.toggle('hidden', name !== 'json');
+      };
+    });
+
+    function renderExpectedAnswer(scenario) {
+      if (scenario.expected_answer != null && scenario.expected_answer !== '') {
+        return `<dt>Expected answer</dt><dd><code>${escapeHtml(scenario.expected_answer)}</code></dd>`;
+      }
+      if (scenario.expected_rubric) {
+        return `<dt>Expected answer (rubric)</dt><dd>${escapeHtml(scenario.expected_rubric)}</dd>`;
+      }
+      return `<dt>Expected answer</dt><dd><em>not specified</em></dd>`;
+    }
+
+    function renderBindings(bindings) {
+      if (!bindings || !Object.keys(bindings).length) {
+        return '<dd><em>none</em></dd>';
+      }
+      return Object.entries(bindings).map(
+        ([key, value]) => `<dt>${escapeHtml(key)}</dt><dd><code>${escapeHtml(
+          Array.isArray(value) ? value.join(', ') : value
+        )}</code></dd>`
+      ).join('');
+    }
+
+    function renderPanel(scenario) {
+      const panel = document.getElementById('investigation-panel');
+      const failure = scenario.suggested_failure_class
+        ? `<dt>Failure class</dt><dd><code>${scenario.suggested_failure_class}</code></dd>`
+        : '';
+      const detail = scenario.suggested_failure_detail
+        ? `<dt>Detail</dt><dd>${scenario.suggested_failure_detail}</dd>` : '';
+      panel.innerHTML = `
+        <h2><code>${escapeHtml(scenario.scenario_id)}</code></h2>
+        <dl>
+          <dt>Profile</dt><dd>${escapeHtml(scenario.inspiration_profile || '')}</dd>
+          <dt>Question type</dt><dd><code>${escapeHtml(scenario.question_type_tag || '')}</code></dd>
+          <dt>Question</dt><dd>${escapeHtml(scenario.question || '')}</dd>
+          ${renderExpectedAnswer(scenario)}
+          <dt>Expected sections</dt><dd>${(scenario.expected_section_paths || []).map(p => `<code>${escapeHtml(p)}</code>`).join('<br>') || '<em>none</em>'}</dd>
+          <dt>Expected bindings</dt>
+          ${renderBindings(scenario.expected_bindings)}
+        </dl>
+        <h3 style="font-size:0.78rem;margin:0.85rem 0 0.35rem">Demo trace</h3>
+        <dl>
+          <dt>Synthesis path</dt><dd><code>${escapeHtml(scenario.synthesis_path || 'unknown')}</code></dd>
+          <dt>Binding miss</dt><dd>${scenario.binding_miss ? 'yes' : 'no'}</dd>
+          ${failure}${detail}
+          <dt>Visited sections</dt><dd>${(scenario.visited_section_paths || []).map(p => `<code>${escapeHtml(p)}</code>`).join('<br>') || '<em>none</em>'}</dd>
+        </dl>`;
+    }
+
+    function applyScenario(scenario) {
+      cy.nodes().removeClass(
+        'overlay-expected overlay-visited overlay-cited overlay-missing'
+      );
+      cy.edges().removeClass('overlay-active');
+
+      (scenario.highlight_nodes || []).forEach(id => cy.getElementById(id).addClass('overlay-expected'));
+      (scenario.visited_nodes || []).forEach(id => cy.getElementById(id).addClass('overlay-visited'));
+      (scenario.cited_nodes || []).forEach(id => cy.getElementById(id).addClass('overlay-cited'));
+      (scenario.missing_nodes || []).forEach(id => cy.getElementById(id).addClass('overlay-missing'));
+      cy.edges().forEach(edge => {
+        const src = edge.source().id();
+        const tgt = edge.target().id();
+        const active = (scenario.visited_nodes || []).includes(src)
+          && (scenario.visited_nodes || []).includes(tgt);
+        if (active) edge.addClass('overlay-active');
+      });
+      renderPanel(scenario);
+    }
+
+    const btnWrap = document.getElementById('scenario-buttons');
+    investigationScenarios.forEach((scenario, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'scenario-btn' + (idx === 0 ? ' active' : '');
+      btn.textContent = scenario.scenario_id;
+      btn.onclick = () => {
+        document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        applyScenario(scenario);
+      };
+      btnWrap.appendChild(btn);
+    });
+    applyScenario(investigationScenarios[0]);
+
     const tooltip = document.getElementById('tooltip');
+    const clickableTypes = new Set([
+      'DOCUMENT', 'SECTION', 'CHUNK_PARAGRAPH', 'CHUNK_XBRL_FACT', 'CHUNK_TABLE', 'CHUNK_ROW',
+    ]);
+
     cy.on('mouseover', 'node', (evt) => {
       const d = evt.target.data();
+      const clickHint = clickableTypes.has(d.node_type) ? 'Click for node detail' : null;
       const lines = [
-        `<strong>${d.label || d.id}</strong>`,
+        `<strong>${d.display_label || d.label || d.id}</strong>`,
         d.node_type ? `Type: ${d.node_type}` : null,
-        d.prop_text ? d.prop_text : null,
+        d.section_path ? `Path: ${d.section_path}` : null,
+        d.prop_text ? (d.prop_text.length > 120 ? d.prop_text.slice(0, 120) + '…' : d.prop_text) : null,
         d.prop_xbrl_concept ? `Concept: ${d.prop_xbrl_concept}` : null,
-        d.eval_profiles ? `Eval: ${d.eval_profiles}` : null,
+        clickHint,
       ].filter(Boolean);
       tooltip.innerHTML = lines.join('<br>');
       tooltip.style.display = 'block';
@@ -389,6 +1102,23 @@
     cy.on('mousemove', (evt) => {
       tooltip.style.left = (evt.originalEvent.pageX + 12) + 'px';
       tooltip.style.top = (evt.originalEvent.pageY + 12) + 'px';
+    });
+
+    cy.on('tap', 'node', (evt) => {
+      const node = evt.target;
+      const d = node.data();
+      if (focusedNode) focusedNode.removeClass('node-focused');
+      if (clickableTypes.has(d.node_type)) {
+        focusedNode = node;
+        node.addClass('node-focused');
+        showDetailPanel(d);
+        return;
+      }
+      closeDetailPanel();
+    });
+
+    cy.on('tap', (evt) => {
+      if (evt.target === cy) closeDetailPanel();
     });
   </script>
 </body>

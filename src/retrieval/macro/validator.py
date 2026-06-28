@@ -15,8 +15,15 @@ from retrieval.macro.models import (
 from retrieval.macro.pairing import (
     detect_quarterly_metric_cue,
     materialize_proposal_filings,
+    pair_period_labels,
     pair_qoq,
     pair_yoy,
+)
+from retrieval.skills.temporal_scope import (
+    TemporalScopeIntent,
+    align_filings_to_intent,
+    filing_satisfies_temporal_intent,
+    resolve_filings_to_intent,
 )
 from retrieval.temporal import fiscal_period_label
 
@@ -108,6 +115,7 @@ def validate_macro_binding(
     *,
     cli_bound: list[FilingRef] | None = None,
     query: str = "",
+    temporal_intent: TemporalScopeIntent | None = None,
 ) -> BindingValidationResult:
     manifest_refs = list(snapshot.manifest.filing_refs or [])
     if not manifest_refs:
@@ -134,13 +142,41 @@ def validate_macro_binding(
                     [MisalignmentCode.CLI_NL_CONFLICT.value],
                     f"CLI-bound accessions {sorted(cli_acc)} conflict with proposal {sorted(prop_acc)}.",
                 )
+        bound = list(cli_bound)
+        narrowed_from: list[str] = []
+        if temporal_intent is not None:
+            bound, narrowed_from = resolve_filings_to_intent(bound, snapshot, temporal_intent)
+            fy_end = infer_fiscal_year_end_month(manifest_refs)
+            if temporal_intent.target_fiscal_year and temporal_intent.form_preference == "10-K":
+                if not bound or not all(
+                    filing_satisfies_temporal_intent(r, temporal_intent, fiscal_year_end_month=fy_end)
+                    for r in bound
+                ):
+                    return _failure(
+                        [MisalignmentCode.TEMPORAL_MISMATCH.value],
+                        (
+                            f"No filing in corpus satisfies calendar/FY target "
+                            f"{temporal_intent.target_fiscal_year} ({', '.join(temporal_intent.period_labels)})."
+                        ),
+                        comparison_mode=proposal.comparison_mode or ComparisonMode.YOY,
+                    )
         mode = proposal.comparison_mode or ComparisonMode.YOY
+        status = ValidationStatus.NARROWED if narrowed_from else ValidationStatus.APPROVED
         return BindingValidationResult(
-            status=ValidationStatus.APPROVED,
-            approved_accessions=sorted(cli_acc),
-            comparison_mode=mode if len(cli_bound) >= 2 else ComparisonMode.YOY,
+            status=status,
+            approved_accessions=[r.accession for r in bound],
+            comparison_mode=mode if len(bound) >= 2 else ComparisonMode.YOY,
             failure_codes=[],
-            rationale="CLI pre-bound filing set validated against manifest.",
+            rationale=(
+                "CLI pre-bound filing set validated against manifest."
+                + (
+                    f" Temporal align: {temporal_intent.rationale}"
+                    if temporal_intent and temporal_intent.rationale
+                    else ""
+                )
+                + (f" Rebound from {narrowed_from}." if narrowed_from else "")
+            ),
+            narrowed_from=narrowed_from,
         )
 
     if not proposal.intent_summary and not proposal.anchor and not proposal.proposed_accessions:
@@ -262,6 +298,9 @@ def validate_macro_binding(
         )
         if narrowed:
             return narrowed
+
+    if temporal_intent is not None and materialized:
+        materialized, _ = resolve_filings_to_intent(materialized, snapshot, temporal_intent)
 
     if len(materialized) == 1:
         cmp_mode = ComparisonMode.SEQUENTIAL

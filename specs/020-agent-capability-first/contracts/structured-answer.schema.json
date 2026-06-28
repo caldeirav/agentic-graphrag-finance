@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "StructuredAnswerPayload",
+  "type": "object",
+  "required": [
+    "metric_label",
+    "value",
+    "citation_chunk_ids",
+    "confidence",
+    "abstain"
+  ],
+  "properties": {
+    "metric_label": { "type": "string", "minLength": 1 },
+    "value": { "type": "string", "minLength": 1 },
+    "unit": { "type": "string" },
+    "fiscal_period": { "type": "string" },
+    "concept": { "type": "string" },
+    "citation_chunk_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 0
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low"]
+    },
+    "abstain": { "type": "boolean" },
+    "abstain_reason": { "type": "string" }
+  },
+  "additionalProperties": false
+}
